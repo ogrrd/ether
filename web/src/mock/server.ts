@@ -2995,6 +2995,8 @@ export function createFakeServer(opts: FakeOptions = {}) {
         if (!state.config.plex.token) state.config.plex.token = "••••";
         if (!state.config.plex.ownerUsername) state.config.plex.ownerUsername = "Braedon";
         return json({ ok: true });
+      case "POST /plex/friends/sync":
+        return json({ ok: true });
       case "POST /auth/pin":
         return json({ handle: "h1", code: "ABCD", authUrl: "https://app.plex.tv/auth#?code=ABCD" });
       case "POST /auth/session":

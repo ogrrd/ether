@@ -224,3 +224,29 @@ it("clears a legacy away default for one media while preserving the other", asyn
   expect(fake.state.config.quality.remoteMovie).toBe("");
   expect(fake.state.config.quality.remoteTv).toBe("1080p");
 });
+
+it("settles dangling client rules when saving a profile", async () => {
+  const { fake } = renderApp("/quality/profiles", {}, (server) => {
+    server.state.config.quality.default = "Gone";
+    server.state.config.quality.rules = [
+      { product: "Plex for Apple TV", profile: "4K" },
+      { product: "Roku", profile: "TRaSH UHD", maxHeight: 1080 },
+      { platform: "iOS", mediaType: "movie", profile: "TRaSH Remux" },
+      { userId: 7, mediaType: "tv", profile: "TRaSH WEB" },
+    ];
+  });
+  fireEvent.click(await screen.findByRole("button", { name: "Edit 4K" }, { timeout: 10000 }));
+  const drawer = await screen.findByRole("dialog", { name: "4K" });
+  fireEvent.click(within(drawer).getByRole("button", { name: "Save profile" }));
+  await waitFor(() => expect(calls(fake, "PUT", "/config/quality")).toHaveLength(1));
+  expect(fake.state.config.quality.default).toBe("");
+  // Mock fixture has movie [4K, 1080p] and tv [1080p], so a media-neutral
+  // dangling rule splits across each media's fallback profile.
+  expect(fake.state.config.quality.rules).toEqual([
+    { product: "Plex for Apple TV", profile: "4K" },
+    { product: "Roku", mediaType: "movie", profile: "4K", maxHeight: 1080 },
+    { product: "Roku", mediaType: "tv", profile: "1080p", maxHeight: 1080 },
+    { platform: "iOS", mediaType: "movie", profile: "4K" },
+    { userId: 7, mediaType: "tv", profile: "1080p" },
+  ]);
+});

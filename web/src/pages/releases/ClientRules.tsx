@@ -38,7 +38,7 @@ import {
   type Errors,
 } from "../sources/form";
 import { searchSelectLabels } from "../../i18n/appkit-labels";
-import { useQuality } from "./useQuality";
+import { settleQualityRules, useQuality } from "./useQuality";
 
 const DEVICES = [
   "Plex for Apple TV",
@@ -139,18 +139,19 @@ export function ClientRulesTab() {
     const { index, draft } = editing;
     const list =
       index < rules.length ? rules.map((r, j) => (j === index ? draft : r)) : [...rules, draft];
+    const { rules: settled, keptAt } = settleQualityRules({ ...quality, rules: list }, index);
     setSaving(true);
     setError(null);
     setErrors({});
     try {
       await commit(
-        { ...quality, rules: list },
+        { ...quality, rules: settled },
         index < rules.length ? t("Rule saved") : t("Rule added"),
       );
       setEditing(null);
     } catch (e) {
       setError(e);
-      setErrors(recordErrors(e, `quality.rules[${index}].`));
+      setErrors(recordErrors(e, `quality.rules[${keptAt}].`));
     } finally {
       setSaving(false);
     }
@@ -169,7 +170,9 @@ export function ClientRulesTab() {
     setSaving(true);
     setError(null);
     try {
-      await commit({ ...quality, rules: rules.filter((_, j) => j !== index) }, t("Rule removed"));
+      const remaining = rules.filter((_, j) => j !== index);
+      const { rules: settled } = settleQualityRules({ ...quality, rules: remaining });
+      await commit({ ...quality, rules: settled }, t("Rule removed"));
       setEditing(null);
     } catch (e) {
       setError(e);
@@ -181,7 +184,9 @@ export function ClientRulesTab() {
   async function move(i: number, d: -1 | 1) {
     if (!quality) return;
     try {
-      await commit({ ...quality, rules: swap(rules, i, i + d) }, t("Rule order saved"));
+      const swapped = swap(rules, i, i + d);
+      const { rules: settled } = settleQualityRules({ ...quality, rules: swapped });
+      await commit({ ...quality, rules: settled }, t("Rule order saved"));
     } catch (e) {
       toastError(t("Couldn't reorder rules"), e);
     }

@@ -343,6 +343,9 @@ func (s *Server) authenticate(next http.Handler) http.Handler {
 				writeHTTPError(w, http.StatusForbidden)
 				return
 			}
+			if pr.Remote && s.d.Hooks.OnRemoteClientSeen != nil {
+				s.d.Hooks.OnRemoteClientSeen(pr.RemoteIP.String())
+			}
 			s.observePlaybackRequestStart(r, pr)
 			next.ServeHTTP(w, r)
 			return

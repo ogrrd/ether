@@ -229,6 +229,32 @@ func (h *Handler) handleClaim(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
+func (h *Handler) handleSyncPlexFriends(w http.ResponseWriter, r *http.Request) {
+	cfg := h.deps.Config.Get()
+	if !cfg.Plex.Claimed || cfg.Plex.Token == "" {
+		writeError(w, http.StatusConflict, "plex_not_claimed", "Sign in and claim this server first.")
+		return
+	}
+	syncer, ok := h.deps.PlexAuth.(PlexFriendSyncer)
+	if !ok || syncer == nil {
+		writeError(w, http.StatusServiceUnavailable, "plex_unavailable", "Plex friend sync is unavailable.")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), h.deps.TestTimeout)
+	defer cancel()
+	if err := syncer.SyncFriends(ctx); err != nil {
+		writeError(w, http.StatusBadGateway, "plex_friends_sync_failed", err.Error())
+		return
+	}
+	if h.deps.RefreshViewers != nil {
+		_ = h.deps.RefreshViewers(ctx)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"ok":     true,
+		"detail": h.safeStatus(r, func(context.Context) any { return h.deps.PlexAuth.Status() }),
+	})
+}
+
 func (h *Handler) handlePlexStatus(w http.ResponseWriter, r *http.Request) {
 	cfg := h.deps.Config.Get()
 	out := map[string]any{

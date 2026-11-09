@@ -1,6 +1,7 @@
 import { Badge, Button, SettingsSection, toast } from "@braedonsaunders/appkit-ui";
 import { RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { useAppOptional } from "../app-context";
 import { t } from "../i18n";
 import { apiFetch, errorMessage } from "../lib/api";
 import { LoadingRows } from "./feedback";
@@ -23,6 +24,7 @@ function StepBadge({ state }: { state: string }) {
  * account access, port forwarding and secure connections.
  */
 export function RemoteDiagnostics() {
+  const app = useAppOptional();
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
@@ -45,6 +47,7 @@ export function RemoteDiagnostics() {
     try {
       await apiFetch("/safety/diagnostics/refresh", { method: "POST", body: "{}" });
       await load();
+      void app?.refreshDashboard();
       toast.success(t("Remote checks scheduled"));
     } catch (e) {
       toast.error(errorMessage(e));

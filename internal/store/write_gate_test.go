@@ -68,10 +68,44 @@ func TestWritesClassifiesStatements(t *testing.T) {
 	for q, want := range map[string]bool{
 		"INSERT INTO a VALUES(1)": true, "  update a set b=1": true, "DELETE FROM a": true, "REPLACE INTO a VALUES(1)": true,
 		"WITH x AS (SELECT 1) INSERT INTO a SELECT * FROM x": true, "SELECT 1": false, "PRAGMA wal_checkpoint(PASSIVE)": false,
-		"WITH x AS (SELECT 1) SELECT * FROM x": false, "CREATE INDEX i ON a(b)": true,
+		"WITH x AS (SELECT 1) SELECT * FROM x": false, "CREATE INDEX i ON a(b)": true, "DROP INDEX IF EXISTS i": true, "ALTER TABLE a ADD COLUMN c INT": true,
 	} {
 		if got := writes(q); got != want {
 			t.Errorf("writes(%q) = %v, want %v", q, got, want)
 		}
+	}
+}
+
+func TestWriteGateExtendHeldQueuesWaiterAndHonorsContext(t *testing.T) {
+	g := &writeGate{slot: make(chan struct{}, 1)}
+	if err := g.acquire(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	g.extendHeld(time.Now().Add(300 * time.Millisecond))
+
+	// A caller with its own short deadline still cancels promptly.
+	shortCtx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
+	defer cancel()
+	if err := g.acquire(shortCtx); err == nil {
+		t.Fatal("expected context deadline error while gate held")
+	}
+
+	// Release clears pausedUntil and wakes queued waiters in order.
+	done := make(chan error, 1)
+	go func() {
+		if err := g.acquire(context.Background()); err != nil {
+			done <- err
+			return
+		}
+		g.release()
+		done <- nil
+	}()
+	time.Sleep(20 * time.Millisecond)
+	g.release()
+	if err := <-done; err != nil {
+		t.Fatalf("queued waiter failed: %v", err)
+	}
+	if !g.pausedUntil.IsZero() {
+		t.Fatalf("pausedUntil = %v after release, want zero", g.pausedUntil)
 	}
 }

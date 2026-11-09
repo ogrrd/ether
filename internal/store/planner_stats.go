@@ -111,6 +111,17 @@ func AnalyzeFull(ctx context.Context, db *sql.DB, names ...string) error {
 	return err
 }
 
+func connGate(conn *sql.Conn) *writeGate {
+	var gate *writeGate
+	_ = conn.Raw(func(dc any) error {
+		if c, ok := dc.(*stmtConn); ok {
+			gate = c.gate
+		}
+		return nil
+	})
+	return gate
+}
+
 // CreateIndexAnalyzed builds an index with create and analyses it from
 // every row in the same transaction. Other connections see the index and
 // its statistics together, on one schema change. An index committed
@@ -130,11 +141,13 @@ func CreateIndexAnalyzed(ctx context.Context, db *sql.DB, name, create string) e
 		return err
 	}
 	defer conn.Close()
+	gate := connGate(conn)
 	return withFullAnalysis(ctx, conn, func() error {
 		tx, err := conn.BeginTx(ctx, nil)
 		if err != nil {
 			return err
 		}
+		gate.extendHeld(time.Now().Add(2 * time.Minute))
 		if _, err := tx.ExecContext(ctx, create); err != nil {
 			tx.Rollback()
 			return err
@@ -250,10 +263,20 @@ func analyzeFull(ctx context.Context, conn *sql.Conn, name string) (time.Duratio
 	if len(idx) > 0 {
 		targets = idx
 	}
+	gate := connGate(conn)
 	var longest time.Duration
 	for _, t := range targets {
 		began := time.Now()
-		if _, err := conn.ExecContext(ctx, `ANALYZE `+quoteIdent(t)); err != nil {
+		tx, err := conn.BeginTx(ctx, nil)
+		if err != nil {
+			return longest, err
+		}
+		gate.extendHeld(time.Now().Add(2 * time.Minute))
+		if _, err := tx.ExecContext(ctx, `ANALYZE `+quoteIdent(t)); err != nil {
+			tx.Rollback()
+			return longest, fmt.Errorf("store: analyze %s: %w", t, err)
+		}
+		if err := tx.Commit(); err != nil {
 			return longest, fmt.Errorf("store: analyze %s: %w", t, err)
 		}
 		longest = max(longest, time.Since(began))

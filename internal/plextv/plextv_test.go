@@ -710,10 +710,12 @@ func (m *memConfig) Update(fn func(*config.Config) error) error {
 }
 
 type fakeUsers struct {
-	mu      sync.Mutex
-	owner   Account
-	token   string
-	friends []Friend
+	mu        sync.Mutex
+	owner     Account
+	token     string
+	friends   []Friend
+	syncErr   error
+	syncCalls int
 }
 
 func (u *fakeUsers) SetOwner(ctx context.Context, a Account, tok string) error {
@@ -726,6 +728,10 @@ func (u *fakeUsers) SetOwner(ctx context.Context, a Account, tok string) error {
 func (u *fakeUsers) SyncFriends(ctx context.Context, fs []Friend) error {
 	u.mu.Lock()
 	defer u.mu.Unlock()
+	u.syncCalls++
+	if u.syncErr != nil {
+		return u.syncErr
+	}
 	u.friends = fs
 	return nil
 }
@@ -1108,5 +1114,128 @@ func TestCSRUploadBody(t *testing.T) {
 		!bytes.Contains(body, []byte("Content-Disposition: form-data; name=\"file\"\r\n")) || bytes.Contains(body, []byte("filename")) ||
 		!bytes.Contains(body, []byte("Content-Type: application/x-pem-file\r\n\r\n-----BEGIN NEW CERTIFICATE REQUEST-----\n")) {
 		t.Fatalf("%s\n%s", ct, body)
+	}
+}
+
+func TestRegistrarFriendSyncWriteContentionRetry(t *testing.T) {
+	f := newFakePlexTV(t, testMachineID)
+	f.addUser("server-token-42", owner())
+	f.accessXML = accessTokensXML
+	f.usersXML = usersXML
+	cfg := testConfig()
+	cfg.Plex.Token = "server-token-42"
+	cfg.Plex.Claimed = true
+	users := &fakeUsers{syncErr: errors.New("database is locked (waited 10s for this process's other writer)")}
+	now := time.Now()
+	r, err := NewRegistrar(RegistrarOptions{
+		Config: &memConfig{cfg: cfg},
+		Client: newServerClient(t, f),
+		Users:  users,
+		WAN:    &fakeWAN{},
+		Mapper: &fakeMapper{},
+		LAN:    func() ([]net.IP, error) { return []net.IP{net.ParseIP("192.168.1.5")}, nil },
+		Now:    func() time.Time { return now },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+
+	// Attempt 1: transient SQLite write-gate contention suppresses the
+	// dashboard warning and schedules a 15s retry instead of waiting 30m.
+	r.runDue(ctx)
+	if st := r.Status(); st.FriendSyncError != "" {
+		t.Fatalf("attempt 1 surfaced FriendSyncError = %q on transient contention", st.FriendSyncError)
+	}
+	now = now.Add(5 * time.Second)
+	r.runDue(ctx)
+	if users.syncCalls != 1 {
+		t.Fatalf("syncCalls inside 15s window = %d, want 1", users.syncCalls)
+	}
+
+	// Attempt 2 at +15s: still contended, still suppressed.
+	now = now.Add(11 * time.Second)
+	r.runDue(ctx)
+	if users.syncCalls != 2 {
+		t.Fatalf("syncCalls after 15s = %d, want 2", users.syncCalls)
+	}
+	if st := r.Status(); st.FriendSyncError != "" {
+		t.Fatalf("attempt 2 surfaced FriendSyncError = %q", st.FriendSyncError)
+	}
+
+	// Attempt 3 at +30s: persistent contention surfaces the error while
+	// continuing 15s retries.
+	now = now.Add(15 * time.Second)
+	r.runDue(ctx)
+	if users.syncCalls != 3 {
+		t.Fatalf("syncCalls at attempt 3 = %d, want 3", users.syncCalls)
+	}
+	if st := r.Status(); st.FriendSyncError == "" {
+		t.Fatal("persistent contention did not surface FriendSyncError at threshold")
+	}
+
+	// Once the writer finishes, the next 15s retry clears FriendSyncError
+	// without waiting for the 30m FriendSyncInterval.
+	users.mu.Lock()
+	users.syncErr = nil
+	users.mu.Unlock()
+	now = now.Add(15 * time.Second)
+	r.runDue(ctx)
+	st := r.Status()
+	if st.FriendSyncError != "" || st.Friends != 2 {
+		t.Fatalf("after contention cleared: err=%q friends=%d, want empty err and 2 friends", st.FriendSyncError, st.Friends)
+	}
+}
+
+func TestRegistrarFriendSyncBackoffAndManualRecheck(t *testing.T) {
+	f := newFakePlexTV(t, testMachineID)
+	f.addUser("server-token-42", owner())
+	f.accessXML = accessTokensXML
+	f.usersXML = usersXML
+	cfg := testConfig()
+	cfg.Plex.Token = "server-token-42"
+	cfg.Plex.Claimed = true
+	users := &fakeUsers{syncErr: errors.New("upstream 502")}
+	now := time.Now()
+	r, err := NewRegistrar(RegistrarOptions{
+		Config: &memConfig{cfg: cfg},
+		Client: newServerClient(t, f),
+		Users:  users,
+		WAN:    &fakeWAN{},
+		Mapper: &fakeMapper{},
+		LAN:    func() ([]net.IP, error) { return []net.IP{net.ParseIP("192.168.1.5")}, nil },
+		Now:    func() time.Time { return now },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+
+	r.runDue(ctx)
+	if st := r.Status(); st.FriendSyncError != "upstream 502" {
+		t.Fatalf("FriendSyncError = %q, want upstream 502", st.FriendSyncError)
+	}
+	// Retries in 1m instead of waiting the full 30m FriendSyncInterval.
+	now = now.Add(30 * time.Second)
+	r.runDue(ctx)
+	if users.syncCalls != 1 {
+		t.Fatalf("retried inside 1m backoff: calls=%d", users.syncCalls)
+	}
+	now = now.Add(31 * time.Second)
+	r.runDue(ctx)
+	if users.syncCalls != 2 {
+		t.Fatalf("did not retry after 1m backoff: calls=%d", users.syncCalls)
+	}
+
+	// Manual "Run checks again" (Trigger + RequestReachabilityCheck)
+	// immediately re-runs friend sync and clears the error.
+	users.mu.Lock()
+	users.syncErr = nil
+	users.mu.Unlock()
+	r.Trigger()
+	r.RequestReachabilityCheck()
+	r.runDue(ctx)
+	if st := r.Status(); st.FriendSyncError != "" || st.Friends != 2 {
+		t.Fatalf("after manual recheck: err=%q friends=%d", st.FriendSyncError, st.Friends)
 	}
 }

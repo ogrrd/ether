@@ -87,10 +87,10 @@ func normalizeSharedDocument(doc map[string]any) []string {
 }
 
 // normalizeQualityDocument gives every profile of a quality section exactly
-// one media, keeps names unique per media and points every default at a
-// profile that serves its media. It runs on every load (config.json and the
-// cluster's shared settings), so it must be idempotent: a settled section
-// comes back unchanged and with no notes.
+// one media, keeps names unique per media and points every default and client
+// rule at a profile that serves its media. It runs on every load (config.json
+// and the cluster's shared settings), so it must be idempotent: a settled
+// section comes back unchanged and with no notes.
 //
 // Splitting. A profile saved before profiles were per media (v0.3.4 and
 // earlier) served movies and TV shows alike; it becomes a movie profile and
@@ -231,14 +231,97 @@ func normalizeQualityDocument(quality map[string]any) []string {
 	}
 	// Each repair resolves as the missing name already did at playback: a
 	// missing At home profile is the media's first one, a missing Away one
-	// the At home one. Validation refuses a name that serves nothing, so
-	// left alone it would block every quality change.
+	// the At home one, and a client rule naming a removed profile falls back
+	// to the At home profile while keeping the rule's device matchers and
+	// limits. Validation refuses a name that serves nothing, so left alone
+	// it would block every quality change.
 	if len(out) > 0 {
 		if v := docString(quality, "default"); v != "" && !serves(v, "") {
 			repoint("default", "")
 		}
 		if v := docString(quality, "remote"); v != "" && !serves(v, "") {
 			repoint("remote", "")
+		}
+		homeFor := func(media string) string {
+			if f, ok := mediaDefaultFields[media]; ok {
+				if v := docString(quality, f.home); v != "" && serves(v, media) {
+					return v
+				}
+			}
+			if v := docString(quality, "default"); v != "" && serves(v, media) {
+				return v
+			}
+			return firstFor(media)
+		}
+		if rules, ok := quality["rules"].([]any); ok && len(rules) > 0 {
+			repaired := make([]any, 0, len(rules))
+			rulesChanged := false
+			for i, item := range rules {
+				r, ok := item.(map[string]any)
+				if !ok {
+					repaired = append(repaired, item)
+					continue
+				}
+				media, prof := docString(r, "mediaType"), docString(r, "profile")
+				if (media != "" && !core.IsProfileMedia(media)) || prof == "" || serves(prof, media) {
+					repaired = append(repaired, r)
+					continue
+				}
+				rulesChanged = true
+				if media != "" {
+					if to := homeFor(media); to != "" {
+						c := maps.Clone(r)
+						c["profile"] = to
+						repaired = append(repaired, c)
+						notes = append(notes, fmt.Sprintf("quality.rules[%d].profile named a missing %s profile %q; now %q", i, media, prof, to))
+					} else {
+						notes = append(notes, fmt.Sprintf("quality.rules[%d].profile named a missing %s profile %q with no %s profiles; removed rule", i, media, prof, media))
+					}
+					continue
+				}
+				sharedTo := ""
+				sameAcrossAll := true
+				type mediaTarget struct{ media, to string }
+				var targets []mediaTarget
+				for _, m := range core.ProfileMediaTypes {
+					to := homeFor(m)
+					if to == "" {
+						sameAcrossAll = false
+						continue
+					}
+					targets = append(targets, mediaTarget{m, to})
+					if sharedTo == "" {
+						sharedTo = to
+					} else if sharedTo != to {
+						sameAcrossAll = false
+					}
+					if !serves(to, m) {
+						sameAcrossAll = false
+					}
+				}
+				switch {
+				case sameAcrossAll && sharedTo != "":
+					c := maps.Clone(r)
+					c["profile"] = sharedTo
+					repaired = append(repaired, c)
+					notes = append(notes, fmt.Sprintf("quality.rules[%d].profile named a missing profile %q; now %q", i, prof, sharedTo))
+				case len(targets) > 0:
+					var parts []string
+					for _, t := range targets {
+						c := maps.Clone(r)
+						c["mediaType"] = t.media
+						c["profile"] = t.to
+						repaired = append(repaired, c)
+						parts = append(parts, fmt.Sprintf("%s=%q", t.media, t.to))
+					}
+					notes = append(notes, fmt.Sprintf("quality.rules[%d].profile named a missing profile %q; split to %s", i, prof, strings.Join(parts, ", ")))
+				default:
+					notes = append(notes, fmt.Sprintf("quality.rules[%d].profile named a missing profile %q with no profiles; removed rule", i, prof))
+				}
+			}
+			if rulesChanged {
+				quality["rules"] = repaired
+			}
 		}
 	}
 	return notes

@@ -322,6 +322,7 @@ export const api = {
   pinStart: () => post<{ id: string; code: string; authUrl: string }>("/plex/pin"),
   pinPoll: (id: string) => apiFetch<{ done: boolean }>(`/plex/pin/${encodeURIComponent(id)}`),
   claim: () => post<{ ok: boolean }>("/plex/claim"),
+  syncPlexFriends: () => post<{ ok: boolean }>("/plex/friends/sync"),
 
   // ---- Config ---------------------------------------------------------------
   getConfig: async () => (await apiFetch<{ config: EtherConfig }>("/config")).config,

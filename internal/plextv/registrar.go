@@ -16,6 +16,7 @@ import (
 	"github.com/braedonsaunders/ether/internal/config"
 	"github.com/braedonsaunders/ether/internal/core"
 	"github.com/braedonsaunders/ether/internal/remote"
+	"github.com/braedonsaunders/ether/internal/store"
 )
 
 // ConfigStore is the part of *config.Store the registrar uses.
@@ -171,6 +172,8 @@ type Registrar struct {
 	next                 map[string]time.Time
 	lastUnknownTokenSync time.Time
 	pubFail              int
+	friendFail           int    // consecutive non-unauthorized friend sync failures
+	friendContention     int    // consecutive SQLite write-contention failures in SyncFriendsNow
 	pubGeneration        uint64 // advances whenever fresh connections must be published
 	forcePub             bool
 	mappingOn            bool
@@ -191,6 +194,15 @@ type Registrar struct {
 
 // rejectedRetry spaces out friend syncs while plex.tv rejects the token.
 const rejectedRetry = 15 * time.Minute
+
+// friendContentionRetry retries a friend sync promptly when another writer
+// held SQLite across the write gate (e.g. post-upgrade index builds or WAL
+// maintenance) instead of waiting the full 30-minute sync interval.
+const friendContentionRetry = 15 * time.Second
+
+// friendContentionWarnThreshold is how many consecutive write-contention
+// attempts must fail before FriendSyncError surfaces a dashboard warning.
+const friendContentionWarnThreshold = 3
 
 const (
 	taskAddress = "address"
@@ -401,6 +413,9 @@ func (r *Registrar) Trigger() {
 	r.requestPublishLocked()
 	r.next[taskAddress] = time.Time{}
 	r.next[taskMapping] = time.Time{}
+	if r.st.FriendSyncError != "" && !r.st.TokenRejected {
+		r.next[taskFriends] = time.Time{}
+	}
 	r.mu.Unlock()
 	select {
 	case r.wake <- struct{}{}:
@@ -672,7 +687,11 @@ func (r *Registrar) runDue(ctx context.Context) {
 	if r.due(taskOwner, r.o.OwnerInterval) {
 		if err := r.RefreshOwner(ctx); err != nil && ctx.Err() == nil {
 			r.log.Debug("plex.tv owner refresh failed", "err", err)
-			r.schedule(taskOwner, r.o.Now().Add(10*time.Minute))
+			retry := 10 * time.Minute
+			if store.IsWriteContention(err) {
+				retry = min(friendContentionRetry, r.o.OwnerInterval)
+			}
+			r.schedule(taskOwner, r.o.Now().Add(retry))
 		}
 	}
 	// Custom URLs are published with remote access off too; check them, and
@@ -1134,19 +1153,40 @@ func (r *Registrar) SyncFriendsNow(ctx context.Context) error {
 		return errors.New("plextv: not claimed")
 	}
 	friends, err := r.client.Friends(ctx, cfg.Plex.Token)
+	fromUsers := false
 	if err == nil && r.o.Users != nil {
+		fromUsers = true
 		err = r.o.Users.SyncFriends(ctx, friends)
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.st.LastFriendSync = r.o.Now()
 	if err != nil {
-		r.st.FriendSyncError = err.Error()
-		if errors.Is(err, core.ErrUnauthorized) {
+		switch {
+		case errors.Is(err, core.ErrUnauthorized):
 			// A rejected token stays rejected until the owner re-claims:
 			// retry rarely instead of every minute.
+			r.friendFail = 0
+			r.friendContention = 0
+			r.st.FriendSyncError = err.Error()
 			r.st.TokenRejected = true
 			r.next[taskFriends] = r.o.Now().Add(rejectedRetry)
+		case fromUsers && store.IsWriteContention(err):
+			r.friendContention++
+			if r.friendContention >= friendContentionWarnThreshold {
+				r.st.FriendSyncError = err.Error()
+			}
+			if ctx.Err() == nil {
+				r.next[taskFriends] = r.o.Now().Add(min(friendContentionRetry, r.o.FriendSyncInterval))
+			}
+		default:
+			r.friendContention = 0
+			r.friendFail++
+			r.st.FriendSyncError = err.Error()
+			if ctx.Err() == nil {
+				backoff := min(time.Minute<<min(r.friendFail-1, 4), r.o.FriendSyncInterval) // 1m .. 16m
+				r.next[taskFriends] = r.o.Now().Add(backoff)
+			}
 		}
 		r.log.Warn("friend sync failed", "err", err)
 		return err
@@ -1157,8 +1197,13 @@ func (r *Registrar) SyncFriendsNow(ctx context.Context) error {
 			n++
 		}
 	}
+	r.friendFail = 0
+	r.friendContention = 0
 	r.st.Friends = n
 	r.st.FriendSyncError = ""
+	if ctx.Err() == nil {
+		r.next[taskFriends] = r.o.Now().Add(r.o.FriendSyncInterval)
+	}
 	return nil
 }
 
@@ -1194,7 +1239,12 @@ func (r *Registrar) CheckReachability(ctx context.Context) remote.Reachability {
 // RequestReachabilityCheck asks the loop to run the self-check now (the
 // owner's "run checks again").
 func (r *Registrar) RequestReachabilityCheck() {
-	r.schedule(taskReach, time.Time{})
+	r.mu.Lock()
+	r.next[taskReach] = time.Time{}
+	if !r.st.TokenRejected {
+		r.next[taskFriends] = time.Time{}
+	}
+	r.mu.Unlock()
 	select {
 	case r.wake <- struct{}{}:
 	default:
@@ -1559,6 +1609,8 @@ func (r *Registrar) releaseClaim(ctx context.Context, token string) {
 	r.st.OwnerFeatures = nil
 	r.st.PublishedURIs = nil
 	r.st.ResourceConnections = nil
+	r.friendFail = 0
+	r.friendContention = 0
 	r.st.LastPublishError = ""
 	r.st.FriendSyncError = ""
 	r.st.TokenRejected = false
@@ -1624,7 +1676,14 @@ func (r *Registrar) onPubsub(m PubsubMessage) {
 		r.st.PlexReachableCheckedAt = r.o.Now()
 		r.asyncID = ""
 		r.mu.Unlock()
-		r.log.Info("plex.tv connectivity check", "reachable", ok)
+		attrs := []any{"reachable", ok, "direction", "inbound"}
+		if m.Address != "" {
+			attrs = append(attrs, "address", m.Address)
+		}
+		if m.Port != "" {
+			attrs = append(attrs, "port", m.Port)
+		}
+		r.log.Info("plex.tv connectivity check", attrs...)
 	case "refreshCertificate":
 		r.schedule(taskCert, time.Time{})
 		r.Trigger()

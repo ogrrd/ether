@@ -534,6 +534,21 @@ describe("health", () => {
     expect(authFail.statusLabel).toBe("Needs attention");
     expect(authFail.summary).toBe("Login rejected. Check the username and password.");
     expect(catalogHealth({ lastSync: "2026-10-01T00:00:00Z" }, now).level).toBe("warn");
+    expect(
+      catalogHealth(
+        {
+          browsableMovies: 38438,
+          browsableShows: 10000,
+          lastSync: now.toISOString(),
+          sync: { running: true, titlesSeen: 113420 },
+        },
+        now,
+      ).summary,
+    ).toBe("48,438 titles · syncing (113,420 checked)");
+    expect(
+      catalogHealth({ movies: 0, shows: 0, sync: { running: true, titlesSeen: 2500 } }, now)
+        .summary,
+    ).toBe("Syncing… 2,500 checked");
     for (const running of [false, true]) {
       const failed = catalogHealth(
         { lastSync: now.toISOString(), sync: { running, lastError: "fixture: page failed" } },

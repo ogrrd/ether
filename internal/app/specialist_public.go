@@ -67,6 +67,13 @@ func (a *App) runPublicRole(ctx context.Context) error {
 	}
 	front.gate.Open(a.publicRoleHandler())
 	a.markPublicReady()
+	if a.cfg.Get().Server.NodeRoles.Has(config.RoleServer) {
+		background.start(func() { a.runRegistrarAsLeader(ctx) })
+		background.start(func() { a.registrar.RunPortMapping(ctx) })
+		if a.registrar != nil {
+			a.registrar.ListenerReady()
+		}
+	}
 	var result error
 	select {
 	case <-ctx.Done():
@@ -115,8 +122,6 @@ func (a *App) startServerWorkers(ctx context.Context, g *backgroundGroup) {
 	g.start(func() { a.cluster.RunAsLeader(ctx, "trending charts", a.catalog.RunTrends) })
 	g.start(func() { a.cluster.RunAsLeader(ctx, "collection refresh", a.collections.Run) })
 	g.start(func() { a.trakt.Start(ctx) })
-	g.start(func() { a.runRegistrarAsLeader(ctx) })
-	g.start(func() { a.registrar.RunPortMapping(ctx) })
 	g.start(func() { a.cluster.RunAsLeader(ctx, "database maintenance", a.maintainDB) })
 	if a.plexWatch != nil {
 		g.start(func() { a.plexWatch.Run(ctx) })

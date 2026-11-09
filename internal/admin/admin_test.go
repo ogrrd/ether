@@ -437,6 +437,8 @@ func TestSectionPatchPreservesUnsetAndSecrets(t *testing.T) {
 type fakePlex struct {
 	polled   bool
 	claimErr error
+	synced   int
+	syncErr  error
 }
 
 func (f *fakePlex) StartPIN(context.Context) (string, string, string, error) {
@@ -448,6 +450,10 @@ func (f *fakePlex) PollPIN(_ context.Context, id string) (bool, error) {
 }
 func (f *fakePlex) Claim(context.Context) error { return f.claimErr }
 func (f *fakePlex) Status() any                 { return map[string]any{"claimed": true} }
+func (f *fakePlex) SyncFriends(context.Context) error {
+	f.synced++
+	return f.syncErr
+}
 
 func TestPlexPINFlow(t *testing.T) {
 	store := newStore(t, nil)
@@ -469,6 +475,33 @@ func TestPlexPINFlow(t *testing.T) {
 	rec = serve(h, req(http.MethodPost, "/ether/api/plex/claim", `{}`))
 	if rec.Code != http.StatusBadGateway || !strings.Contains(rec.Body.String(), "Plex couldn't link this server. Try again in a minute.") {
 		t.Fatalf("claim exchange failure: %d %s", rec.Code, rec.Body)
+	}
+
+	// Friend sync rejects while unclaimed, then succeeds once claimed.
+	rec = serve(h, req(http.MethodPost, "/ether/api/plex/friends/sync", `{}`))
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("unclaimed friend sync: %d %s", rec.Code, rec.Body)
+	}
+	if err := store.Update(func(c *config.Config) error {
+		c.Plex.Claimed = true
+		c.Plex.Token = "server-token"
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	refreshed := 0
+	h = admin.NewHandler(admin.Deps{
+		Config: store, IsOwnerToken: storedOwner(store), PlexAuth: fp,
+		RefreshViewers: func(context.Context) error { refreshed++; return nil },
+	})
+	rec = serve(h, req(http.MethodPost, "/ether/api/plex/friends/sync", `{}`))
+	if rec.Code != http.StatusOK || fp.synced != 1 || refreshed != 1 {
+		t.Fatalf("claimed friend sync: code=%d synced=%d refreshed=%d body=%s", rec.Code, fp.synced, refreshed, rec.Body)
+	}
+	fp.syncErr = errors.New("plex.tv timeout")
+	rec = serve(h, req(http.MethodPost, "/ether/api/plex/friends/sync", `{}`))
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("failed friend sync: %d %s", rec.Code, rec.Body)
 	}
 }
 

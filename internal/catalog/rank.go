@@ -285,12 +285,20 @@ func (c *Catalog) rebuildRank(ctx context.Context) (RankRebuild, error) {
 		rankBuildHook()
 	}
 	for _, ix := range strings.Split(strings.TrimSuffix(rankIndexSQL(idle), ";"), ";\n") {
-		if err := exec(ix); err != nil {
-			return abandon(err)
+		if pg {
+			if err := exec(ix); err != nil {
+				return abandon(err)
+			}
+			continue
+		}
+		if err := store.CreateIndexAnalyzed(ctx, c.db, strings.Fields(ix)[2], ix); err != nil {
+			return abandon(fmt.Errorf("catalog: rank rebuild: %w", err))
 		}
 	}
-	if err := exec(`ANALYZE ` + t); err != nil {
-		return abandon(err)
+	if pg {
+		if err := exec(`ANALYZE ` + t); err != nil {
+			return abandon(err)
+		}
 	}
 	// Apply what changed during the build and swap, in one short
 	// transaction. On PostgreSQL a writer whose statement began before

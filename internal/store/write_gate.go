@@ -89,19 +89,28 @@ func (g *writeGate) acquire(ctx context.Context) error {
 	g.mu.Unlock()
 	t := time.NewTimer(wait)
 	defer t.Stop()
-	select {
-	case g.slot <- struct{}{}:
-		g.held()
-		if time.Since(start) >= time.Second {
-			slog.Warn("sqlite writer waited", "wait", time.Since(start), "holder_at_start", prior, "holder_age_at_start", start.Sub(priorStart))
+	for {
+		select {
+		case g.slot <- struct{}{}:
+			g.held()
+			if time.Since(start) >= time.Second {
+				slog.Warn("sqlite writer waited", "wait", time.Since(start), "holder_at_start", prior, "holder_age_at_start", start.Sub(priorStart))
+			}
+			return nil
+		case <-ctx.Done():
+			g.logHolder(time.Since(start))
+			return ctx.Err()
+		case <-t.C:
+			g.mu.Lock()
+			rem := time.Until(g.pausedUntil)
+			g.mu.Unlock()
+			if rem > 0 {
+				t.Reset(rem)
+				continue
+			}
+			g.logHolder(time.Since(start))
+			return errWriteGateTimeout
 		}
-		return nil
-	case <-ctx.Done():
-		g.logHolder(time.Since(start))
-		return ctx.Err()
-	case <-t.C:
-		g.logHolder(time.Since(start))
-		return errWriteGateTimeout
 	}
 }
 
@@ -159,10 +168,26 @@ func (g *writeGate) logHolder(wait time.Duration) {
 	}
 }
 
+// extendHeld lets a known long maintenance transaction (CreateIndexAnalyzed,
+// analyzeFull) that already holds the gate keep in-process writers queued up
+// to until, subject to each caller's own context deadline, instead of failing
+// at writeGateWait (10 s). release clears pausedUntil when the holder finishes.
+func (g *writeGate) extendHeld(until time.Time) {
+	if g == nil {
+		return
+	}
+	g.mu.Lock()
+	if until.After(g.pausedUntil) {
+		g.pausedUntil = until
+	}
+	g.mu.Unlock()
+}
+
 func (g *writeGate) release() {
 	g.mu.Lock()
 	label, started := g.holder, g.started
 	g.holder, g.started = "", time.Time{}
+	g.pausedUntil = time.Time{}
 	g.mu.Unlock()
 	<-g.slot
 	elapsed := time.Since(started)
@@ -233,8 +258,11 @@ func writes(query string) bool {
 	if len(q) < 6 {
 		return false
 	}
+	if strings.HasPrefix(strings.ToUpper(q[:5]), "DROP ") {
+		return true
+	}
 	switch strings.ToUpper(q[:6]) {
-	case "INSERT", "UPDATE", "DELETE", "REPLAC", "CREATE", "ANALYZ":
+	case "INSERT", "UPDATE", "DELETE", "REPLAC", "CREATE", "ANALYZ", "ALTER ":
 		return true
 	case "PRAGMA":
 		return strings.EqualFold(strings.TrimSuffix(strings.Join(strings.Fields(q), " "), ";"), "PRAGMA wal_checkpoint(TRUNCATE)")

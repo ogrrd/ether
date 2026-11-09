@@ -48,7 +48,7 @@ func asDoc(t *testing.T, q Quality) map[string]any {
 
 // assertSettled checks the invariant every load must leave: each profile
 // serves exactly one media, a name is unique per media, and every stored
-// default names exactly one profile serving its media.
+// default and client rule names a profile serving its media.
 func assertSettled(t *testing.T, label string, q Quality) {
 	t.Helper()
 	type key struct{ media, name string }
@@ -79,6 +79,14 @@ func assertSettled(t *testing.T, label string, q Quality) {
 				t.Fatalf("%s: %s %q names no profile", label, field, name)
 			}
 		}
+		for i, r := range q.Rules {
+			if r.Profile == "" || (r.MediaType != "" && !core.IsProfileMedia(r.MediaType)) {
+				continue
+			}
+			if _, ok := core.FindProfile(q.Profiles, r.Profile, r.MediaType); !ok {
+				t.Fatalf("%s: rule %d (%q) profile %q serves no %q profile", label, i, r.Product, r.Profile, r.MediaType)
+			}
+		}
 	}
 }
 
@@ -94,7 +102,7 @@ func profileList(q Quality) []string {
 // then loading the settings any number of times (config.json on a single
 // server, the shared settings on a cluster, a peer that predates per-media
 // profiles saving over them) always leaves one movie and one TV profile
-// per original, no duplicates, and defaults that resolve.
+// per original, no duplicates, and defaults and rules that resolve.
 func TestQualityProfilesStaySettledAcrossLoads(t *testing.T) {
 	builtins := func() []core.QualityProfile {
 		var out []core.QualityProfile
@@ -122,6 +130,18 @@ func TestQualityProfilesStaySettledAcrossLoads(t *testing.T) {
 	doubled := slices.Concat(interleaved, interleaved) // the split repeated over a stripped list
 	dangling := DefaultQuality()
 	dangling.Default, dangling.DefaultMovie, dangling.RemoteTV = "Gone", "Gone", "Gone"
+	dangling.Rules = []QualityRule{
+		{Product: "Apple TV", Profile: "4K"},
+		{Product: "Roku", Profile: "TRaSH UHD", MaxHeight: 1080, ConvertSurroundAudio: true},
+		{Platform: "iOS", MediaType: core.MediaMovie, Profile: "TRaSH Remux"},
+		{UserID: 7, MediaType: core.MediaTV, Profile: "TRaSH WEB"},
+	}
+	divergentRules := DefaultQuality()
+	divergentRules.DefaultMovie = "4K"
+	divergentRules.DefaultTV = "1080p"
+	divergentRules.Rules = []QualityRule{
+		{Product: "Fire TV", Profile: "Removed Imported", MaxHeight: 1080},
+	}
 
 	all := []string{"movie/4K", "movie/1080p", "movie/720p", "tv/4K", "tv/1080p", "tv/720p"}
 	cases := []struct {
@@ -172,12 +192,35 @@ func TestQualityProfilesStaySettledAcrossLoads(t *testing.T) {
 			},
 		},
 		{
-			name:    "defaults naming missing profiles",
+			name:    "defaults and client rules naming missing profiles (including v0.3.6 wedged installs)",
 			quality: asDoc(t, dangling),
 			want:    all,
 			check: func(t *testing.T, q Quality) {
 				if q.Default != "" || q.DefaultMovie != "4K" || q.RemoteTV != "" {
 					t.Fatalf("defaults not repointed: %+v", q)
+				}
+				wantRules := []QualityRule{
+					{Product: "Apple TV", Profile: "4K"},
+					{Product: "Roku", Profile: "4K", MaxHeight: 1080, ConvertSurroundAudio: true},
+					{Platform: "iOS", MediaType: core.MediaMovie, Profile: "4K"},
+					{UserID: 7, MediaType: core.MediaTV, Profile: "4K"},
+				}
+				if !slices.Equal(q.Rules, wantRules) {
+					t.Fatalf("rules not repointed: got %+v, want %+v", q.Rules, wantRules)
+				}
+			},
+		},
+		{
+			name:    "media-neutral rule naming missing profile splits when movie and show defaults differ",
+			quality: asDoc(t, divergentRules),
+			want:    all,
+			check: func(t *testing.T, q Quality) {
+				wantRules := []QualityRule{
+					{Product: "Fire TV", MediaType: core.MediaMovie, Profile: "4K", MaxHeight: 1080},
+					{Product: "Fire TV", MediaType: core.MediaTV, Profile: "1080p", MaxHeight: 1080},
+				}
+				if !slices.Equal(q.Rules, wantRules) {
+					t.Fatalf("divergent rules not split: got %+v, want %+v", q.Rules, wantRules)
 				}
 			},
 		},

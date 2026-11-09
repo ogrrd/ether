@@ -71,15 +71,23 @@ func TestPresenceStreamAndEvents(t *testing.T) {
 }
 
 func TestRegistrarTrustsOnlyOutstandingConnectivityAnswer(t *testing.T) {
-	r := &Registrar{o: RegistrarOptions{Now: time.Now}, next: map[string]time.Time{}, wake: make(chan struct{}, 1), log: discardLogger()}
+	var logBuf strings.Builder
+	logger := slog.New(slog.NewTextHandler(&logBuf, nil))
+	r := &Registrar{o: RegistrarOptions{Now: time.Now}, next: map[string]time.Time{}, wake: make(chan struct{}, 1), log: logger}
 	r.asyncID = "want"
 	r.onPubsub(PubsubMessage{Command: "notifyConnectivity", AsyncIdentifier: "other", Connectivity: "1"})
 	if r.st.PlexReachable != nil {
 		t.Fatal("accepted an answer to someone else's request")
 	}
-	r.onPubsub(PubsubMessage{Command: "notifyConnectivity", AsyncIdentifier: "want", Connectivity: "0"})
+	r.onPubsub(PubsubMessage{Command: "notifyConnectivity", AsyncIdentifier: "want", Connectivity: "0", Address: "203.0.113.7", Port: "32400"})
 	if r.st.PlexReachable == nil || *r.st.PlexReachable {
 		t.Fatalf("reachable = %v", r.st.PlexReachable)
+	}
+	logged := logBuf.String()
+	for _, want := range []string{"direction=inbound", "address=203.0.113.7", "port=32400", "reachable=false"} {
+		if !strings.Contains(logged, want) {
+			t.Fatalf("connectivity log %q missing %q", logged, want)
+		}
 	}
 }
 

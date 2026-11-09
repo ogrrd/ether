@@ -501,10 +501,18 @@ export function catalogHealth(v: unknown, now = new Date()): HealthItem {
     return { ...base, level: "warn", summary: message, details };
   }
   if (sync.running === true) {
+    const total = movies + shows;
+    const checked = formatNumber(num(sync.titlesSeen));
     return {
       ...base,
       level: "ok",
-      summary: t("Syncing… {count} titles seen", { count: formatNumber(num(sync.titlesSeen)) }),
+      summary:
+        total > 0
+          ? t("{count} titles · syncing ({checked} checked)", {
+              count: formatNumber(total),
+              checked,
+            })
+          : t("Syncing… {checked} checked", { checked }),
       details,
     };
   }

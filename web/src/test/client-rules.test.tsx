@@ -39,4 +39,26 @@ describe("client quality rules", () => {
 
     expect(calls(fake, "PUT", "/config/quality")).toHaveLength(1);
   });
+
+  it("repoints unrelated dangling rules when saving a rule", async () => {
+    const { fake } = renderApp("/quality/rules", {}, (f) => {
+      f.state.config.quality.rules = [
+        { product: "Plex for Apple TV", profile: "4K" },
+        { product: "Roku", profile: "TRaSH UHD", maxHeight: 1080 },
+        { platform: "iOS", mediaType: "movie", profile: "TRaSH Remux" },
+        { userId: 7, mediaType: "tv", profile: "TRaSH WEB" },
+      ];
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "Edit rule 2" }, WAIT));
+    const drawer = await screen.findByRole("dialog", { name: "Rule 2" }, WAIT);
+    fireEvent.click(within(drawer).getByRole("button", { name: "Save rule" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument(), WAIT);
+
+    expect(fake.state.config.quality.rules).toEqual([
+      { product: "Plex for Apple TV", profile: "4K" },
+      { product: "Roku", profile: "1080p", maxHeight: 1080 },
+      { platform: "iOS", mediaType: "movie", profile: "1080p" },
+      { userId: 7, mediaType: "tv", profile: "1080p" },
+    ]);
+  });
 });

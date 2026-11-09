@@ -1,12 +1,14 @@
 import { Button, SettingsSection, toast } from "@braedonsaunders/appkit-ui";
+import { RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useAppOptional } from "../../app-context";
 import { CopyButton } from "../../components/CopyButton";
 import { ErrorPanel, LoadingInline, LoadingRows } from "../../components/feedback";
 import { LevelBadge } from "../../components/status";
 import { SettingsRow } from "../../components/SettingsRow";
 import { localized, t, tn } from "../../i18n";
-import { api, ApiError } from "../../lib/api";
-import { formatDateTime, isPlainObject, relativeTime } from "../../lib/format";
+import { api, ApiError, errorMessage } from "../../lib/api";
+import { formatDateTime, isPlainObject, parseTime, relativeTime } from "../../lib/format";
 import { plexDirectHealth, remoteHealth } from "../../lib/health";
 import { useAsync } from "../../lib/hooks";
 import { phaseText } from "../../lib/startup-text";
@@ -24,12 +26,34 @@ import { SecureAddresses } from "./SecureAddresses";
 
 /** Remote-access and plex.direct health for the Plex app page. Account sign-in lives on that page, not here. */
 export function PlexStatus({ remote }: { remote: unknown }) {
+  const app = useAppOptional();
+  const [syncingFriends, setSyncingFriends] = useState(false);
   const r = remoteHealth(remote);
   const c = plexDirectHealth(remote);
+  const claimed = isPlainObject(remote) && remote.claimed === true;
+  const friendSyncError =
+    isPlainObject(remote) && typeof remote.friendSyncError === "string"
+      ? remote.friendSyncError
+      : "";
+  const friends = isPlainObject(remote) && typeof remote.friends === "number" ? remote.friends : 0;
+  const lastFriendSync = isPlainObject(remote) ? parseTime(remote.lastFriendSync) : null;
   const conns =
     isPlainObject(remote) && Array.isArray(remote.publishedUris)
       ? remote.publishedUris.filter((uri): uri is string => typeof uri === "string")
       : [];
+  const syncFriends = async () => {
+    setSyncingFriends(true);
+    try {
+      await api.syncPlexFriends();
+      void app?.refreshDashboard();
+      toast.success(t("Shared users synced"));
+    } catch (e) {
+      void app?.refreshDashboard();
+      toast.error(errorMessage(e));
+    } finally {
+      setSyncingFriends(false);
+    }
+  };
   return (
     <SettingsSection title={t("Status")}>
       <SettingsRow
@@ -37,6 +61,28 @@ export function PlexStatus({ remote }: { remote: unknown }) {
         description={r.details.join(" · ") || r.summary}
         control={<LevelBadge level={r.level} label={r.summary} />}
       />
+      {claimed ? (
+        <SettingsRow
+          title={t("Shared users")}
+          description={
+            friendSyncError
+              ? friendSyncError
+              : lastFriendSync
+                ? `${tn(friends, "{count} shared user", "{count} shared users")} · ${t("Last sync {when}", { when: relativeTime(lastFriendSync) })}`
+                : t("Not synced yet")
+          }
+          control={
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={syncingFriends}
+              onClick={() => void syncFriends()}
+            >
+              <RefreshCw size={14} /> {syncingFriends ? t("Syncing…") : t("Sync shared users")}
+            </Button>
+          }
+        />
+      ) : null}
       <SettingsRow
         title={t("plex.direct certificate")}
         description={c.details.join(" · ") || c.summary}

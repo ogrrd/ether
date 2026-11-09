@@ -60,7 +60,7 @@ import {
   type ResolverPolicy,
 } from "./resolverDraft";
 import { TrashImport } from "./TrashImport";
-import { useQuality, type Quality } from "./useQuality";
+import { settleQualityRules, useQuality, type Quality } from "./useQuality";
 /**
  * A new profile starts as a copy of the media's first profile (its quality
  * order and format scores), so it ranks like the owner's own until changed.
@@ -294,6 +294,11 @@ function settleDefaults(next: Quality): Quality {
     if (!next[home] && next.default && !hasProfile(profiles, next.default, media)) {
       next[home] = mediaFallback(profiles, media);
     }
+  }
+  if (profiles.length > 0) {
+    if (next.default && !profiles.some((p) => p.name === next.default)) next.default = "";
+    if (next.remote && !profiles.some((p) => p.name === next.remote)) next.remote = "";
+    if (next.rules) next.rules = settleQualityRules(next).rules;
   }
   return next;
 }

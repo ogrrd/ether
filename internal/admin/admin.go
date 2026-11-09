@@ -59,6 +59,12 @@ type PlexAuth interface {
 	Status() any
 }
 
+// PlexFriendSyncer is an optional capability on PlexAuth for refreshing shared
+// Plex users and their server access tokens on demand.
+type PlexFriendSyncer interface {
+	SyncFriends(ctx context.Context) error
+}
+
 // SignIn is a plex.tv PIN sign-in that, unlike PlexAuth, changes nothing on
 // the server: it only yields the signed-in account's token so the admin UI
 // can authenticate as that account.
@@ -403,6 +409,7 @@ func (h *Handler) routes() *http.ServeMux {
 	api("POST /api/plex/pin", h.handlePINStart)
 	api("GET /api/plex/pin/{id}", h.handlePINPoll)
 	api("POST /api/plex/claim", h.handleClaim)
+	api("POST /api/plex/friends/sync", h.handleSyncPlexFriends)
 	api("GET /api/plex/status", h.handlePlexStatus)
 
 	api("POST /api/test/usenet", h.handleTestUsenet)

@@ -79,4 +79,32 @@ describe("secure discovery addresses", () => {
       "https://relay.example.test",
     );
   });
+
+  it("renders shared-user sync status and triggers manual sync when claimed", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    render(
+      <PlexStatus
+        remote={{
+          ...remote,
+          claimed: true,
+          friends: 3,
+          lastFriendSync: new Date().toISOString(),
+        }}
+      />,
+    );
+    expect(screen.getByText(/3 shared users/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Sync shared users/i }));
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/ether/api/plex/friends/sync",
+        expect.objectContaining({ method: "POST" }),
+      ),
+    );
+  });
 });

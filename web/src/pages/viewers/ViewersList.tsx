@@ -1,16 +1,29 @@
-import { Avatar, Button, EmptyState, PagedTable, Skeleton } from "@braedonsaunders/appkit-ui";
+import {
+  Avatar,
+  Button,
+  EmptyState,
+  PagedTable,
+  Skeleton,
+  toast,
+} from "@braedonsaunders/appkit-ui";
 import { useState } from "react";
-import { Plus, Users } from "lucide-react";
+import { Plus, RefreshCw, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAppOptional } from "../../app-context";
 import { ErrorPanel } from "../../components/feedback";
 import { DomainPage } from "../../components/layout";
 import { loadViewers, viewerName } from "../../components/pickers";
 import { t, tn } from "../../i18n";
-import { api } from "../../lib/api";
+import { api, errorMessage } from "../../lib/api";
 import { ratingLevelLabel } from "../../lib/contentRatings";
 import type { Viewer } from "../../lib/contract";
-import { formatDateTime, formatNumber, parseTime, relativeTime } from "../../lib/format";
+import {
+  formatDateTime,
+  formatNumber,
+  isPlainObject,
+  parseTime,
+  relativeTime,
+} from "../../lib/format";
 import { useAsync } from "../../lib/hooks";
 import type { EtherUser } from "../../lib/types";
 import { pagedTableLabels } from "../../i18n/appkit-labels";
@@ -21,16 +34,41 @@ import { PlexAccessNote } from "./ViewerStatus";
 type PeopleFilter = "all" | "active" | "paused" | "plex";
 
 export default function ViewersList() {
+  const app = useAppOptional();
+  const remote = app?.dashboard?.sections?.remote;
+  const canSyncPlex =
+    app?.boot.plexEnabled !== false && isPlainObject(remote) && remote.claimed === true;
   const [adding, setAdding] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [version, setVersion] = useState(0);
+  const syncPlex = async () => {
+    setSyncing(true);
+    try {
+      await api.syncPlexFriends();
+      setVersion((v) => v + 1);
+      void app?.refreshDashboard();
+      toast.success(t("Shared users synced"));
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setSyncing(false);
+    }
+  };
   return (
     <DomainPage
       title={t("Viewers")}
       base="/viewers"
       actions={
-        <Button size="sm" onClick={() => setAdding(true)}>
-          <Plus size={14} /> {t("Add viewer")}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {canSyncPlex ? (
+            <Button variant="outline" size="sm" disabled={syncing} onClick={() => void syncPlex()}>
+              <RefreshCw size={14} /> {syncing ? t("Syncing…") : t("Sync shared users")}
+            </Button>
+          ) : null}
+          <Button size="sm" onClick={() => setAdding(true)}>
+            <Plus size={14} /> {t("Add viewer")}
+          </Button>
+        </div>
       }
     >
       <People key={version} />

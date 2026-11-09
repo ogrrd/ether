@@ -3964,6 +3964,7 @@
     "other": "Visar de nyaste {shown} av {count} blockerade releaser; begränsa sökningen för att hitta äldre."
   },
   "m_0f034015496fc9": "För att skicka till Plex för den här personen behövs personens egen token för den här servern.",
+  "m_0f07303b32517e": "Rensa cachelagrade byte för {title}? Releasen kan fortfarande spelas upp och hämtas igen nästa gång den spelas. Aktiv eller pausad uppspelning måste stoppas först. Skyddade byte kan finnas kvar tills bakgrundsarbetet är klart.",
   "m_0f0ad430471ab7": "Visningsspråk",
   "m_0f0b18d569c736": "Inget visas",
   "m_0f0c7468f067cd": "Noto Sans",

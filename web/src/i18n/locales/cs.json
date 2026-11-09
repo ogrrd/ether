@@ -4156,6 +4156,7 @@
     "other": "Zobrazeno nejnovějších {shown} z {count} blokovaných vydání; starší najdete zúžením hledání."
   },
   "m_0f034015496fc9": "Odesílání do Plexu za tuto osobu vyžaduje její vlastní token pro tento server.",
+  "m_0f07303b32517e": "Vymazat bajty v mezipaměti pro {title}? Release zůstane přehratelný a při příštím přehrání se znovu načte. Aktivní nebo pozastavené přehrávání je nutné nejprve zastavit. Chráněné bajty mohou zůstat, dokud neskončí práce na pozadí.",
   "m_0f0ad430471ab7": "Jazyk zobrazení",
   "m_0f0b18d569c736": "Nic se nezobrazuje",
   "m_0f0c7468f067cd": "Noto Sans",

@@ -4156,6 +4156,7 @@
     "other": "Wyświetlono najnowsze {shown} z {count} zablokowanego wydania; zawęź wyszukiwanie, aby znaleźć starsze."
   },
   "m_0f034015496fc9": "Wysyłanie do Plex w imieniu tej osoby wymaga jej własnego tokenu do tego serwera.",
+  "m_0f07303b32517e": "Wyczyścić bajty w pamięci podręcznej dla {title}? Wydanie nadal można odtworzyć i zostanie pobrane ponownie przy następnym odtworzeniu. Najpierw trzeba zatrzymać aktywne lub wstrzymane odtwarzanie. Chronione bajty mogą pozostać do zakończenia pracy w tle.",
   "m_0f0ad430471ab7": "Język interfejsu",
   "m_0f0b18d569c736": "Nic nie jest widoczne",
   "m_0f0c7468f067cd": "Noto Sans",

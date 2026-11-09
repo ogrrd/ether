@@ -3964,6 +3964,7 @@
     "other": "De nieuwste {shown} van {count} geblokkeerde releases worden getoond; verfijn de zoekopdracht om oudere te vinden."
   },
   "m_0f034015496fc9": "Om voor deze persoon naar Plex te sturen, is hun eigen token voor deze server nodig.",
+  "m_0f07303b32517e": "Gecachete bytes voor {title} wissen? De release blijft afspeelbaar en wordt opnieuw opgehaald wanneer hij de volgende keer wordt afgespeeld. Actieve of gepauzeerde weergave moet eerst worden gestopt. Beschermde bytes kunnen blijven staan tot het achtergrondwerk klaar is.",
   "m_0f0ad430471ab7": "Weergavetaal",
   "m_0f0b18d569c736": "Niets getoond",
   "m_0f0c7468f067cd": "Noto Sans",

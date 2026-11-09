@@ -1,1 +1,0 @@
-import{t}from"./index-C7o-fmSm.js";const a=e=>{const n=e.title||e.username;return e.isOwner?t("{name} (owner)",{name:n}):n};function o(e){const n=-new Date().getTimezoneOffset();return`?days=${e.days}&user=${encodeURIComponent(e.user)}${e.year?`&year=${e.year}`:""}&tz=${n}`}const s=e=>Math.round(e/36e4)/10;export{o as a,s as h,a as v};

@@ -4060,6 +4060,7 @@
     "other": "Vengono mostrate le {shown} più recenti di {count} release bloccate; restringi la ricerca per trovare quelle più vecchie."
   },
   "m_0f034015496fc9": "Per inviare a Plex per questa persona serve il suo token per questo server.",
+  "m_0f07303b32517e": "Cancellare i byte in cache di {title}? La release resta riproducibile e verrà scaricata di nuovo alla prossima riproduzione. Prima occorre interrompere le riproduzioni attive o in pausa. I byte protetti possono rimanere finché non termina il lavoro in background.",
   "m_0f0ad430471ab7": "Lingua di visualizzazione",
   "m_0f0b18d569c736": "Niente di mostrato",
   "m_0f0c7468f067cd": "Noto Sans",

@@ -58,7 +58,8 @@ func (a *App) configureCache(c config.Cache) {
 func (a *App) cacheHandler() http.Handler {
 	a.cache.SetBlockCheck(a.resolver.LocalReleaseBlocked)
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /clear-block", a.clearBlockCache)
+	mux.HandleFunc("POST /clear", func(w http.ResponseWriter, r *http.Request) { a.clearReleaseCache(w, r, false) })
+	mux.HandleFunc("POST /clear-block", func(w http.ResponseWriter, r *http.Request) { a.clearReleaseCache(w, r, true) })
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)
@@ -191,8 +192,10 @@ func (a *App) cacheRestartRequired() bool {
 	return p.Dir != a.cache.Directory() || (p.Storage == "shared") != a.cache.Shared()
 }
 
-// clearBlockCache is mounted only under the authenticated owner extension.
-func (a *App) clearBlockCache(w http.ResponseWriter, r *http.Request) {
+// clearReleaseCache is mounted only under the authenticated owner extension.
+// It clears a release's cached bytes; with block it also rejects and blocks the
+// release so it is never chosen for playback again.
+func (a *App) clearReleaseCache(w http.ResponseWriter, r *http.Request, block bool) {
 	var body struct {
 		ReleaseID string `json:"releaseId"`
 	}
@@ -227,13 +230,15 @@ func (a *App) clearBlockCache(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if err := a.playback.RejectReleaseID(r.Context(), body.ReleaseID); err != nil {
-		http.Error(w, "Could not persist release rejection", 500)
-		return
-	}
-	if _, err := a.resolver.Block(r.Context(), resolver.BlockRequest{ReleaseID: body.ReleaseID, Name: found.Title}, "Cleared and blocked from Cache by owner"); err != nil {
-		http.Error(w, "Could not persist release block", 500)
-		return
+	if block {
+		if err := a.playback.RejectReleaseID(r.Context(), body.ReleaseID); err != nil {
+			http.Error(w, "Could not persist release rejection", 500)
+			return
+		}
+		if _, err := a.resolver.Block(r.Context(), resolver.BlockRequest{ReleaseID: body.ReleaseID, Name: found.Title}, "Cleared and blocked from Cache by owner"); err != nil {
+			http.Error(w, "Could not persist release block", 500)
+			return
+		}
 	}
 	// Owner pins can be explicitly discarded; background and playback pins must
 	// retain their lifetime ownership, including pins on other nodes.
@@ -241,15 +246,26 @@ func (a *App) clearBlockCache(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		err = a.cache.ClearUnpinned(body.ReleaseID)
 	}
-	message := "Release blocked for future playback and cached bytes cleared on this cache."
-	if err != nil {
-		message = "Release blocked for future playback. Cached bytes remain protected or could not be removed; stop background warming and retry clearing."
-	}
-	if a.cache.Shared() && err == nil {
-		message = "Release blocked for future playback. Current shared cache bytes cleared; writes already running on another node may still finish."
-	}
+	message := clearMessage(block, a.cache.Shared(), err == nil)
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{"blocked": true, "cleared": err == nil, "message": message})
+	_ = json.NewEncoder(w).Encode(map[string]any{"blocked": block, "cleared": err == nil, "message": message})
+}
+
+func clearMessage(block, shared, cleared bool) string {
+	switch {
+	case block && !cleared:
+		return "Release blocked for future playback. Cached bytes remain protected or could not be removed; stop background warming and retry clearing."
+	case block && shared:
+		return "Release blocked for future playback. Current shared cache bytes cleared; writes already running on another node may still finish."
+	case block:
+		return "Release blocked for future playback and cached bytes cleared on this cache."
+	case !cleared:
+		return "Cached bytes remain protected or could not be removed; stop background warming and retry clearing."
+	case shared:
+		return "Current shared cache bytes cleared; writes already running on another node may still finish. The release can still be played and cached again."
+	default:
+		return "Cached bytes cleared on this cache. The release can still be played and cached again."
+	}
 }
 
 func cacheConflict(w http.ResponseWriter) {

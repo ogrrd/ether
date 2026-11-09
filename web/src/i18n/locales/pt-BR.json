@@ -4060,6 +4060,7 @@
     "other": "Mostrando os {shown} mais recentes de {count} releases bloqueados; restrinja a pesquisa para encontrar os mais antigos."
   },
   "m_0f034015496fc9": "Para enviar ao Plex por esta pessoa, é preciso o token dela para este servidor.",
+  "m_0f07303b32517e": "Limpar os bytes em cache de {title}? A versão continua disponível para reprodução e será buscada de novo na próxima vez que for reproduzida. A reprodução ativa ou pausada precisa ser interrompida primeiro. Bytes protegidos podem permanecer até o trabalho em segundo plano terminar.",
   "m_0f0ad430471ab7": "Idioma de exibição",
   "m_0f0b18d569c736": "Nada exibido",
   "m_0f0c7468f067cd": "Noto Sans",

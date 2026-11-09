@@ -3964,6 +3964,7 @@
     "other": "Die neuesten {shown} von {count} gesperrten Releases werden angezeigt; grenze die Suche ein, um ältere zu finden."
   },
   "m_0f034015496fc9": "Um für diese Person an Plex zu senden, wird ihr eigenes Token für diesen Server benötigt.",
+  "m_0f07303b32517e": "Zwischengespeicherte Bytes für {title} löschen? Das Release bleibt abspielbar und wird bei der nächsten Wiedergabe erneut geladen. Aktive oder pausierte Wiedergaben müssen zuerst beendet werden. Geschützte Bytes können bleiben, bis die Hintergrundarbeit endet.",
   "m_0f0ad430471ab7": "Anzeigesprache",
   "m_0f0b18d569c736": "Nichts angezeigt",
   "m_0f0c7468f067cd": "Noto Sans",

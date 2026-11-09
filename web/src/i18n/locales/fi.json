@@ -3964,6 +3964,7 @@
     "other": "Näytetään uusimmat {shown} / {count} estetystä julkaisusta; rajaa hakua löytääksesi vanhempia."
   },
   "m_0f034015496fc9": "Plexiin lähettäminen tämän henkilön puolesta vaatii hänen oman tokeninsa tälle palvelimelle.",
+  "m_0f07303b32517e": "Tyhjennetäänkö kohteen {title} välimuistiin tallennetut tavut? Julkaisu pysyy toistettavana ja haetaan uudelleen, kun sitä seuraavan kerran toistetaan. Käynnissä oleva tai keskeytetty toisto on ensin pysäytettävä. Suojatut tavut voivat jäädä, kunnes taustatyö päättyy.",
   "m_0f0ad430471ab7": "Näyttökieli",
   "m_0f0b18d569c736": "Mitään ei näytetä",
   "m_0f0c7468f067cd": "Noto Sans",

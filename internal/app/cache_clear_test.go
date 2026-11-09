@@ -26,8 +26,8 @@ func TestOwnerCacheClearBlock(t *testing.T) {
 	if err := a.cache.Put("release", 0, []byte("cached")); err != nil {
 		t.Fatal(err)
 	}
-	call := func(token, csrf string) *httptest.ResponseRecorder {
-		r := httptest.NewRequest("POST", "http://localhost/ether/api/cache/clear-block", strings.NewReader(`{"releaseId":"release"}`))
+	post := func(path, token, csrf string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest("POST", "http://localhost/ether/api/cache/"+path, strings.NewReader(`{"releaseId":"release"}`))
 		r.RemoteAddr = "127.0.0.1:1000"
 		r.Header.Set("Content-Type", "application/json")
 		r.Header.Set("X-Plex-Token", token)
@@ -36,6 +36,7 @@ func TestOwnerCacheClearBlock(t *testing.T) {
 		a.Handler().ServeHTTP(w, r)
 		return w
 	}
+	call := func(token, csrf string) *httptest.ResponseRecorder { return post("clear-block", token, csrf) }
 	if w := call("", "1"); w.Code != 401 && w.Code != 403 {
 		t.Fatalf("anonymous %d", w.Code)
 	}
@@ -52,6 +53,16 @@ func TestOwnerCacheClearBlock(t *testing.T) {
 		t.Fatal("active release blocked")
 	}
 	if err := a.cache.Unpin("release", "playback:live"); err != nil {
+		t.Fatal(err)
+	}
+	// Clear alone drops the bytes and leaves the release playable.
+	if w := post("clear", "test-owner", "1"); w.Code != 200 || !strings.Contains(w.Body.String(), `"cleared":true`) || !strings.Contains(w.Body.String(), `"blocked":false`) {
+		t.Fatalf("clear only %d %s", w.Code, w.Body)
+	}
+	if blocked, _ := a.resolver.ReleaseBlocked(context.Background(), "release"); blocked || a.cache.Has("release", 0) {
+		t.Fatalf("clear only: blocked %v, bytes remain %v", blocked, a.cache.Has("release", 0))
+	}
+	if err := a.cache.Put("release", 0, []byte("cached")); err != nil {
 		t.Fatal(err)
 	}
 	if w := call("test-owner", "1"); w.Code != 200 || !strings.Contains(w.Body.String(), `"cleared":true`) {

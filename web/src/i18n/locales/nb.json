@@ -3964,6 +3964,7 @@
     "other": "Viser de nyeste {shown} av {count} blokkerte utgivelser; avgrens søket for å finne eldre."
   },
   "m_0f034015496fc9": "For å sende til Plex for denne personen trengs vedkommendes eget token for denne serveren.",
+  "m_0f07303b32517e": "Tømme hurtigbufrede byte for {title}? Utgivelsen kan fortsatt spilles av og hentes på nytt neste gang den spilles. Aktiv eller satt-på-pause avspilling må stoppes først. Beskyttede byte kan bli liggende til bakgrunnsarbeidet er ferdig.",
   "m_0f0ad430471ab7": "Visningsspråk",
   "m_0f0b18d569c736": "Ingenting vist",
   "m_0f0c7468f067cd": "Noto Sans",

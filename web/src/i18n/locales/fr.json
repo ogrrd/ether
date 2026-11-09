@@ -4060,6 +4060,7 @@
     "other": "Affichage des {shown} plus récentes sur {count} releases bloquées ; affinez la recherche pour trouver les plus anciennes."
   },
   "m_0f034015496fc9": "Pour envoyer vers Plex pour cette personne, il faut son propre jeton pour ce serveur.",
+  "m_0f07303b32517e": "Effacer les octets en cache de {title} ? La release reste lisible et sera de nouveau récupérée à sa prochaine lecture. Toute lecture en cours ou en pause doit d’abord être arrêtée. Les octets protégés peuvent subsister jusqu’à la fin des tâches en arrière-plan.",
   "m_0f0ad430471ab7": "Langue d’affichage",
   "m_0f0b18d569c736": "Rien d’affiché",
   "m_0f0c7468f067cd": "Noto Sans",

@@ -3964,6 +3964,7 @@
     "other": "Engellenen {count} sürümden en yeni {shown} tanesi gösteriliyor; daha eskilerini bulmak için aramayı daraltın."
   },
   "m_0f034015496fc9": "Bu kişi adına Plex'e göndermek için kişinin bu sunucuya ait kendi belirteci gerekir.",
+  "m_0f07303b32517e": "{title} için önbelleğe alınmış baytlar temizlensin mi? Sürüm oynatılabilir kalır ve bir sonraki oynatmada yeniden alınır. Etkin veya duraklatılmış oynatma önce durdurulmalıdır. Korunan baytlar arka plan işi bitene kadar kalabilir.",
   "m_0f0ad430471ab7": "Görüntüleme dili",
   "m_0f0b18d569c736": "Hiçbir şey gösterilmiyor",
   "m_0f0c7468f067cd": "Noto Sans",

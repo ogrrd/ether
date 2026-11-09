@@ -1,1 +1,0 @@
-import{t as a}from"./index-C7o-fmSm.js";function l(e){if(!e)return"";const t=/^Played in (.+): no acceptable (\d+p) or better release was found\.$/.exec(e);return t?a("Played in {quality}: no acceptable {minimum} or better release was found.",{quality:t[1],minimum:t[2]}):e}export{l as q};

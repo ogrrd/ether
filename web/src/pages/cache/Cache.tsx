@@ -221,20 +221,22 @@ export default function Cache() {
       setBusy(null);
     }
   }
-  async function clearBlock(releaseId: string, title: string) {
-    if (
-      !window.confirm(
-        t(
+  async function clearRelease(releaseId: string, title: string, block: boolean) {
+    const question = block
+      ? t(
           "Clear cached bytes for {title} and block this release from future playback? Active or paused playback must be stopped first. Protected bytes may remain until background work ends. You can unblock it in the release controls.",
           { title },
-        ),
-      )
-    )
-      return;
-    setBusy("clear-block");
+        )
+      : t(
+          "Clear cached bytes for {title}? The release stays playable and is fetched again the next time it plays. Active or paused playback must be stopped first. Protected bytes may remain until background work ends.",
+          { title },
+        );
+    if (!window.confirm(question)) return;
+    const path = block ? "clear-block" : "clear";
+    setBusy(path);
     setError(null);
     try {
-      const result = await apiFetch<{ cleared: boolean; message: string }>("/cache/clear-block", {
+      const result = await apiFetch<{ cleared: boolean; message: string }>(`/cache/${path}`, {
         method: "POST",
         body: JSON.stringify({ releaseId }),
       });
@@ -394,7 +396,7 @@ export default function Cache() {
                 snapshot={snap}
                 busy={busy !== null}
                 onPin={(releaseId, pinned) => void action("pin", { releaseId, pinned })}
-                onClearBlock={(id, title) => void clearBlock(id, title)}
+                onClear={(id, title, block) => void clearRelease(id, title, block)}
               />
             </div>
           ) : (

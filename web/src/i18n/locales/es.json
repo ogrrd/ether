@@ -4060,6 +4060,7 @@
     "other": "Mostrando los {shown} más recientes de {count} lanzamientos bloqueados; acota la búsqueda para encontrar los más antiguos."
   },
   "m_0f034015496fc9": "Para enviar a Plex en nombre de esta persona hace falta su propio token para este servidor.",
+  "m_0f07303b32517e": "¿Borrar los bytes en caché de {title}? La versión sigue disponible para reproducir y se vuelve a descargar la próxima vez que se reproduzca. Primero hay que detener la reproducción activa o en pausa. Los bytes protegidos pueden permanecer hasta que termine el trabajo en segundo plano.",
   "m_0f0ad430471ab7": "Idioma de la interfaz",
   "m_0f0b18d569c736": "Nada visible",
   "m_0f0c7468f067cd": "Noto Sans",

@@ -3964,6 +3964,7 @@
     "other": "Viser de nyeste {shown} af {count} blokerede udgivelser; indsnævr søgningen for at finde ældre."
   },
   "m_0f034015496fc9": "For at sende til Plex for denne person skal du bruge personens eget token til denne server.",
+  "m_0f07303b32517e": "Ryd cachelagrede bytes for {title}? Udgivelsen kan stadig afspilles og hentes igen, næste gang den afspilles. Aktiv eller sat-på-pause afspilning skal stoppes først. Beskyttede bytes kan blive liggende, indtil baggrundsarbejdet er færdigt.",
   "m_0f0ad430471ab7": "Visningssprog",
   "m_0f0b18d569c736": "Intet vist",
   "m_0f0c7468f067cd": "Noto Sans",

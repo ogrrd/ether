@@ -3973,6 +3973,7 @@
     "other": "Showing the newest {shown} of {count} blocked releases; narrow the search to find older ones."
   },
   "m_0f034015496fc9": "Sending to Plex for this person needs their own token for this server.",
+  "m_0f07303b32517e": "Clear cached bytes for {title}? The release stays playable and is fetched again the next time it plays. Active or paused playback must be stopped first. Protected bytes may remain until background work ends.",
   "m_0f0ad430471ab7": "Display language",
   "m_0f0b18d569c736": "Nothing shown",
   "m_0f0c7468f067cd": "Noto Sans",

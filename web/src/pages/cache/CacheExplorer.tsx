@@ -101,12 +101,12 @@ export function CacheExplorer({
   snapshot,
   busy,
   onPin,
-  onClearBlock,
+  onClear,
 }: {
   snapshot?: CacheSnapshot;
   busy: boolean;
   onPin: (id: string, pinned: boolean) => void;
-  onClearBlock: (id: string, title: string) => void;
+  onClear: (id: string, title: string, block: boolean) => void;
 }) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
@@ -284,7 +284,15 @@ export function CacheExplorer({
                           variant="ghost"
                           size="sm"
                           disabled={busy}
-                          onClick={() => onClearBlock(r.ReleaseID, friendlyName(r))}
+                          onClick={() => onClear(r.ReleaseID, friendlyName(r), false)}
+                        >
+                          {t("Clear")}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => onClear(r.ReleaseID, friendlyName(r), true)}
                         >
                           {t("Clear & block")}
                         </Button>

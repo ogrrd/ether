@@ -44,7 +44,7 @@ func (s *Server) handleStartDASH(w http.ResponseWriter, r *http.Request) {
 	}
 	defer unlockOwner()
 
-	if s.d.Transcoder == nil || s.d.Playback == nil {
+	if s.transcoder() == nil || s.playback() == nil {
 		writePlaybackStatus(w, http.StatusServiceUnavailable)
 		return
 	}
@@ -81,7 +81,7 @@ func (s *Server) handleStartDASH(w http.ResponseWriter, r *http.Request) {
 	entry, ok := s.transcodes.get(p.sessionID)
 	var ps *frontend.PlaySession
 	if ok && entry.key == p.key && entry.userID == pr.User.ID {
-		ps, ok = s.d.Playback.Session(entry.playID)
+		ps, ok = s.playback().Session(entry.playID)
 	}
 	if !ok || ps == nil || !p.sameSettings(entry.requested) {
 		if _, ps, _, err = s.prepare(ctx, pr, &p); err != nil {
@@ -111,7 +111,7 @@ func (s *Server) handleStartDASH(w http.ResponseWriter, r *http.Request) {
 			opts := entry.opts
 			opts.DirectPlay = false
 			opts.DirectStream = true
-			dec = s.d.Transcoder.Decide(ps.Info, entry.caps, opts)
+			dec = s.transcoder().Decide(ps.Info, entry.caps, opts)
 		}
 	}
 	if existing, ok := s.plexHLSSession(p.sessionID); ok && existing != nil {
@@ -131,7 +131,7 @@ func (s *Server) handleStartDASH(w http.ResponseWriter, r *http.Request) {
 		SoftSubtitleStream: sessionSoftSubtitle(entry, pr, dec),
 		SessionID:          p.sessionID,
 		ReleaseID:          ps.SourceReleaseID(),
-		InputURL:           s.d.Playback.InputURL(ps.ID),
+		InputURL:           s.playback().InputURL(ps.ID),
 		Info:               ps.Info,
 		Decision:           dec,
 		StartOffset:        p.offset,
@@ -157,7 +157,7 @@ func (s *Server) handleStartDASH(w http.ResponseWriter, r *http.Request) {
 
 // dashSession resolves the session and representation of a segment URL.
 func (s *Server) dashSession(w http.ResponseWriter, r *http.Request) (frontend.DASHSession, int, bool) {
-	if s.d.Transcoder == nil {
+	if s.transcoder() == nil {
 		writeHTTPError(w, http.StatusNotFound)
 		return nil, 0, false
 	}

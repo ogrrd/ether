@@ -53,7 +53,7 @@ func TestPlexPolicyProductionWiringKeepsOwnerSearch(t *testing.T) {
 	hidden := core.Title{Key: core.MovieKey(123), Type: core.TypeMovie, Title: "First Movie", ContentRating: "R"}
 	title := core.Title{Key: core.MovieKey(124), Type: core.TypeMovie, Title: "Second Movie", ContentRating: "G"}
 	deps := plex.Deps{
-		SessionStores:     sessions.NewPlexSessionStores(),
+		Sessions:          sessions.NewLocalRuntime(sessions.LocalRuntimeDeps{}),
 		Experience:        experience.NewPlexExperience(),
 		ArtworkStores:     artworkservice.NewPlexArtworkStores(),
 		Catalog:           policyTestCatalog{titles: []core.Title{hidden, title}},

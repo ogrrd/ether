@@ -67,10 +67,10 @@ func (s *Server) observePlaybackReported(pr *Request) {
 // capture. Viewer identity follows the same explicit export flags as requests;
 // the structured playback object itself never carries usernames or addresses.
 func (s *Server) observePlaybackDecision(ctx context.Context, pr *Request, p *playRequest, ps *frontend.PlaySession) {
-	if s == nil || s.d.Support == nil || s.d.DecisionTraces == nil || pr == nil || p == nil {
+	if s == nil || s.d.Support == nil || s.runtime == nil || pr == nil || p == nil {
 		return
 	}
-	tr, ok := s.d.DecisionTraces.LatestDecision(p.key)
+	tr, ok := s.runtime.LatestDecision(p.key)
 	if !ok {
 		return
 	}

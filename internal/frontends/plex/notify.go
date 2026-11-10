@@ -47,7 +47,7 @@ type sessionActivities struct {
 	mu     sync.Mutex
 	local  map[string]playEntry
 	next   int
-	broker frontend.PlexActivityStore
+	broker frontend.ActivityStore
 }
 
 func newSessionActivities() *sessionActivities {
@@ -57,7 +57,7 @@ func newSessionActivities() *sessionActivities {
 func trackID(userID int64, clientID, sessionID string) string {
 	return fmt.Sprintf("%d/%s/%s", userID, clientID, sessionID)
 }
-func (t *sessionActivities) bind(b frontend.PlexActivityStore) {
+func (t *sessionActivities) bind(b frontend.ActivityStore) {
 	if t == nil {
 		return
 	}
@@ -65,7 +65,7 @@ func (t *sessionActivities) bind(b frontend.PlexActivityStore) {
 	t.broker = b
 	t.mu.Unlock()
 }
-func (t *sessionActivities) mounted() frontend.PlexActivityStore {
+func (t *sessionActivities) mounted() frontend.ActivityStore {
 	if t == nil {
 		return nil
 	}

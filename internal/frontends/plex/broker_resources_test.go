@@ -66,7 +66,7 @@ func TestUnmountReleasesPlaybackResources(t *testing.T) {
 	if _, ok := dt.Session("hls-unmount"); ok {
 		t.Fatal("encoder still running")
 	}
-	lookup := broker.(plexPlaybackLookup)
+	lookup := broker.(frontend.SessionRuntime)
 	if id, err := lookup.PlexSessionForPlayback(context.Background(), plexOwnerAccess(), fightClub.Key, "", "hls-unmount"); err == nil && id != "" {
 		t.Fatalf("broker session survived unmount: %s", id)
 	}
@@ -99,7 +99,7 @@ func TestBareTimelineRecordsProgressWithoutPreparing(t *testing.T) {
 
 func publishedPlexSession(t *testing.T, broker frontend.Sessions, session string) string {
 	t.Helper()
-	lookup, ok := broker.(plexPlaybackLookup)
+	lookup, ok := broker.(frontend.SessionRuntime)
 	if !ok {
 		t.Fatal("playback broker has no plex lookup")
 	}

@@ -15,6 +15,7 @@ import (
 
 	"github.com/braedonsaunders/ether/internal/config"
 	"github.com/braedonsaunders/ether/internal/core"
+	"github.com/braedonsaunders/ether/internal/sessions"
 )
 
 // fakeRemuxer writes a small temp file per download, like the real
@@ -100,13 +101,13 @@ func newDownloadFixture(t *testing.T, downloadsOn bool) *downloadFixture {
 		return c
 	}
 	f.srv = NewServer(testDeps(Deps{
-		Catalog:   cat,
-		State:     newFakeState(),
-		Auth:      f.auth,
-		Playback:  f.playback,
-		Downloads: f.remux,
-		Config:    cfg,
-		Identity:  Identity{Version: "1.43.4.10903-e5521bd8c", Platform: "Linux"},
+		Catalog:  cat,
+		State:    newFakeState(),
+		Auth:     f.auth,
+		Sessions: sessions.NewLocalRuntime(sessions.LocalRuntimeDeps{Playback: f.playback, Downloads: f.remux}),
+		Playback: f.playback,
+		Config:   cfg,
+		Identity: Identity{Version: "1.43.4.10903-e5521bd8c", Platform: "Linux"},
 		Now: func() time.Time {
 			f.mu.Lock()
 			defer f.mu.Unlock()

@@ -204,7 +204,7 @@ func TestTranscodeChaosPlexFaults(t *testing.T) {
 						if e != nil {
 							t.Fatal(e)
 						}
-						f.srv.d.Downloads = dl
+						f.srv.runtime.SetDownloads(dl)
 						q := f.queue(t)
 						rec := f.do(t, http.MethodPost, "/downloadQueue/"+itoa(q)+"/add?keys=/library/metadata/"+fightClub.Key.String(), ownerToken, nil)
 						if rec.Code != 200 {

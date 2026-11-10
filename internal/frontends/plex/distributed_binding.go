@@ -8,11 +8,6 @@ import (
 	"github.com/braedonsaunders/ether/internal/frontend"
 )
 
-type durablePlexBinding interface {
-	PlexHLSDistributed(string) bool
-	SavePlexBinding(context.Context, string, []byte) error
-	LoadPlexBinding(context.Context, string) ([]byte, error)
-}
 type plexBindingSnapshot struct {
 	Binding   frontend.Binding[struct{}]
 	ReadToken string
@@ -20,15 +15,15 @@ type plexBindingSnapshot struct {
 }
 
 func (s *Server) saveDistributedBinding(ctx context.Context, id string) error {
-	storage, ok := s.currentPlexEncoder().(durablePlexBinding)
+	storage, ok := s.currentPlexEncoder().(frontend.PlexBindingStore)
 	if !ok || !storage.PlexHLSDistributed(id) {
 		return nil
 	}
 	entry, ok := s.transcodes.get(id)
-	if !ok {
+	if !ok || s.playback() == nil {
 		return frontend.ErrNotAvailable
 	}
-	ps, ok := s.d.Playback.Session(entry.playID)
+	ps, ok := s.playback().Session(entry.playID)
 	if !ok || ps == nil {
 		return frontend.ErrNotAvailable
 	}
@@ -45,7 +40,7 @@ func (s *Server) saveDistributedBinding(ctx context.Context, id string) error {
 // Restore only protocol authentication facts. The original middleware still
 // checks live viewer, device, title and policy. Execution attachment is separate.
 func (s *Server) loadDistributedBinding(id string) (*transcodeEntry, bool) {
-	storage, ok := s.currentPlexEncoder().(durablePlexBinding)
+	storage, ok := s.currentPlexEncoder().(frontend.PlexBindingStore)
 	if !ok {
 		return nil, false
 	}
@@ -72,9 +67,7 @@ func (s *Server) loadDistributedBinding(id string) (*transcodeEntry, bool) {
 		s.readCaps.bySession[id] = snapshot.ReadToken
 		s.readCaps.mu.Unlock()
 	}
-	if restore, ok := s.d.Playback.(interface {
-		RestorePlexSource(context.Context, string, frontend.PlaySession) error
-	}); ok {
+	if restore, ok := s.playback().(frontend.SourceRestorer); ok {
 		if restore.RestorePlexSource(ctx, id, snapshot.Source) != nil {
 			return nil, false
 		}

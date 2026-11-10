@@ -93,9 +93,7 @@ func (s *Server) revokeReadCapability(sessionID string) {
 }
 
 func (s *Server) dropTranscode(id string) {
-	if storage, ok := s.currentPlexEncoder().(interface {
-		DeletePlexBinding(context.Context, string) error
-	}); ok {
+	if storage, ok := s.currentPlexEncoder().(frontend.PlexBindingDeleter); ok {
 		ctx, cancel := context.WithTimeout(s.ctx, 3*time.Second)
 		defer cancel()
 		_ = storage.DeletePlexBinding(ctx, id)

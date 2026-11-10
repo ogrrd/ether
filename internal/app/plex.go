@@ -105,7 +105,6 @@ func (a *App) buildPlex(ctx context.Context, cfg config.Config) (frontend.PlexDe
 		return publicPlexOrigin(a.registrar.Status().Connections)
 	}
 	deps.RepoFileURL = repoFileURL(sourceRef(updater.Version, updater.Commit, buildRevision()))
-	deps.DecisionTraces = a.resolver // latest resolution, for the support capture
 	clientID := func() string {
 		cfg := a.cfg.Read()
 		return plexguid.ClientIdentifier(cfg.Plex.ClientIdentifier, cfg.Server.MachineIdentifier)
@@ -158,14 +157,10 @@ func (a *App) buildPlex(ctx context.Context, cfg config.Config) (frontend.PlexDe
 	deps.LiveTV = a.livetv.Frontend()
 	deps.Subtitles = plexSubtitles{a}
 	deps.TrackPreferences = a.trackprefs
-	deps.SessionCoordination = a.sessionCoordination
-	deps.SessionStores = sessions.NewPlexSessionStores()
 	deps.Experience = experience.NewPlexExperience()
 	deps.ArtworkStores = artworkservice.NewPlexArtworkStores()
 	deps.Markers = a.markers
-	// The remuxer is built once in buildIntegrations and shared with every
-	// front end. Support is the device-scoped "Record a problem" recorder.
-	deps.Downloads = a.downloadRemuxer
+	// Support is the device-scoped "Record a problem" recorder.
 	if a.support != nil {
 		deps.Support = a.support
 	}
@@ -194,9 +189,20 @@ func (a *App) buildPlex(ctx context.Context, cfg config.Config) (frontend.PlexDe
 	if a.hostResources != nil {
 		deps.Resources = a.hostResources
 	}
+	var cluster frontend.ClusterNode
 	if node := a.clusterNode(); node != nil && deps.DB != nil {
-		deps.Cluster = node
+		cluster = node
 	}
+	deps.Sessions = sessions.NewLocalRuntime(sessions.LocalRuntimeDeps{
+		Logger:         deps.Logger,
+		Playback:       deps.Playback,
+		Transcoder:     deps.Transcoder,
+		Downloads:      a.downloadRemuxer,
+		DecisionTraces: a.resolver,
+		DB:             deps.DB,
+		Cluster:        cluster,
+		Coordination:   a.sessionCoordination,
+	})
 	if a.artwork != nil {
 		deps.ArtworkImages = a.artwork.Images
 		deps.ArtworkPalettes = a.artwork.Palettes

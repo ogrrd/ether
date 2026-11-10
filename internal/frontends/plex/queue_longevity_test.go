@@ -8,6 +8,7 @@ import (
 
 	"github.com/braedonsaunders/ether/internal/clusterbus"
 	"github.com/braedonsaunders/ether/internal/core"
+	"github.com/braedonsaunders/ether/internal/sessions"
 	"github.com/braedonsaunders/ether/internal/store"
 )
 
@@ -27,7 +28,7 @@ func TestQueueLongevityActiveTimelineSurvivesExpiry(t *testing.T) {
 				d.Now, d.DisableEnrichment, d.Hooks = now, true, Hooks{}
 				if shared {
 					d.DB = store.OpenTest(t)
-					d.Cluster = clusterbus.NewHub().Node("longevity")
+					d.Sessions = sessions.NewLocalRuntime(sessions.LocalRuntimeDeps{DB: d.DB, Cluster: clusterbus.NewHub().Node("longevity")})
 				}
 			})
 			defer f.srv.Close()

@@ -23,7 +23,7 @@ func (s *Server) forwardedOwnerPolicy(r *http.Request, pr *Request) bool {
 		return false
 	}
 	entry, ok := s.transcodes.get(id)
-	if !ok || !entry.started || entry.userID != pr.User.ID || entry.playID == "" || s.d.Catalog == nil || s.d.Playback == nil {
+	if !ok || !entry.started || entry.userID != pr.User.ID || entry.playID == "" || s.d.Catalog == nil || s.playback() == nil {
 		return false
 	}
 	viewer := s.activeViewer(r.Context(), pr.User.ID)
@@ -45,7 +45,7 @@ func (s *Server) forwardedOwnerPolicy(r *http.Request, pr *Request) bool {
 	if err != nil || title == nil || title.Key != entry.key || !s.playableTitle(r.Context(), viewer, title) {
 		return false
 	}
-	source, ok := s.d.Playback.Session(entry.playID)
+	source, ok := s.playback().Session(entry.playID)
 	if !ok || source == nil || source.ID != entry.playID || source.UserID != entry.userID || source.Key != entry.key {
 		return false
 	}

@@ -113,7 +113,7 @@ func TestTranscodeChaosMatrix(t *testing.T) {
 						if e != nil {
 							t.Fatal(e)
 						}
-						f.srv.d.Downloads = dl
+						f.srv.runtime.SetDownloads(dl)
 						q := f.queue(t)
 						r := f.do(t, http.MethodPost, "/downloadQueue/"+itoa(q)+"/add?keys=/library/metadata/"+fightClub.Key.String(), ownerToken, nil)
 						if r.Code != 200 {

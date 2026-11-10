@@ -19,7 +19,7 @@ import (
 // Offline downloads (PMS Download Queue API). Each queue belongs to one
 // (user, client); items move deciding -> waiting -> processing ->
 // available as the title is resolved with caps.Download set and its
-// streams are copied to a temporary faststart MP4 by Deps.Downloads.
+// streams are copied to a temporary faststart MP4 by SessionRuntime.Downloads().
 // Queue state is persisted asynchronously when a database is wired. Completed
 // files remain subject to the configured retention and disk budget.
 
@@ -49,7 +49,7 @@ var downloadSubscribeFeature = model.Feature{Flavor: "download", Type: "subscrib
 // downloadsEnabled reports whether the server can serve downloads at
 // all: owner setting on, remuxer and playback wired.
 func (s *Server) downloadsEnabled() bool {
-	return s.cfg().Downloads.Enabled && s.d.Downloads != nil && s.d.Playback != nil
+	return s.cfg().Downloads.Enabled && s.runtime != nil && s.runtime.Downloads() != nil && s.playback() != nil
 }
 
 // downloadsAllowed reports whether u may download (and so sees
@@ -466,7 +466,7 @@ func (s *Server) handleDownloadQueueItemRestart(w http.ResponseWriter, r *http.R
 	if q == nil {
 		return
 	}
-	s.downloads.Restart(q, parseItemIDs(r), s.d.Downloads.ReleaseDownload)
+	s.downloads.Restart(q, parseItemIDs(r), s.runtime.Downloads().ReleaseDownload)
 	s.scheduleDownloads()
 	w.WriteHeader(http.StatusOK)
 }
@@ -475,8 +475,8 @@ func (s *Server) handleDownloadQueueItemRestart(w http.ResponseWriter, r *http.R
 // finished file (if any).
 func (s *Server) cancelDownloadItem(it *downloadItem) {
 	p := s.downloads.CancelItem(it)
-	if p != "" && s.d.Downloads != nil {
-		s.d.Downloads.ReleaseDownload(p)
+	if p != "" && s.runtime != nil && s.runtime.Downloads() != nil {
+		s.runtime.Downloads().ReleaseDownload(p)
 	}
 }
 
@@ -647,7 +647,7 @@ func (s *Server) processDownloadItem(ctx context.Context, it *downloadItem, run 
 	noRelease := func(err error) bool {
 		return err != nil && errors.Is(err, frontend.ErrNotAvailable) && playbackMessage(err) == msgNotAvailable
 	}
-	job := s.d.SessionStores.NewDownloadJob(s.d.Playback, s.d.Downloads)
+	job := s.runtime.NewDownloadJob(s.playback(), s.runtime.Downloads())
 	p, size, err := job.Run(ctx, frontend.DownloadRequest{Viewer: it.User, Item: it.Key, Caps: it.Caps, Run: run, NoRelease: noRelease,
 		Prepared: func(ps *frontend.PlaySession) (frontend.DecideOptions, error) {
 			if !s.downloads.Prepared(ctx, it, ps.Info) {
@@ -708,7 +708,7 @@ func (s *Server) processDownloadItem(ctx context.Context, it *downloadItem, run 
 		return
 	}
 	if !s.downloads.Complete(ctx, it, p, size, s.now()) {
-		s.d.Downloads.ReleaseDownload(p)
+		s.runtime.Downloads().ReleaseDownload(p)
 		return
 	}
 	s.retainDownload(p, it.ReadyAt)
@@ -724,9 +724,9 @@ func (s *Server) expireDownloads(now time.Time) {
 	if len(paths) > 0 {
 		s.stageDownloads()
 	}
-	if s.d.Downloads != nil {
+	if s.runtime != nil && s.runtime.Downloads() != nil {
 		for _, p := range paths {
-			s.d.Downloads.ReleaseDownload(p)
+			s.runtime.Downloads().ReleaseDownload(p)
 		}
 	}
 }

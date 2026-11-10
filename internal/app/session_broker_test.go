@@ -225,7 +225,7 @@ func TestOwnerActivityIncludesAndStopsLegacyAndBrokerSessions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plexServer := plex.NewServer(plex.Deps{SessionStores: sessions.NewPlexSessionStores(), Experience: experience.NewPlexExperience(), ArtworkStores: artworkservice.NewPlexArtworkStores(), Playback: p, DisableEnrichment: true})
+	plexServer := plex.NewServer(plex.Deps{Sessions: sessions.NewLocalRuntime(sessions.LocalRuntimeDeps{Playback: p}), Experience: experience.NewPlexExperience(), ArtworkStores: artworkservice.NewPlexArtworkStores(), Playback: p, DisableEnrichment: true})
 	defer plexServer.Close()
 	a := &App{plexServer: plexServer, frontends: &frontendRuntime{broker: broker}}
 	activity := (ownerPlayback{Playback: p, app: a}).Sessions()

@@ -51,6 +51,9 @@ func (a *App) newSessionBroker(events *sessions.EventBus) (*sessions.Broker, err
 		Coordination:        a.sessionCoordination,
 		OnProfileDiagnostic: scorecardProfileDiagnostic(a),
 		DB:                  a.db, Cluster: a.clusterNode(), Live: live,
+		Logger:         a.log.With("component", "plex"),
+		Downloads:      a.downloadRemuxer,
+		DecisionTraces: a.resolver,
 		Variants: func(ctx context.Context, v *core.Viewer, t *core.Title, caps core.ClientCaps) ([]core.ReleaseVariant, error) {
 			if a.resolver == nil {
 				return nil, core.ErrNotAvailable

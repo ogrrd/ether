@@ -20,6 +20,7 @@ import (
 	"github.com/braedonsaunders/ether/internal/config"
 	"github.com/braedonsaunders/ether/internal/core"
 	"github.com/braedonsaunders/ether/internal/experience"
+	"github.com/braedonsaunders/ether/internal/frontend"
 	"github.com/braedonsaunders/ether/internal/frontends/plex"
 	"github.com/braedonsaunders/ether/internal/resolver"
 	"github.com/braedonsaunders/ether/internal/sessions"
@@ -37,7 +38,7 @@ type Options struct {
 	AcceptAnyToken bool
 	// FFprobePath overrides config.Transcode.FFprobePath / PATH lookup.
 	FFprobePath string
-	// DisableProbe skips ffprobe and estimates media info (tests).
+	// DisableProbe skips ffprobe and estimates media info (tests).\n
 	DisableProbe bool
 	// SessionIdle closes play sessions without activity (default 10 min).
 	SessionIdle time.Duration
@@ -194,7 +195,7 @@ func (l *Library) Transcoder() core.Transcoder   { return l.trans }
 func (l *Library) Deps() plex.Deps {
 	c := l.cfg()
 	return plex.Deps{
-		SessionStores:    sessions.NewPlexSessionStores(),
+		Sessions:         sessions.NewLocalRuntime(sessions.LocalRuntimeDeps{Playback: l.Playback(), Transcoder: l.Transcoder(), Logger: l.opts.Logger}),
 		Experience:       experience.NewPlexExperience(),
 		ArtworkStores:    artworkservice.NewPlexArtworkStores(),
 		Catalog:          l.Catalog(),
@@ -245,8 +246,18 @@ func (l *Library) OpenPlex() (*plex.Server, func(), error) {
 		srv.Close()
 		return nil, nil, err
 	}
-	srv.UsePlaybackBroker(broker)
+	inst, err := (plex.Frontend{Server: srv}).Mount(context.Background(), frontend.Host{
+		Sessions: sessions.BindSurface(broker, "plex"),
+		Events:   events,
+	})
+	if err != nil {
+		broker.Close(context.Background())
+		events.Close()
+		srv.Close()
+		return nil, nil, err
+	}
 	return srv, func() {
+		_ = inst.Close(context.Background())
 		broker.Close(context.Background())
 		events.Close()
 	}, nil

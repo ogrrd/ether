@@ -9,6 +9,16 @@ import (
 	"time"
 )
 
+// PlaybackDeliveredSession reports whether an encoder session has delivered playable output.
+type PlaybackDeliveredSession interface {
+	PlaybackDelivered() bool
+}
+
+// FacetFilterCatalog filters a facet within a library filter.
+type FacetFilterCatalog interface {
+	FacetFilter(ctx context.Context, f Filter, facet string) ([]FacetValue, error)
+}
+
 // PlexIdentity is how the Plex server presents itself. Empty fields fall back to
 // the config snapshot (friendly name, machine identifier) or sensible defaults.
 type PlexIdentity struct {
@@ -64,19 +74,6 @@ type PlexHomeCacheSource struct {
 	NoProviderWait func(context.Context) context.Context
 }
 
-// PlexEncoder is an opt-in trusted host seam implemented by the shared broker.
-// Starts occur only after existing Plex authentication, owner gates, preparation
-// and admission. The broker must revalidate the exact source revision and retain
-// uncertain execution responsibility. It may choose local execution only before
-// remote allocation; a returned error is never permission for Plex to retry local.
-// Session/Stop true means the broker owns responsibility, even when Session is
-// nil because start is pending. Transport errors must never turn true into false.
-type PlexEncoder interface {
-	StartPlexHLS(context.Context, *User, string, string, HLSRequest) (HLSSession, error)
-	PlexHLSSession(string) (HLSSession, bool)
-	StopPlexHLS(string) bool
-}
-
 // PlexSubtitleSource resolves cached OpenSubtitles and synchronized sidecars.
 type PlexSubtitleSource interface {
 	OpenFormat(string, string) (io.ReadCloser, string, error)
@@ -116,31 +113,23 @@ type PlexSubtitleUpload interface {
 	UploadSubtitle(ctx context.Context, t *Title, u *User, filename, format, language string, body []byte) (StreamInfo, error)
 }
 
-// PlexDeps are the Plex server's dependencies. Catalog, State, Auth and Playback
+// PlexDeps are the Plex server's dependencies. Catalog, State, Auth and Sessions
 // are required; the rest degrade gracefully when nil.
 type PlexDeps struct {
-	// PlexEncoder optionally dispatches authenticated universal playback through
-	// the shared broker; nil preserves the existing local encoder path.
-	PlexEncoder     PlexEncoder
-	PlexStreams     PlexStreamAPI
+	Sessions        Sessions
 	ArtworkImages   ArtworkImageCache
 	ArtworkPalettes ArtworkPaletteCache
 	// ArtworkStores constructs the artwork caches/sources this server owns
 	// and provides the artwork and Live TV helpers it calls. Required:
 	// NewServer panics without it. The app wires artworkservice.NewPlexArtworkStores().
 	ArtworkStores PlexArtworkStores
-	// SessionStores constructs the session stores this server owns and
-	// provides the session helpers it calls. Required: NewServer panics
-	// without it. The app wires sessions.NewPlexSessionStores().
-	SessionStores PlexSessionStores
 	// Experience constructs the experience selectors this server uses and
 	// provides its operations, including statistics defaults. Required:
 	// NewServer panics without it. The app wires experience.NewPlexExperience().
 	Experience PlexExperience
 	// GeneratedPosters draws Ether's poster for a movie or show with no
 	// artwork; nil leaves such titles without a thumb.
-	GeneratedPosters    any
-	SessionCoordination Coordination
+	GeneratedPosters any
 	// LibraryTitles returns the Movies / TV Shows library names from the
 	// libraries service (libraries 1/2); nil uses "Movies" / "TV Shows".
 	LibraryTitles   func() (movies, shows string)
@@ -170,13 +159,7 @@ type PlexDeps struct {
 	Transcoder   Transcoder
 	// Variants lists distinct release versions for "Play Version" detail
 	// pages (optional: without it, detail pages stay single-Media).
-	Variants VariantResolver
-	// DecisionTraces is the latest resolution for a title, copied into a
-	// support capture. Nil leaves playback unchanged.
-	DecisionTraces DecisionTraceSource
-	// Downloads remuxes resolved sources to temp MP4s for the Download
-	// Queue API; nil disables downloads (allowSync stays "0").
-	Downloads        DownloadRemuxer
+	Variants         VariantResolver
 	TrackPreferences PlaybackTrackPreferences
 	Markers          MarkerRanges
 	Subtitles        PlexSubtitleSource
@@ -218,13 +201,6 @@ type PlexDeps struct {
 	// DisableEnrichment turns off the background title-detail and
 	// UltraBlurColors work (the spike test library has nothing to fetch).
 	DisableEnrichment bool
-	// Cluster, when set (clustered nodes only; requires DB), shares play
-	// sessions, play queues, terminations and notifications with the other
-	// nodes. Nil keeps everything in this process.
-	Cluster ClusterNode
-	// SessionHeartbeat is how often a clustered node refreshes its shared
-	// play sessions (default 10s).
-	SessionHeartbeat time.Duration
 	// Now is the clock (tests).
 	Now func() time.Time
 	// PublicURL is this server's published public address

@@ -37,7 +37,7 @@ func (s *Server) cleanSupersededEncoders(ctx context.Context, user int64, client
 		e, ok := s.transcodes.get(id)
 		if ok && e.userID == user && e.clientID == client && e.key == key &&
 			e.playbackID == playbackID && s.playbackOwners.Stale(user, client, key, playbackID) {
-			if s.d.Transcoder != nil {
+			if s.transcoder() != nil {
 				s.stopPlexHLS(id)
 			}
 			s.dropTranscode(id)

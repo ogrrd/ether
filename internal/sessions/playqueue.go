@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"github.com/braedonsaunders/ether/internal/core"
 	"github.com/braedonsaunders/ether/internal/frontend"
-	"math/rand/v2"
 	"sync"
 	"time"
 )
@@ -220,61 +219,12 @@ func (s *PlayQueues) DropCache() {
 // ---------------------------------------------------------------------------
 // Clustered storage
 
-type storedItem struct {
-	ID    int64          `json:"i"`
-	Key   core.RatingKey `json:"k"`
-	Added bool           `json:"a,omitempty"`
-}
-
-type storedQueue struct {
-	ClientID      string         `json:"clientID,omitempty"`
-	Items         []storedItem   `json:"items"`
-	Original      []storedItem   `json:"original,omitempty"`
-	Selected      int            `json:"selected"`
-	Shuffled      bool           `json:"shuffled,omitempty"`
-	SourceURI     string         `json:"sourceURI,omitempty"`
-	PlaylistID    core.RatingKey `json:"playlistID,omitempty"`
-	PlaylistTitle string         `json:"playlistTitle,omitempty"`
-	Version       int            `json:"version"`
-	LastAdded     int64          `json:"lastAdded,omitempty"`
-	LiveSession   string         `json:"liveSession,omitempty"`
-}
-
-func toStored(items []QueueItem) []storedItem {
-	out := make([]storedItem, len(items))
-	for i, it := range items {
-		out[i] = storedItem(it)
-	}
-	return out
-}
-
-func fromStored(items []storedItem) []QueueItem {
-	if len(items) == 0 {
-		return nil
-	}
-	out := make([]QueueItem, len(items))
-	for i, it := range items {
-		out[i] = QueueItem(it)
-	}
-	return out
-}
-
 func EncodeQueue(q *PlayQueue) (string, error) {
-	b, err := json.Marshal(storedQueue{ClientID: q.ClientID, Items: toStored(q.Items), Original: toStored(q.Original),
-		Selected: q.Selected, Shuffled: q.Shuffled, SourceURI: q.SourceURI, PlaylistID: q.PlaylistID,
-		PlaylistTitle: q.PlaylistTitle, Version: q.Version, LastAdded: q.LastAdded, LiveSession: q.LiveSession})
-	return string(b), err
+	return frontend.EncodeQueue(q)
 }
 
 func DecodeQueue(id, userID, rev, updated int64, data string) (*PlayQueue, error) {
-	var sq storedQueue
-	if err := json.Unmarshal([]byte(data), &sq); err != nil {
-		return nil, err
-	}
-	return &PlayQueue{ID: id, UserID: userID, ClientID: sq.ClientID, Items: fromStored(sq.Items),
-		Original: fromStored(sq.Original), Selected: sq.Selected, Shuffled: sq.Shuffled, SourceURI: sq.SourceURI,
-		PlaylistID: sq.PlaylistID, PlaylistTitle: sq.PlaylistTitle, Version: sq.Version, LastAdded: sq.LastAdded, LiveSession: sq.LiveSession,
-		UpdatedAt: time.UnixMilli(updated), Rev: rev}, nil
+	return frontend.DecodeQueue(id, userID, rev, updated, data)
 }
 
 func (s *PlayQueues) cache(q *PlayQueue) {
@@ -474,54 +424,15 @@ func (s *PlayQueues) selectShared(userID, itemID int64) {
 // Handlers
 
 func ShuffleQueue(p *PlayQueue) {
-	if p.Shuffled || len(p.Items) < 2 || p.Selected < 0 || p.Selected >= len(p.Items) {
-		return
-	}
-	p.Original = append([]QueueItem(nil), p.Items...)
-	sel := p.Items[p.Selected]
-	rest := append(append([]QueueItem(nil), p.Items[:p.Selected]...), p.Items[p.Selected+1:]...)
-	rand.Shuffle(len(rest), func(i, j int) { rest[i], rest[j] = rest[j], rest[i] })
-	p.Items = append([]QueueItem{sel}, rest...)
-	p.Selected = 0
-	p.Shuffled = true
-	p.Version++
+	frontend.ShuffleQueue(p)
 }
 
 func UnshuffleQueue(p *PlayQueue) {
-	if !p.Shuffled {
-		return
-	}
-	var sel int64
-	if p.Selected >= 0 && p.Selected < len(p.Items) {
-		// Removing every item leaves no selection to restore.
-		sel = p.Items[p.Selected].ID
-	}
-	present := map[int64]bool{}
-	for _, it := range p.Items {
-		present[it.ID] = true
-	}
-	var items []QueueItem
-	for _, it := range p.Original {
-		if present[it.ID] {
-			items = append(items, it)
-		}
-	}
-	p.Items, p.Original, p.Shuffled = items, nil, false
-	for i, it := range p.Items {
-		if it.ID == sel {
-			p.Selected = i
-		}
-	}
-	p.Version++
+	frontend.UnshuffleQueue(p)
 }
 
 func QueueItemIndex(items []QueueItem, id int64) int {
-	for i, it := range items {
-		if it.ID == id {
-			return i
-		}
-	}
-	return -1
+	return frontend.QueueItemIndex(items, id)
 }
 
 // Controls preserve the playing identity while every other slot receives a
@@ -654,7 +565,9 @@ func retireQueueClient(ctx context.Context, tx *sql.Tx, userID int64, clientID s
 			rows.Close()
 			return nil, err
 		}
-		var sq storedQueue
+		var sq struct {
+			ClientID string `json:"clientID"`
+		}
 		if err = json.Unmarshal([]byte(data), &sq); err != nil {
 			rows.Close()
 			return nil, err

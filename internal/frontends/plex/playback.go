@@ -535,7 +535,7 @@ func applySelections(p *playRequest, info frontend.MediaInfo, langs []string) {
 // prepare resolves the title for this client and makes the decision.
 func (s *Server) prepare(ctx context.Context, pr *Request, p *playRequest) (*frontend.Title, *frontend.PlaySession, frontend.Decision, error) {
 	requested := *p
-	if s.d.Playback == nil {
+	if s.playback() == nil {
 		return nil, nil, frontend.Decision{}, errors.New("playback not configured")
 	}
 	t, err := s.d.Catalog.Get(ctx, p.key)
@@ -772,7 +772,7 @@ const decisionSourceWait = 12 * time.Second
 // client's retry and the decision answers frontend.ErrPrepareSlow. Explicit
 // version picks and requests this cannot pre-check go straight on.
 func (s *Server) awaitSource(ctx context.Context, r *http.Request, pr *Request) (*frontend.Title, error) {
-	pw, ok := s.d.Playback.(frontend.PlaybackPrepareWithin)
+	pw, ok := s.playback().(frontend.PlaybackPrepareWithin)
 	if !ok || pr == nil || pr.User == nil || s.d.Catalog == nil {
 		return nil, nil
 	}
@@ -1299,7 +1299,7 @@ func (s *Server) handleStartHLS(w http.ResponseWriter, r *http.Request) {
 	}
 	defer unlockOwner()
 
-	if s.d.Transcoder == nil || s.d.Playback == nil {
+	if s.transcoder() == nil || s.playback() == nil {
 		writePlaybackStatus(w, http.StatusServiceUnavailable)
 		return
 	}
@@ -1337,7 +1337,7 @@ func (s *Server) handleStartHLS(w http.ResponseWriter, r *http.Request) {
 	entry, ok := s.transcodes.get(p.sessionID)
 	var ps *frontend.PlaySession
 	if ok && entry.key == p.key && entry.userID == pr.User.ID {
-		ps, ok = s.d.Playback.Session(entry.playID)
+		ps, ok = s.playback().Session(entry.playID)
 	}
 	if !ok || ps == nil || !p.sameSettings(entry.requested) {
 		// A client can change quality or tracks in start itself, without a
@@ -1365,7 +1365,7 @@ func (s *Server) handleStartHLS(w http.ResponseWriter, r *http.Request) {
 	dec := frontend.HLSDecision(entry.decision, p.opts.DirectPlay, func() frontend.Decision {
 		resolvePlaySelection(&p, ps.Info)
 		applySelections(&p, ps.Info, s.audioLanguages(pr.User))
-		return s.d.Transcoder.Decide(ps.Info, p.caps, p.opts)
+		return s.transcoder().Decide(ps.Info, p.caps, p.opts)
 	}, func(dec frontend.Decision) frontend.Decision {
 		// A client may request HLS after accepting an MDE direct-play
 		// decision (notably stable HTTP/debrid files). HLSDecision's legacy
@@ -1376,7 +1376,7 @@ func (s *Server) handleStartHLS(w http.ResponseWriter, r *http.Request) {
 			if androidImageSubtitle(pr, ps.Info, entry.opts) {
 				opts := entry.opts
 				opts.DirectPlay, opts.BurnSubtitles = false, true
-				return s.d.Transcoder.Decide(ps.Info, entry.caps, opts)
+				return s.transcoder().Decide(ps.Info, entry.caps, opts)
 			}
 		}
 		videoOK := dec.VideoCodec == "" || frontend.SegmentedVideoCopyOK(entry.caps, dec.VideoCodec)
@@ -1385,7 +1385,7 @@ func (s *Server) handleStartHLS(w http.ResponseWriter, r *http.Request) {
 			opts := entry.opts
 			opts.DirectPlay = false
 			opts.DirectStream = videoOK
-			return s.d.Transcoder.Decide(ps.Info, entry.caps, opts)
+			return s.transcoder().Decide(ps.Info, entry.caps, opts)
 		}
 		return dec
 	})
@@ -1403,7 +1403,7 @@ func (s *Server) handleStartHLS(w http.ResponseWriter, r *http.Request) {
 		SoftSubtitleStream: sessionSoftSubtitle(entry, pr, dec),
 		SessionID:          p.sessionID,
 		ReleaseID:          ps.SourceReleaseID(),
-		InputURL:           s.d.Playback.InputURL(ps.ID),
+		InputURL:           s.playback().InputURL(ps.ID),
 		Info:               ps.Info,
 		Decision:           dec,
 		StartOffset:        p.offset,
@@ -1503,7 +1503,7 @@ func (s *Server) writeMasterPlaylist(w http.ResponseWriter, r *http.Request, ses
 		// BANDWIDTH is the peak segment rate; a copy's segments swing
 		// above the container average.
 		var segDur time.Duration
-		if sd, ok := hs.(interface{ SegmentDuration() time.Duration }); ok {
+		if sd, ok := hs.(frontend.SegmentDurationSession); ok {
 			segDur = sd.SegmentDuration()
 		}
 		bw = frontend.HLSCopyPeakKbps(info, segDur)
@@ -1543,7 +1543,7 @@ func (s *Server) writeMasterPlaylist(w http.ResponseWriter, r *http.Request, ses
 
 // handleTranscodeSession serves session/{id}/base/index.m3u8 and segments.
 func (s *Server) handleTranscodeSession(w http.ResponseWriter, r *http.Request) {
-	if s.d.Transcoder == nil {
+	if s.transcoder() == nil {
 		writeHTTPError(w, http.StatusNotFound)
 		return
 	}
@@ -1653,9 +1653,9 @@ func (s *Server) handleTranscodePing(w http.ResponseWriter, r *http.Request) {
 	if id := sanitizeSessionID(r.URL.Query().Get("session")); id != "" {
 		if e, ok := s.transcodes.get(id); ok && e.userID == FromContext(r.Context()).User.ID {
 			s.transcodes.touch(id, s.now())
-			if s.d.Transcoder != nil {
+			if s.transcoder() != nil {
 				if hs, ok := s.plexHLSSession(id); ok {
-					if t, ok := hs.(interface{ Touch() }); ok {
+					if t, ok := hs.(frontend.TouchableSession); ok {
 						t.Touch()
 					}
 				}
@@ -1709,15 +1709,15 @@ func (s *Server) handleTranscodeStop(w http.ResponseWriter, r *http.Request) {
 		}
 		// Preserve the failure and the last client playhead even if stop
 		// removes the encoder before a terminal timeline is delivered.
-		if s.d.Transcoder != nil {
+		if s.transcoder() != nil {
 			if session, ok := s.plexHLSSession(id); ok {
-				if failed, ok := session.(interface{ ProgressiveFailed() bool }); ok && failed.ProgressiveFailed() {
+				if failed, ok := session.(frontend.ProgressiveFailureSession); ok && failed.ProgressiveFailed() {
 					s.rememberProgressiveStop(r.Context(), e)
 				}
 			}
 		}
 		shared := false
-		if s.d.Transcoder != nil && e.playID != "" {
+		if s.transcoder() != nil && e.playID != "" {
 			for _, other := range s.transcodes.byPlayID(e.playID) {
 				if other != id {
 					if _, active := s.plexHLSSession(other); active {
@@ -1736,7 +1736,7 @@ func (s *Server) handleTranscodeStop(w http.ResponseWriter, r *http.Request) {
 		// session that owns the source.
 		if !superseded && !shared {
 			s.endVersionFlow(r.Context(), playIdentityKey{userID: e.userID, clientID: e.clientID, key: e.key})
-			if lookup, ok := s.playbackBroker.(plexPlaybackLookup); ok && pr.User != nil {
+			if lookup := s.brokerRuntime(); lookup != nil && pr.User != nil {
 				sid, lookupErr := lookup.PlexSessionForPlayback(r.Context(), s.plexAccess(pr), e.key, pr.SessionID, id)
 				if lookupErr == nil && sid != "" {
 					playID, known := lookup.PlexSessionSource(sid)
@@ -1746,7 +1746,7 @@ func (s *Server) handleTranscodeStop(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-		if s.d.Transcoder != nil {
+		if s.transcoder() != nil {
 			s.stopPlexHLS(id)
 		}
 		s.dropTranscode(id)
@@ -1797,9 +1797,7 @@ func (s *Server) servedTranscodeSessionModel(te *transcodeEntry) model.Transcode
 	if !ok || hs == nil {
 		return ts
 	}
-	src, ok := hs.(interface {
-		EncoderStatus() *frontend.EncoderStatus
-	})
+	src, ok := hs.(frontend.EncoderStatusSession)
 	if !ok {
 		return ts
 	}
@@ -1820,10 +1818,10 @@ func (s *Server) sessionTranscodeMedia(t *frontend.Title, te *transcodeEntry, vi
 		return model.Media{}, false
 	}
 	ps := &frontend.PlaySession{Info: te.info, StartedAt: t.UpdatedAt}
-	if s.d.Playback != nil {
-		if live, ok := s.d.Playback.Session(te.playID); ok && live != nil {
+	if pb := s.playback(); pb != nil {
+		if live, ok := pb.Session(te.playID); ok && live != nil {
 			ps = live
-		} else if live, ok := s.d.Playback.SessionFor(te.userID, te.clientID, te.key); ok && live != nil {
+		} else if live, ok := pb.SessionFor(te.userID, te.clientID, te.key); ok && live != nil {
 			ps = live
 		}
 	}
@@ -1837,9 +1835,7 @@ func (s *Server) sessionTranscodeMedia(t *frontend.Title, te *transcodeEntry, vi
 		dec.Kind = frontend.DecisionRemux
 	}
 	if hs, ok := s.plexHLSSession(te.id); ok && hs != nil {
-		if src, ok := hs.(interface {
-			EncoderStatus() *frontend.EncoderStatus
-		}); ok {
+		if src, ok := hs.(frontend.EncoderStatusSession); ok {
 			if st := src.EncoderStatus(); st != nil && st.Rung != "" && st.Rung != "base" && !st.Decision.VideoCopy {
 				dec = st.Decision
 			}
@@ -1991,7 +1987,7 @@ func (s *Server) handlePart(w http.ResponseWriter, r *http.Request) {
 	defer unlockOwner()
 
 	id, err := strconv.ParseInt(chi.URLParam(r, "part"), 10, 64)
-	if err != nil || s.d.Playback == nil {
+	if err != nil || s.playback() == nil {
 		writeHTTPError(w, http.StatusNotFound)
 		return
 	}
@@ -2026,9 +2022,7 @@ func (s *Server) handlePart(w http.ResponseWriter, r *http.Request) {
 	ps, ok := source.Session, source.Matches
 	live, anonymousContinuation := source.PreviousID, source.AnonymousContinuation
 	if anonymousContinuation {
-		if confirm, supported := s.playbackBroker.(interface {
-			ConfirmPlexAdmission(context.Context, *frontend.Viewer, bool) (*frontend.Viewer, error)
-		}); supported {
+		if confirm := s.brokerRuntime(); confirm != nil {
 			viewer, err := confirm.ConfirmPlexAdmission(ctx, pr.User, pr.ClientCaps(0).Remote)
 			if err != nil || viewer == nil || viewer.ID != pr.User.ID || !s.playableTitle(ctx, viewer, title) {
 				writeHTTPError(w, http.StatusForbidden)
@@ -2087,7 +2081,7 @@ func (s *Server) handlePart(w http.ResponseWriter, r *http.Request) {
 		// A part range of a playback that is already on the broker must not
 		// open a second session. That open supersedes the live encoder.
 		already := false
-		if lookup, ok := s.playbackBroker.(plexPlaybackLookup); ok {
+		if lookup := s.brokerRuntime(); lookup != nil {
 			if sid, lookupErr := lookup.PlexSessionForPlayback(ctx, s.plexAccess(pr), key, "", ""); lookupErr == nil && sid != "" {
 				if playID, ok := lookup.PlexSessionSource(sid); ok && playID == ps.ID {
 					already = true
@@ -2286,7 +2280,7 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 	if _, ext, ok := strings.Cut(chi.URLParam(r, "stream"), "."); ok {
 		format = subtitleFormat(ext)
 	}
-	if s.boundStreams == nil || pr == nil || pr.User == nil {
+	if s.streamRuntime == nil || pr == nil || pr.User == nil {
 		writeHTTPError(w, http.StatusNotFound)
 		return
 	}
@@ -2329,9 +2323,7 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 				sel.subtitle, sel.subtitleSet, sel.subtitleStream = -1, true, nil
 			}
 		})
-		if resetter, ok := s.d.TrackPreferences.(interface {
-			ForgetChoice(context.Context, int64, frontend.RatingKey, string) error
-		}); ok {
+		if resetter, ok := s.d.TrackPreferences.(frontend.TrackChoiceResetter); ok {
 			if err := resetter.ForgetChoice(r.Context(), pr.User.ID, binding.Key, "subtitle"); err != nil {
 				s.log.Warn("clear deleted subtitle preference", "error", err)
 			}
@@ -2344,7 +2336,7 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	receipt, _ := acceptanceFrom(r.Context())
-	reader, info, err := s.boundStreams.OpenPlexSidecar(frontend.WithPlexServe(r.Context(), pr.Remote, format), s.plexStreamAccess(pr.User), receipt, id)
+	reader, info, err := s.streamRuntime.OpenSidecar(frontend.WithPlexServe(r.Context(), pr.Remote, format), s.plexStreamAccess(pr.User), receipt, id)
 	if err != nil || reader == nil {
 		if reader != nil {
 			_ = reader.Close()

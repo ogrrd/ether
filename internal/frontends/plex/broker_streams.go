@@ -7,23 +7,15 @@ import (
 	"github.com/braedonsaunders/ether/internal/frontend"
 )
 
-// UsePlexStreams binds visible stream ids and sidecar reads to the broker.
-// Pass sessions.BindPlexStreams(broker).
-func (s *Server) UsePlexStreams(api frontend.PlexStreamAPI) {
-	if s != nil {
-		s.boundStreams = api
-	}
-}
-
 func (s *Server) plexStreamAccess(u *frontend.Viewer) frontend.SessionAccess {
 	return frontend.SessionAccess{Viewer: u, Protocol: "plex"}
 }
 
 func (s *Server) assignStream(ctx context.Context, u *frontend.Viewer, key frontend.RatingKey, index int, info frontend.StreamInfo, sessionID string) int64 {
-	if s == nil || s.boundStreams == nil {
+	if s == nil || s.streamRuntime == nil {
 		return 0
 	}
-	id, err := s.boundStreams.BindPlexStream(ctx, s.plexStreamAccess(u), frontend.PlexStreamBinding{
+	id, err := s.streamRuntime.BindStream(ctx, s.plexStreamAccess(u), frontend.PlexStreamBinding{
 		Key: key, Index: index, Info: info, SessionID: sessionID,
 	})
 	if err != nil {
@@ -33,10 +25,10 @@ func (s *Server) assignStream(ctx context.Context, u *frontend.Viewer, key front
 }
 
 func (s *Server) resolveStream(ctx context.Context, u *frontend.Viewer, id int64) (frontend.PlexStreamBinding, error) {
-	if s == nil || s.boundStreams == nil {
+	if s == nil || s.streamRuntime == nil {
 		return frontend.PlexStreamBinding{}, frontend.ErrNotFound
 	}
-	return s.boundStreams.ResolvePlexStream(ctx, s.plexStreamAccess(u), id)
+	return s.streamRuntime.ResolveStream(ctx, s.plexStreamAccess(u), id)
 }
 
 // resolveIssuedStream resolves a stream id a client sent back. The broker

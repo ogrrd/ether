@@ -30,7 +30,7 @@ func (s *Server) playbackNeverDelivered(ps *frontend.PlaySession, tids []string)
 		}
 		converted = true
 		if out, ok := s.plexHLSSession(id); ok {
-			if delivered, ok := out.(interface{ PlaybackDelivered() bool }); ok {
+			if delivered, ok := out.(frontend.PlaybackDeliveredSession); ok {
 				if delivered.PlaybackDelivered() {
 					return false
 				}

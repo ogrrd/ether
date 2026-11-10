@@ -213,13 +213,9 @@ func newFacetCache() *facetCache { return &facetCache{m: map[string]facetEntry{}
 
 const facetTTL = 10 * time.Minute
 
-type facetFilterCatalog interface {
-	FacetFilter(ctx context.Context, f frontend.Filter, facet string) ([]frontend.FacetValue, error)
-}
-
 func (s *Server) firstCharacter(ctx context.Context, f frontend.Filter) ([]frontend.FacetValue, error) {
 	f.FirstCharacter = ""
-	if fc, ok := s.d.Catalog.(facetFilterCatalog); ok {
+	if fc, ok := s.d.Catalog.(frontend.FacetFilterCatalog); ok {
 		return fc.FacetFilter(ctx, f, "firstCharacter")
 	}
 	return s.d.Catalog.Facet(ctx, f.Type, "firstCharacter")

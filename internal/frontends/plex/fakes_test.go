@@ -1435,6 +1435,10 @@ func (p fixtureProgress) Progress(ctx context.Context, viewer int64, key core.Ra
 }
 
 func (f *fixture) attachPlaybackBroker(d Deps) {
+	var lrDeps sessions.LocalRuntimeDeps
+	if lr, ok := f.srv.d.Sessions.(*sessions.LocalRuntime); ok && lr != nil {
+		lrDeps = lr.Deps()
+	}
 	active := func(_ context.Context, id int64) (*core.Viewer, error) {
 		if id <= 0 {
 			return nil, core.ErrUnauthorized
@@ -1443,7 +1447,8 @@ func (f *fixture) attachPlaybackBroker(d Deps) {
 	}
 	events := sessions.NewEventBus(nil, active)
 	broker, err := sessions.NewBroker(sessions.BrokerDeps{
-		DB: d.DB, Cluster: d.Cluster,
+		DB: d.DB, Cluster: lrDeps.Cluster, SessionHeartbeat: lrDeps.SessionHeartbeat,
+		Coordination: lrDeps.Coordination, Downloads: lrDeps.Downloads, DecisionTraces: lrDeps.DecisionTraces,
 		Lookup: func(ctx context.Context, _ *core.Viewer, _ core.Device, key core.RatingKey) (*core.Title, error) {
 			if f.srv != nil && f.srv.d.Catalog != nil {
 				return f.srv.d.Catalog.Get(ctx, key)
@@ -1477,8 +1482,10 @@ func (f *fixture) attachPlaybackBroker(d Deps) {
 		panic(err)
 	}
 	f.broker = broker
-	f.srv.UsePlaybackBroker(sessions.BindSurface(broker, "plex"))
-	f.srv.UsePlexStreams(sessions.BindPlexStreams(broker))
+	f.srv.usePlaybackBroker(sessions.BindSurface(broker, "plex"))
+	if lrDeps.Encoder != nil {
+		f.srv.usePlexEncoder(lrDeps.Encoder)
+	}
 }
 
 func (f *fixture) bindStream(key core.RatingKey, index int, info core.StreamInfo) int64 {
@@ -1526,8 +1533,7 @@ func mountTestBroker(s *Server, now func() time.Time) {
 	if err != nil {
 		panic(err)
 	}
-	s.UsePlaybackBroker(sessions.BindSurface(broker, "plex"))
-	s.UsePlexStreams(sessions.BindPlexStreams(broker))
+	s.usePlaybackBroker(sessions.BindSurface(broker, "plex"))
 }
 
 type discardProgress struct{}

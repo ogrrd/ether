@@ -37,6 +37,10 @@ type BrokerDeps struct {
 	MaxPendingStarts int
 	DB               *sql.DB
 	Cluster          clusterbus.Node
+	SessionHeartbeat time.Duration
+	Logger           *slog.Logger
+	Downloads        core.DownloadRemuxer
+	DecisionTraces   core.DecisionTraceSource
 	Live             LiveBackend
 	Variants         func(context.Context, *core.Viewer, *core.Title, core.ClientCaps) ([]core.ReleaseVariant, error)
 	SelectTracks     func(context.Context, *core.Viewer, *core.Title, core.MediaInfo, core.DecideOptions, bool, bool) (core.DecideOptions, error)

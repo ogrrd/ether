@@ -74,7 +74,7 @@ type clusterState struct {
 
 func newClusterState(s *Server, db *sql.DB, node frontend.ClusterNode) *clusterState {
 	return &clusterState{s: s, db: db, node: node, self: node.NodeID(), origin: frontend.NewClusterOrigin(),
-		heartbeat: cmp.Or(s.d.SessionHeartbeat, sessionHeartbeat), ttl: sessionTTL,
+		heartbeat: cmp.Or(s.sessionHeartbeat(), sessionHeartbeat), ttl: sessionTTL,
 		kick: make(chan struct{}, 1), stop: make(chan struct{}), done: make(chan struct{}),
 		syncFail:   faillog.New(s.log, "plex: cluster: heartbeat sessions"),
 		expireFail: faillog.New(s.log, "plex: cluster: expire play queues")}
@@ -455,7 +455,7 @@ func (s *Server) endEntryPlayback(e playEntry, offset time.Duration) {
 			return
 		}
 		if current, ok := s.transcodes.get(id); ok && current.userID == e.user.ID && current.clientID == e.client.ClientID && current.key == e.key {
-			if s.d.Transcoder != nil {
+			if s.transcoder() != nil {
 				s.stopPlexHLS(id)
 			}
 			s.dropTranscode(id)
@@ -501,9 +501,7 @@ func (c *clusterState) onTerminate(msg []byte) {
 				c.s.log.Info("ended stream at another node's request", "session", ev.ID)
 			}
 		case "playback":
-			if stop, ok := c.s.playbackBroker.(interface {
-				StopPlayback(context.Context, string) bool
-			}); ok && stop.StopPlayback(context.Background(), ev.ID) {
+			if rt := c.s.brokerRuntime(); rt != nil && rt.StopPlayback(context.Background(), ev.ID) {
 				c.s.log.Info("ended stream at another node's request", "session", ev.ID)
 			}
 		case "stopped":

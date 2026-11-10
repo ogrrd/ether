@@ -53,7 +53,7 @@ func TestNeutralServerLibrariesMatchPlexIncludingSpike(t *testing.T) {
 		cfg := config.Config{}
 		cfg.Spike.Enabled = spike
 		deps := plex.Deps{
-			SessionStores:     sessions.NewPlexSessionStores(),
+			Sessions:          sessions.NewLocalRuntime(sessions.LocalRuntimeDeps{}),
 			Experience:        experience.NewPlexExperience(),
 			ArtworkStores:     artworkservice.NewPlexArtworkStores(),
 			DisableEnrichment: true,

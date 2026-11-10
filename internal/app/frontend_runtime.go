@@ -99,8 +99,7 @@ func (p surfacePlex) Deps(ctx context.Context) (frontend.PlexDeps, error) {
 		return frontend.PlexDeps{}, err
 	}
 	if p.runtime.broker != nil {
-		deps.PlexStreams = sessions.BindPlexStreams(p.runtime.broker)
-		deps.PlexEncoder = p.runtime.broker
+		deps.Sessions = scorecardSessions(p.runtime.app, sessions.BindSurface(p.runtime.broker, "plex"))
 	}
 	return deps, nil
 }

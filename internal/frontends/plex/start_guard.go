@@ -36,7 +36,7 @@ func surroundCopied(pr *Request, d frontend.Decision) bool {
 // termination text when this client's start stalled, after remembering a
 // Dolby Vision HDR10-base fallback for the next start.
 func (s *Server) checkStartStall(pr *Request, key frontend.RatingKey, state string, offset time.Duration, tids []string) string {
-	if s.d.Transcoder == nil || pr == nil || pr.User == nil {
+	if s.transcoder() == nil || pr == nil || pr.User == nil {
 		return ""
 	}
 	now := s.now()
@@ -50,7 +50,7 @@ func (s *Server) checkStartStall(pr *Request, key frontend.RatingKey, state stri
 			s.starts.Forget(id)
 			continue
 		}
-		live, ok := s.d.SessionStores.ObserveStart(s.ctx, out, id)
+		live, ok := s.runtime.ObserveStart(s.ctx, out, id)
 		if !ok {
 			continue
 		}

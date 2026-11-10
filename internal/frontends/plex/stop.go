@@ -10,15 +10,15 @@ func (s *Server) NoteOwnerStop(id, reason string) {
 			}
 		}
 	}
-	if s.d.Playback != nil {
-		if ps, ok := s.d.Playback.Session(id); ok && ps != nil {
+	if pb := s.playback(); pb != nil {
+		if ps, ok := pb.Session(id); ok && ps != nil {
 			unlock, err := s.lockPlaybackOwner(s.ctx, ps.UserID, ps.ClientID)
 			if err != nil {
 				return
 			}
 			defer unlock()
 			for _, e := range s.sessions.list() {
-				if found, ok := s.d.Playback.SessionFor(e.user.ID, e.client.ClientID, e.key); ok && found.ID == id {
+				if found, ok := pb.SessionFor(e.user.ID, e.client.ClientID, e.key); ok && found.ID == id {
 					s.setOwnerTermination(e.id, reason)
 				}
 			}

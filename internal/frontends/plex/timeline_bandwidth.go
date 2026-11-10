@@ -81,8 +81,8 @@ func (s *Server) sessionBandwidth(e playEntry, md model.Metadata) int {
 			return plannedBandwidth(entry.info, entry.decision)
 		}
 	}
-	if s.d.Playback != nil {
-		if ps, ok := s.d.Playback.SessionFor(e.user.ID, e.client.ClientID, e.key); ok && ps != nil {
+	if pb := s.playback(); pb != nil {
+		if ps, ok := pb.SessionFor(e.user.ID, e.client.ClientID, e.key); ok && ps != nil {
 			dec := frontend.Decision{Kind: ps.Decision}
 			if ps.DeliveryDecision != nil {
 				dec = *ps.DeliveryDecision

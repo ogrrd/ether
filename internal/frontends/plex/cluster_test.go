@@ -23,9 +23,9 @@ func twoServers(t *testing.T) (*fixture, *fixture, *clusterbus.Hub) {
 	hub := clusterbus.NewHub()
 	mk := func(name string) *fixture {
 		f := newFixture(func(d *Deps) {
-			d.DB, d.Cluster = db, hub.Node(name)
+			d.DB = db
+			d.Sessions = sessions.NewLocalRuntime(sessions.LocalRuntimeDeps{DB: db, Cluster: hub.Node(name), SessionHeartbeat: 50 * time.Millisecond})
 			d.DisableEnrichment = true
-			d.SessionHeartbeat = 50 * time.Millisecond
 		})
 		t.Cleanup(func() {
 			f.srv.Close()

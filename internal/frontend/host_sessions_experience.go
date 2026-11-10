@@ -4,9 +4,11 @@ import (
 	"context"
 	crand "crypto/rand"
 	"database/sql"
+	"encoding/json"
 	"hash/fnv"
 	"io"
 	"log/slog"
+	"math/rand/v2"
 	"net/http"
 	"strconv"
 	"strings"
@@ -377,6 +379,114 @@ type PlayQueue struct {
 	LoadedAt time.Time // clustered: when the cached copy was read or written
 }
 
+type storedItem struct {
+	ID    int64          `json:"i"`
+	Key   core.RatingKey `json:"k"`
+	Added bool           `json:"a,omitempty"`
+}
+
+type storedQueue struct {
+	ClientID      string         `json:"clientID,omitempty"`
+	Items         []storedItem   `json:"items"`
+	Original      []storedItem   `json:"original,omitempty"`
+	Selected      int            `json:"selected"`
+	Shuffled      bool           `json:"shuffled,omitempty"`
+	SourceURI     string         `json:"sourceURI,omitempty"`
+	PlaylistID    core.RatingKey `json:"playlistID,omitempty"`
+	PlaylistTitle string         `json:"playlistTitle,omitempty"`
+	Version       int            `json:"version"`
+	LastAdded     int64          `json:"lastAdded,omitempty"`
+	LiveSession   string         `json:"liveSession,omitempty"`
+}
+
+func toStored(items []QueueItem) []storedItem {
+	out := make([]storedItem, len(items))
+	for i, it := range items {
+		out[i] = storedItem(it)
+	}
+	return out
+}
+
+func fromStored(items []storedItem) []QueueItem {
+	if len(items) == 0 {
+		return nil
+	}
+	out := make([]QueueItem, len(items))
+	for i, it := range items {
+		out[i] = QueueItem(it)
+	}
+	return out
+}
+
+func EncodeQueue(q *PlayQueue) (string, error) {
+	b, err := json.Marshal(storedQueue{ClientID: q.ClientID, Items: toStored(q.Items), Original: toStored(q.Original),
+		Selected: q.Selected, Shuffled: q.Shuffled, SourceURI: q.SourceURI, PlaylistID: q.PlaylistID,
+		PlaylistTitle: q.PlaylistTitle, Version: q.Version, LastAdded: q.LastAdded, LiveSession: q.LiveSession})
+	return string(b), err
+}
+
+func DecodeQueue(id, userID, rev, updated int64, data string) (*PlayQueue, error) {
+	var sq storedQueue
+	if err := json.Unmarshal([]byte(data), &sq); err != nil {
+		return nil, err
+	}
+	return &PlayQueue{ID: id, UserID: userID, ClientID: sq.ClientID, Items: fromStored(sq.Items),
+		Original: fromStored(sq.Original), Selected: sq.Selected, Shuffled: sq.Shuffled, SourceURI: sq.SourceURI,
+		PlaylistID: sq.PlaylistID, PlaylistTitle: sq.PlaylistTitle, Version: sq.Version, LastAdded: sq.LastAdded, LiveSession: sq.LiveSession,
+		UpdatedAt: time.UnixMilli(updated), Rev: rev}, nil
+}
+
+func ShuffleQueue(p *PlayQueue) {
+	if p.Shuffled || len(p.Items) < 2 || p.Selected < 0 || p.Selected >= len(p.Items) {
+		return
+	}
+	p.Original = append([]QueueItem(nil), p.Items...)
+	sel := p.Items[p.Selected]
+	rest := append(append([]QueueItem(nil), p.Items[:p.Selected]...), p.Items[p.Selected+1:]...)
+	rand.Shuffle(len(rest), func(i, j int) { rest[i], rest[j] = rest[j], rest[i] })
+	p.Items = append([]QueueItem{sel}, rest...)
+	p.Selected = 0
+	p.Shuffled = true
+	p.Version++
+}
+
+func UnshuffleQueue(p *PlayQueue) {
+	if !p.Shuffled {
+		return
+	}
+	var sel int64
+	if p.Selected >= 0 && p.Selected < len(p.Items) {
+		// Removing every item leaves no selection to restore.
+		sel = p.Items[p.Selected].ID
+	}
+	present := map[int64]bool{}
+	for _, it := range p.Items {
+		present[it.ID] = true
+	}
+	var items []QueueItem
+	for _, it := range p.Original {
+		if present[it.ID] {
+			items = append(items, it)
+		}
+	}
+	p.Items, p.Original, p.Shuffled = items, nil, false
+	for i, it := range p.Items {
+		if it.ID == sel {
+			p.Selected = i
+		}
+	}
+	p.Version++
+}
+
+func QueueItemIndex(items []QueueItem, id int64) int {
+	for i, it := range items {
+		if it.ID == id {
+			return i
+		}
+	}
+	return -1
+}
+
 // PlayQueuePersistence connects shared queue transactions to node invalidation
 // and outage reporting. Configure it before serving requests.
 type PlayQueuePersistence struct {
@@ -456,7 +566,7 @@ type StartHintKey struct {
 }
 
 // PlexStreamBinding is one Plex-visible stream id. WireID is zero on bind;
-// BindPlexStream assigns it. SessionID is empty for library metadata and is
+// BindStream assigns it. SessionID is empty for library metadata and is
 // the broker session id after Open.
 type PlexStreamBinding struct {
 	WireID    int64
@@ -564,10 +674,8 @@ func (q *DownloadQueue) Item(ID int64) *DownloadItem {
 func (e *DownloadPreparationError) Error() string { return e.Err.Error() }
 func (e *DownloadPreparationError) Unwrap() error { return e.Err }
 
-// Selections and BindingTable are generic and cannot be constructed
-// through the PlexSessionStores factory (Go interfaces have no generic
-// methods); their small generic implementations live here and sessions
-// aliases them.
+// Selections and BindingTable are generic; their small generic implementations
+// live here and sessions aliases them.
 
 // Selections stores per-viewer track choices. The adapter owns the value
 // shape and translates wire stream identifiers before updating a choice.
@@ -741,8 +849,8 @@ func (t *BindingTable[R]) ByPlayID(PlayID string) []string {
 
 // ---------------------------------------------------------------------------
 // Session store host contracts. Implementations live in internal/sessions;
-// the app wires them through PlexSessionStores. Value types shared across
-// the boundary are defined in this file; sessions aliases them.
+// the app wires them through Sessions (SessionRuntime). Value types shared
+// across the boundary are defined in this file; sessions aliases them.
 
 // PlaybackOwners is the v39 playback owner history.
 type PlaybackOwners interface {
@@ -757,13 +865,6 @@ type PlaybackOwners interface {
 type Lifecycle interface {
 	Acquire(ctx context.Context, key string) (func(), error)
 	References(key string) int
-}
-
-// Coordination holds the owner history and lifecycle gates shared by every
-// protocol adapter in one Ether process.
-type Coordination interface {
-	PlaybackOwners() PlaybackOwners
-	LifecycleGates() Lifecycle
 }
 
 // DecisionArms records armed playback decisions per owner and title.
@@ -841,26 +942,6 @@ type VariantIDs interface {
 	Prune(ctx context.Context, liveIDs []int64, liveRefs []VariantRef) (int64, error)
 }
 
-// PlexStreamTable is the Plex visible-id map.
-type PlexStreamTable interface {
-	Bind(binding PlexStreamBinding) (int64, error)
-	Lookup(id int64) (PlexStreamBinding, bool)
-}
-
-// PlexStreamAPI is the visible-id and sidecar surface Plex calls.
-type PlexStreamAPI interface {
-	BindPlexStream(context.Context, SessionAccess, PlexStreamBinding) (int64, error)
-	ResolvePlexStream(context.Context, SessionAccess, int64) (PlexStreamBinding, error)
-	OpenPlexSidecar(context.Context, SessionAccess, auth.Acceptance, int64) (io.ReadCloser, core.StreamInfo, error)
-}
-
-// PlexSources prepares and serves Plex direct-play part sources.
-type PlexSources interface {
-	Prepare(ctx context.Context, viewer *core.User, key core.RatingKey, caps core.ClientCaps, release string, wait time.Duration) (*core.PlaySession, error)
-	Part(viewer int64, client string, key core.RatingKey, release string) PlexPartSource
-	ServePart(w http.ResponseWriter, r *http.Request, sourceID string)
-}
-
 // DownloadJob runs one download preparation.
 type DownloadJob interface {
 	Run(ctx context.Context, q DownloadRequest) (string, int64, error)
@@ -894,8 +975,8 @@ func Estimate(ctx context.Context, playback Estimator, viewer *core.Viewer, clie
 	return playback.Estimate(ctx, title, caps()), nil
 }
 
-// PlexActivityStore is the broker's Plex session-list store.
-type PlexActivityStore interface {
+// ActivityStore is the broker's active session-list store.
+type ActivityStore interface {
 	HasPlexActivity(id string) bool
 	EnsurePlexActivity(id string, key int)
 	UpsertPlexActivity(id string, fn func(*PlexActivity)) PlexActivity
@@ -904,35 +985,145 @@ type PlexActivityStore interface {
 	ExpirePlexActivities(now time.Time, ttl time.Duration) []PlexActivity
 }
 
-// PlexActivitySource reaches the Plex activity store from a session broker
-// or its surface binding.
-type PlexActivitySource interface {
-	PlexActivities() PlexActivityStore
+// PlexEncoder is the universal transcode session interface.
+type PlexEncoder interface {
+	StartPlexHLS(ctx context.Context, viewer *core.User, playID, id string, req core.HLSRequest) (core.HLSSession, error)
+	PlexHLSSession(id string) (core.HLSSession, bool)
+	StopPlexHLS(id string) bool
 }
 
-// PlexSessionStores constructs the session stores Plex owns and provides
-// the package-level session helpers Plex calls. Implemented in
-// internal/sessions, wired by the app (and spike).
-type PlexSessionStores interface {
-	NewCoordination() Coordination
+// PlexMediaForwarder forwards media requests to a distributed encoder owner.
+type PlexMediaForwarder interface {
+	ForwardPlexMedia(w http.ResponseWriter, r *http.Request, id string) bool
+}
+
+// PlexGrantMediaForwarder forwards grant-authorized media requests to a distributed encoder owner.
+type PlexGrantMediaForwarder interface {
+	ForwardPlexGrantMedia(w http.ResponseWriter, r *http.Request, id string) bool
+}
+
+// PlexBindingStore persists distributed encoder bindings across cluster nodes.
+type PlexBindingStore interface {
+	PlexHLSDistributed(id string) bool
+	SavePlexBinding(ctx context.Context, id string, raw []byte) error
+	LoadPlexBinding(ctx context.Context, id string) ([]byte, error)
+}
+
+// PlexBindingDeleter removes a distributed encoder binding.
+type PlexBindingDeleter interface {
+	DeletePlexBinding(ctx context.Context, id string) error
+}
+
+// StoredTitlePreloader preloads stored catalogue titles in batch.
+type StoredTitlePreloader interface {
+	PreloadStored(context.Context, []core.RatingKey)
+}
+
+// ArtworkPersistencePolicy reports whether artwork should be persisted for a rating key.
+type ArtworkPersistencePolicy interface {
+	PersistsArtwork(context.Context, core.RatingKey) bool
+}
+
+// FailedStartRecorder records a stalled or failed playback start against a source session.
+type FailedStartRecorder interface {
+	NoteFailedStart(sessionID, reason string)
+}
+
+// SourceRestorer restores a PlaySession snapshot on a node after failover.
+type SourceRestorer interface {
+	RestorePlexSource(context.Context, string, core.PlaySession) error
+}
+
+// LegacyProgressWriter persists legacy progress reports without duration.
+type LegacyProgressWriter interface {
+	LegacyProgress(context.Context, int64, core.RatingKey, time.Duration) error
+}
+
+// ContainerScrobbler marks a rating key and its container hierarchy watched or unwatched.
+type ContainerScrobbler interface {
+	PlexScrobble(context.Context, int64, core.RatingKey, []core.RatingKey, bool) error
+}
+
+// RawRatingWriter persists a raw viewer rating value.
+type RawRatingWriter interface {
+	PlexRate(context.Context, int64, core.RatingKey, float64) error
+}
+
+// ContinueHider hides an item from Continue Watching.
+type ContinueHider interface {
+	HideContinue(context.Context, int64, core.RatingKey) error
+}
+
+// TrackChoiceResetter clears a remembered track choice for a rating key.
+type TrackChoiceResetter interface {
+	ForgetChoice(context.Context, int64, core.RatingKey, string) error
+}
+
+// ProgressiveFailureSession reports whether a progressive stream failed.
+type ProgressiveFailureSession interface {
+	ProgressiveFailed() bool
+}
+
+// SegmentDurationSession reports the segment duration of an HLS session.
+type SegmentDurationSession interface {
+	SegmentDuration() time.Duration
+}
+
+// TouchableSession refreshes an active transcode session's idle timer.
+type TouchableSession interface {
+	Touch()
+}
+
+// EncoderStatusSession reports live encoder status metrics.
+type EncoderStatusSession interface {
+	EncoderStatus() *core.EncoderStatus
+}
+
+// ProtocolStopper stops all active sessions for a frontend protocol.
+type ProtocolStopper interface {
+	StopProtocol(ctx context.Context, protocol Protocol) error
+}
+
+// SessionRuntime provides the session-backed stores, source preparation,
+// stream bindings, and playback/transcoder runtime for protocol adapters.
+type SessionRuntime interface {
+	HasBroker() bool
+	PlexEncoder() PlexEncoder
+	Playback() Playback
+	Transcoder() Transcoder
+	Downloads() DownloadRemuxer
+	SetDownloads(DownloadRemuxer)
+	LatestDecision(key core.RatingKey) (core.DecisionTrace, bool)
+	DB() *sql.DB
+	Cluster() ClusterNode
+	SessionHeartbeat() time.Duration
+	PlaybackOwners() PlaybackOwners
+	LifecycleGates() Lifecycle
 	NewDecisionArms(ctx context.Context, db *sql.DB, now func() time.Time, node string, log *slog.Logger, wg *sync.WaitGroup) DecisionArms
 	NewStartGuard() StartGuard
 	NewPlayQueues() PlayQueues
 	NewVersionFlows(ctx context.Context, db *sql.DB) VersionFlows
 	NewDownloadQueueStore() DownloadQueueStore
 	NewVariantIDs(db *sql.DB, now func() time.Time) VariantIDs
-	NewPlexStreamTable() PlexStreamTable
-	NewDownloadJob(playback core.Playback, remuxer core.DownloadRemuxer) DownloadJob
-	NewDownloadQueuePersistence(queue DownloadQueueStore, db *sql.DB, artifacts core.DownloadRemuxer, log *slog.Logger, expiry func() time.Duration, storageID func() string, users func(context.Context) ([]core.User, error)) DownloadQueuePersistence
-	NewPlexSources(playback core.Playback, log *slog.Logger) PlexSources
-	ObserveStart(ctx context.Context, source core.HLSSession, id string) (StartObservation, bool)
-	EncodeQueue(q *PlayQueue) (string, error)
-	DecodeQueue(id, userID, rev, updated int64, data string) (*PlayQueue, error)
-	ShuffleQueue(p *PlayQueue)
-	UnshuffleQueue(p *PlayQueue)
-	QueueItemIndex(items []QueueItem, id int64) int
-	VariantHash(key core.RatingKey, releaseID string) int64
-	UnderlyingPlexActivityStore(s Sessions) PlexActivityStore
+	NewDownloadJob(playback Playback, remuxer DownloadRemuxer) DownloadJob
+	NewDownloadQueuePersistence(queue DownloadQueueStore, db *sql.DB, artifacts DownloadRemuxer, log *slog.Logger, expiry func() time.Duration, storageID func() string, users func(context.Context) ([]core.User, error)) DownloadQueuePersistence
+	PrepareSource(ctx context.Context, viewer *core.User, key core.RatingKey, caps core.ClientCaps, release string, wait time.Duration) (*core.PlaySession, error)
+	PartSource(viewer int64, client string, key core.RatingKey, release string) PlexPartSource
+	ServePartSource(w http.ResponseWriter, r *http.Request, sourceID string)
+	ObserveStart(ctx context.Context, source HLSSession, id string) (StartObservation, bool)
+	ActivityStore() ActivityStore
+	BindStream(context.Context, SessionAccess, PlexStreamBinding) (int64, error)
+	ResolveStream(context.Context, SessionAccess, int64) (PlexStreamBinding, error)
+	OpenSidecar(context.Context, SessionAccess, auth.Acceptance, int64) (io.ReadCloser, core.StreamInfo, error)
+	NotePlexEncoder(id string, format StreamFormat, decision core.Decision, offset time.Duration)
+	PlexSessionForPlayback(ctx context.Context, a SessionAccess, item core.RatingKey, playbackID, transcodeID string) (string, error)
+	PlexSessionForSource(ctx context.Context, a SessionAccess, item core.RatingKey, playID string) (string, error)
+	PlexSessionSource(id string) (string, bool)
+	ReportProgress(ctx context.Context, a SessionAccess, item core.RatingKey, t Timeline) error
+	StopPlayback(ctx context.Context, playID string) bool
+	StopProtocol(ctx context.Context, protocol Protocol) error
+	RecordAuthorizedSubtitleIntent(ctx context.Context, viewer int64, key core.RatingKey, manual bool) error
+	ConfirmPlexAdmission(ctx context.Context, viewer *core.Viewer, remote bool) (*core.Viewer, error)
 }
 
 // PlexAdmission is the source and the version and track selections for one
@@ -962,7 +1153,7 @@ type plexServe struct {
 type plexServeKey struct{}
 
 // WithPlexServe carries the request's remote bit and subtitle format into
-// ResolvePlexStream and OpenPlexSidecar without changing their signatures.
+// ResolveStream and OpenSidecar without changing their signatures.
 func WithPlexServe(ctx context.Context, remote bool, format string) context.Context {
 	if ctx == nil {
 		ctx = context.Background()

@@ -24,7 +24,7 @@ type versionSnapshot struct {
 type versionFlowStore struct{ flows frontend.VersionFlows }
 
 func newVersionFlowStore(s *Server, db *sql.DB) *versionFlowStore {
-	flows := s.d.SessionStores.NewVersionFlows(s.ctx, db)
+	flows := s.runtime.NewVersionFlows(s.ctx, db)
 	s.wg.Add(1)
 	go func() { defer s.wg.Done(); flows.Run() }()
 	return &versionFlowStore{flows: flows}

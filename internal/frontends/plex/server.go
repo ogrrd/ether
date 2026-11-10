@@ -88,6 +88,7 @@ type Server struct {
 	trickplay         frontend.TrickplayProvider
 	extras            any
 	prerolls          any
+	subtitles         frontend.SubtitleSidecarSource
 	variantIDs        *variantIDRegistry
 	playIDs           *playIdentities
 	versionFlows      *versionFlowStore

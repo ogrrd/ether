@@ -3,7 +3,6 @@ package frontend
 import (
 	"context"
 	"database/sql"
-	"io"
 	"log/slog"
 	"net/http"
 	"time"
@@ -77,45 +76,6 @@ type PlexEncoder interface {
 	StopPlexHLS(string) bool
 }
 
-// PlexSubtitleSource resolves cached OpenSubtitles and synchronized sidecars.
-type PlexSubtitleSource interface {
-	OpenFormat(string, string) (io.ReadCloser, string, error)
-}
-
-// PlexSubtitleCatalog is optionally implemented by PlexDeps.Subtitles: the sidecars
-// already cached for a title and viewer, without network access, skipping
-// streams embedded already lists (by ExternalURL) or covers (by language).
-type PlexSubtitleCatalog interface {
-	CachedSidecars(ctx context.Context, t *Title, u *User, embedded []StreamInfo) []StreamInfo
-}
-
-// PlexSubtitleOffer is one subtitle search result.
-type PlexSubtitleOffer struct {
-	ID              int64  // provider file id, passed back to DownloadSubtitle
-	Language        string // ISO 639-1
-	Title           string // release or file name
-	Provider        string // "OpenSubtitles"
-	Score           int
-	HearingImpaired bool
-	Forced          bool
-	PerfectMatch    bool // matched the playing file's hash or release
-}
-
-// PlexSubtitleSearch is optionally implemented by PlexDeps.Subtitles: Plex's
-// on-demand subtitle search and pick.
-type PlexSubtitleSearch interface {
-	SearchSubtitles(ctx context.Context, t *Title, u *User, lang, release string) ([]PlexSubtitleOffer, error)
-	// DownloadSubtitle fetches an offer returned by SearchSubtitles for t
-	// and returns its sidecar stream; ErrNotFound for unknown offers.
-	DownloadSubtitle(ctx context.Context, t *Title, u *User, id int64) (StreamInfo, error)
-}
-
-// PlexSubtitleUpload is optionally implemented by PlexDeps.Subtitles: Plex Web's
-// "Upload Subtitles" (POST /library/metadata/{key}/subtitles).
-type PlexSubtitleUpload interface {
-	UploadSubtitle(ctx context.Context, t *Title, u *User, filename, format, language string, body []byte) (StreamInfo, error)
-}
-
 // PlexDeps are the Plex server's dependencies. Catalog, State, Auth and Playback
 // are required; the rest degrade gracefully when nil.
 type PlexDeps struct {
@@ -177,7 +137,6 @@ type PlexDeps struct {
 	// Downloads remuxes resolved sources to temp MP4s for the Download
 	// Queue API; nil disables downloads (allowSync stays "0").
 	Downloads DownloadRemuxer
-	Subtitles PlexSubtitleSource
 
 	// ApplyClientRules adjusts caps for the owner's quality rules. Nil leaves
 	// the request caps unchanged. The app wires resolver.ApplyClientRules so

@@ -114,7 +114,7 @@ func TestMigrateLegacyStremioCollectionsAndSubtitles(t *testing.T) {
 	svc := subtitles.New(subtitles.Options{CacheDir: t.TempDir(), Providers: got})
 	adapters.AttachSubtitles(mgr, svc)
 	a.subtitles = svc
-	offers, err := plexSubtitles{a: a}.SearchSubtitles(ctx, &core.Title{Key: core.MovieKey(1), Type: core.TypeMovie, IDs: core.IDs{IMDB: "tt1234567"}}, nil, "en", "")
+	offers, err := subtitleSurface{app: a}.SearchSubtitles(ctx, &core.Title{Key: core.MovieKey(1), Type: core.TypeMovie, IDs: core.IDs{IMDB: "tt1234567"}}, nil, "en", "")
 	if err != nil || len(offers) != 1 || offers[0].Provider != "SubSense" || strings.Contains(offers[0].Title, "secret") || downloads.Load() != 0 {
 		t.Fatalf("offers=%+v downloads=%d err=%v", offers, downloads.Load(), err)
 	}

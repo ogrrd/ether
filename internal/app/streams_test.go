@@ -49,7 +49,7 @@ func TestPlexSubtitlesUsesStreamPreferenceLanguages(t *testing.T) {
 	a := &App{trackprefs: prefs, subtitles: subtitles.New(subtitles.Options{
 		Config: config.OpenSubtitles{Enabled: true, APIKey: "k"}, CacheDir: t.TempDir(), BaseURL: srv.URL,
 	})}
-	p := plexSubtitles{a}
+	p := subtitleSurface{app: a}
 	title := &core.Title{Key: core.MovieKey(10331), Type: core.TypeMovie, IDs: core.IDs{TMDB: 10331}}
 	viewer := &core.User{ID: 3, SubtitleLanguages: []string{"en"}}
 

@@ -1466,10 +1466,10 @@ func (f *fixture) attachPlaybackBroker(d Deps) {
 			d.Hooks.OnTimeline(&u, key, pos, dur, state)
 		},
 		OpenSubtitle: func(id, format string) (io.ReadCloser, string, error) {
-			if f.srv == nil || f.srv.d.Subtitles == nil {
+			if f.srv == nil || f.srv.subtitles == nil {
 				return nil, "", core.ErrNotAvailable
 			}
-			return f.srv.d.Subtitles.OpenFormat(id, format)
+			return f.srv.subtitles.OpenFormat(id, format)
 		},
 		Events: events, Now: d.Now,
 	})
@@ -1516,10 +1516,10 @@ func mountTestBroker(s *Server, now func() time.Time) {
 		CanPlay: func(*core.Viewer, bool, time.Time) bool { return true }, BitrateLimit: func(*core.Viewer) int { return 0 },
 		OnTimeline: func(*core.Viewer, core.RatingKey, time.Duration, time.Duration, string) {},
 		OpenSubtitle: func(id, format string) (io.ReadCloser, string, error) {
-			if s.d.Subtitles == nil {
+			if s.subtitles == nil {
 				return nil, "", core.ErrNotAvailable
 			}
-			return s.d.Subtitles.OpenFormat(id, format)
+			return s.subtitles.OpenFormat(id, format)
 		},
 		Events: events, Now: now,
 	})

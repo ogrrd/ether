@@ -149,7 +149,7 @@ func TestVersionIdentityAcrossPlayFlow(t *testing.T) {
 					}
 					subs := newFakeSubtitles()
 					subs.offers = []SubtitleOffer{{ID: 101, Language: "nl", Title: "Downloaded Dutch", Provider: "OpenSubtitles"}}
-					f.srv.d.Subtitles = subs
+					f.srv.UseSubtitles(subs)
 					notifications, ok := f.srv.notifier.subscribe([]string{"activity"}, &ownerUser)
 					if !ok {
 						t.Fatal("activity subscription failed")
@@ -379,7 +379,7 @@ func TestAndroidTVSubtitleDownloadDuringPlayback(t *testing.T) {
 	subs := newFakeSubtitles()
 	subs.offers = []SubtitleOffer{{ID: 101, Language: "nl", Title: "Downloaded Dutch", Provider: "OpenSubtitles"}}
 	blocking := &blockingSubtitleDownload{subs, make(chan struct{}), make(chan struct{})}
-	f.srv.d.Subtitles = blocking
+	f.srv.UseSubtitles(blocking)
 	search := decodeJSON(t, f.get(t, path+"/subtitles?language=nl", headers...))
 	offer := search["Stream"].([]any)[0].(map[string]any)["key"].(string)
 	if rec := put(path + "/subtitles?key=" + urlEsc(offer)); rec.Code != http.StatusOK {

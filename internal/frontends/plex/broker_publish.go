@@ -22,6 +22,9 @@ func (s *Server) UseHost(host frontend.Host) {
 	if host.Prerolls != nil {
 		s.prerolls = host.Prerolls
 	}
+	if sub, ok := host.Subtitles.(frontend.SubtitleSidecarSource); ok && sub != nil {
+		s.subtitles = sub
+	}
 }
 
 // UseTrackPreferences attaches the viewer track-preference service.
@@ -56,6 +59,13 @@ func (s *Server) UseExtras(ex any) {
 func (s *Server) UsePrerolls(p any) {
 	if s != nil {
 		s.prerolls = p
+	}
+}
+
+// UseSubtitles attaches a subtitle sidecar source override.
+func (s *Server) UseSubtitles(sub frontend.SubtitleSidecarSource) {
+	if s != nil {
+		s.subtitles = sub
 	}
 }
 

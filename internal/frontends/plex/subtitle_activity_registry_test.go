@@ -12,7 +12,7 @@ func TestSubtitleDownloadActivityRegistryLifecycle(t *testing.T) {
 	f, subs := newSubtitleFixture(t)
 	subs.offers = []SubtitleOffer{{ID: 101, Language: "en"}}
 	blocking := &blockingSubtitleDownload{subs, make(chan struct{}), make(chan struct{})}
-	f.srv.d.Subtitles = blocking
+	f.srv.UseSubtitles(blocking)
 	released := false
 	defer func() {
 		if !released {

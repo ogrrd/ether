@@ -350,6 +350,45 @@ type SubtitleCatalog interface {
 	Download(context.Context, *core.Viewer, core.Device, core.RatingKey, string) (int, error)
 }
 
+// SubtitleSidecarSource resolves cached OpenSubtitles and synchronized sidecars.
+type SubtitleSidecarSource interface {
+	OpenFormat(string, string) (io.ReadCloser, string, error)
+}
+
+// SubtitleSidecarCatalog is optionally implemented by Host.Subtitles: the sidecars
+// already cached for a title and viewer, without network access, skipping
+// streams embedded already lists (by ExternalURL) or covers (by language).
+type SubtitleSidecarCatalog interface {
+	CachedSidecars(ctx context.Context, t *Title, u *User, embedded []StreamInfo) []StreamInfo
+}
+
+// SubtitleSearchOffer is one subtitle search result.
+type SubtitleSearchOffer struct {
+	ID              int64  // provider file id, passed back to DownloadSubtitle
+	Language        string // ISO 639-1
+	Title           string // release or file name
+	Provider        string // "OpenSubtitles"
+	Score           int
+	HearingImpaired bool
+	Forced          bool
+	PerfectMatch    bool // matched the playing file's hash or release
+}
+
+// SubtitleSidecarSearch is optionally implemented by Host.Subtitles: on-demand
+// subtitle search and pick returning a sidecar stream.
+type SubtitleSidecarSearch interface {
+	SearchSubtitles(ctx context.Context, t *Title, u *User, lang, release string) ([]SubtitleSearchOffer, error)
+	// DownloadSubtitle fetches an offer returned by SearchSubtitles for t
+	// and returns its sidecar stream; ErrNotFound for unknown offers.
+	DownloadSubtitle(ctx context.Context, t *Title, u *User, id int64) (StreamInfo, error)
+}
+
+// SubtitleSidecarUpload is optionally implemented by Host.Subtitles:
+// viewer-uploaded sidecar subtitles.
+type SubtitleSidecarUpload interface {
+	UploadSubtitle(ctx context.Context, t *Title, u *User, filename, format, language string, body []byte) (StreamInfo, error)
+}
+
 // Extra describes a playable trailer or clip. Key is the broker-facing item
 // identity; Source and SourceID describe the upstream reference, not a resolved
 // URL or credentials. Plex media and part identifiers remain adapter-owned.

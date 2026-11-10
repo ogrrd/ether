@@ -169,7 +169,7 @@ func (s *Server) addProbedStreamFeatures(ctx context.Context, key frontend.Ratin
 }
 
 // SubtitleSource resolves cached OpenSubtitles and synchronized sidecars.
-type SubtitleSource = frontend.PlexSubtitleSource
+type SubtitleSource = frontend.SubtitleSidecarSource
 
 func showLanguageMemoKey(show frontend.RatingKey) string {
 	return "plex:show-language:" + strconv.FormatInt(int64(show), 10)

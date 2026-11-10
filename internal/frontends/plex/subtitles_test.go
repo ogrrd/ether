@@ -159,7 +159,8 @@ var (
 func newSubtitleFixture(t *testing.T) (*fixture, *fakeSubtitles) {
 	t.Helper()
 	subs := newFakeSubtitles()
-	f := newFixture(func(d *Deps) { d.Subtitles = subs })
+	f := newFixture()
+	f.srv.UseSubtitles(subs)
 	t.Cleanup(func() { f.srv.Close() })
 	f.playback.info = estimateInfo
 	subs.cache(fightClub.Key, sidecar("en", "ether-subtitle:cached-en"))
@@ -845,7 +846,7 @@ func TestWaysToWatchSubtitleReread(t *testing.T) {
 	subs := newFakeSubtitles()
 	subs.cache(fightClub.Key, sidecar("es", "ether-subtitle:cached-es"))
 	subs.files["ether-subtitle:cached-es"] = spanishSidecarSRT
-	f.srv.d.Subtitles = subs
+	f.srv.UseSubtitles(subs)
 
 	db := store.OpenTest(t)
 	prefs := trackprefs.New(db)
@@ -1102,7 +1103,7 @@ func TestSubtitleApplyReturnsBeforeDownload(t *testing.T) {
 	f, subs := newSubtitleFixture(t)
 	subs.offers = []SubtitleOffer{{ID: 101, Language: "en"}}
 	blocking := &blockingSubtitleDownload{subs, make(chan struct{}), make(chan struct{})}
-	f.srv.d.Subtitles = blocking
+	f.srv.UseSubtitles(blocking)
 	defer close(blocking.complete)
 	root := "/library/metadata/" + fightClub.Key.String() + "/subtitles"
 	mc := decodeJSON(t, f.get(t, root+"?language=en", jsonAccept...))

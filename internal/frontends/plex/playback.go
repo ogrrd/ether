@@ -2315,7 +2315,7 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 			writeHTTPError(w, http.StatusForbidden)
 			return
 		}
-		deleter, ok := s.d.Subtitles.(subtitleDelete)
+		deleter, ok := s.subtitles.(subtitleDelete)
 		if !ok {
 			writeHTTPError(w, http.StatusNotFound)
 			return

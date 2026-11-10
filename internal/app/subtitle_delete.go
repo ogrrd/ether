@@ -5,6 +5,6 @@ import (
 	"github.com/braedonsaunders/ether/internal/core"
 )
 
-func (p plexSubtitles) DeleteSubtitle(_ context.Context, key core.RatingKey, _ *core.User, stream core.StreamInfo) error {
-	return p.a.subtitles.DeleteUpload(key, stream)
+func (s subtitleSurface) DeleteSubtitle(_ context.Context, key core.RatingKey, _ *core.User, stream core.StreamInfo) error {
+	return s.app.subtitles.DeleteUpload(key, stream)
 }

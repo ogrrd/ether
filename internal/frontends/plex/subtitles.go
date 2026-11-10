@@ -34,14 +34,14 @@ import (
 // SubtitleCatalog is optionally implemented by Deps.Subtitles: the sidecars
 // already cached for a title and viewer, without network access, skipping
 // streams embedded already lists (by ExternalURL) or covers (by language).
-type SubtitleCatalog = frontend.PlexSubtitleCatalog
+type SubtitleCatalog = frontend.SubtitleSidecarCatalog
 
 // SubtitleOffer is one subtitle search result.
-type SubtitleOffer = frontend.PlexSubtitleOffer
+type SubtitleOffer = frontend.SubtitleSearchOffer
 
 // SubtitleSearch is optionally implemented by Deps.Subtitles: Plex's
 // on-demand subtitle search and pick.
-type SubtitleSearch = frontend.PlexSubtitleSearch
+type SubtitleSearch = frontend.SubtitleSidecarSearch
 
 // infoWithSelectedSidecar keeps a chosen external subtitle on a metadata
 // stream list. Cached sidecars omit a language the file already embeds, so
@@ -85,7 +85,7 @@ func ensureSelectedSidecar(ps *frontend.PlaySession, want *frontend.StreamInfo) 
 // withCachedSidecars appends the viewer's cached sidecars that info does not
 // already list. It never touches the network.
 func (s *Server) withCachedSidecars(ctx context.Context, u *frontend.User, t *frontend.Title, info frontend.MediaInfo) frontend.MediaInfo {
-	c, ok := s.d.Subtitles.(SubtitleCatalog)
+	c, ok := s.subtitles.(SubtitleCatalog)
 	if !ok || t == nil {
 		return info
 	}
@@ -377,7 +377,7 @@ func (s *Server) handleSubtitleSearch(w http.ResponseWriter, r *http.Request) {
 	}
 	lang = frontend.NormalizeLanguage(lang)
 	mc := libraryContainer()
-	searcher, ok := s.d.Subtitles.(SubtitleSearch)
+	searcher, ok := s.subtitles.(SubtitleSearch)
 	if !ok {
 		s.write(w, r, mc)
 		return
@@ -455,7 +455,7 @@ func (s *Server) handleSubtitlePick(w http.ResponseWriter, r *http.Request) {
 		writeHTTPError(w, http.StatusNotFound)
 		return
 	}
-	searcher, ok := s.d.Subtitles.(SubtitleSearch)
+	searcher, ok := s.subtitles.(SubtitleSearch)
 	if !ok {
 		writeHTTPError(w, http.StatusNotFound)
 		return
@@ -558,7 +558,7 @@ func (s *Server) finishSubtitleActivity(uuid string, userID int64) {
 
 // SubtitleUpload is optionally implemented by Deps.Subtitles: Plex Web's
 // "Upload Subtitles" (POST /library/metadata/{key}/subtitles).
-type SubtitleUpload = frontend.PlexSubtitleUpload
+type SubtitleUpload = frontend.SubtitleSidecarUpload
 
 const maxUploadBytes = 16 << 20
 
@@ -582,7 +582,7 @@ func (s *Server) handleSubtitleUpload(w http.ResponseWriter, r *http.Request) {
 		writeHTTPError(w, http.StatusForbidden)
 		return
 	}
-	uploader, ok := s.d.Subtitles.(SubtitleUpload)
+	uploader, ok := s.subtitles.(SubtitleUpload)
 	if !ok {
 		writeHTTPError(w, http.StatusNotFound)
 		return
@@ -714,7 +714,7 @@ func (s *Server) handleTranscodeSubtitles(w http.ResponseWriter, r *http.Request
 		s.writeEmpty(w, r)
 		return
 	}
-	timeline := s.d.Subtitles
+	timeline := s.subtitles
 	if timeline == nil {
 		s.writeEmpty(w, r)
 		return

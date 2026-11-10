@@ -156,7 +156,6 @@ func (a *App) buildPlex(ctx context.Context, cfg config.Config) (frontend.PlexDe
 	}
 	deps.Discovery = a.discoveryFeatures.Frontend()
 	deps.LiveTV = a.livetv.Frontend()
-	deps.Subtitles = plexSubtitles{a}
 	deps.SessionCoordination = a.sessionCoordination
 	deps.SessionStores = sessions.NewPlexSessionStores()
 	deps.Experience = experience.NewPlexExperience(a.markers)

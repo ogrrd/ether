@@ -295,7 +295,7 @@ func (a *App) newSurfaceExperience(protocol core.Protocol, artwork ...frontend.A
 				result.Markers = experience.ItemMarkers(ctx, nil, title.Key, markerInfo)
 			}
 			if a.subtitles != nil {
-				info.Streams = append(info.Streams, (plexSubtitles{a}).CachedSidecars(ctx, title, u, info.Streams)...)
+				info.Streams = append(info.Streams, (subtitleSurface{app: a}).CachedSidecars(ctx, title, u, info.Streams)...)
 			}
 			result.Tracks = info.Streams
 			result.TracksEstimated = info.Estimated

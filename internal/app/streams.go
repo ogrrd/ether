@@ -9,6 +9,7 @@ import (
 	"errors"
 
 	"github.com/braedonsaunders/ether/internal/core"
+	"github.com/braedonsaunders/ether/internal/frontend"
 	"github.com/braedonsaunders/ether/internal/langfeat"
 	"github.com/braedonsaunders/ether/internal/markers"
 	"github.com/braedonsaunders/ether/internal/frontends/plex"
@@ -49,40 +50,36 @@ func (a *App) enrichSubtitles(ctx context.Context, t *core.Title, u *core.User, 
 	a.subtitles.Enrich(ctx, t, a.subtitleUser(ctx, u), res, src, info, a.subtitlePrefs(ctx, u))
 }
 
-// plexSubtitles is plex.Deps.Subtitles: the OpenSubtitles service with the
-// viewer's preferred languages applied, as for playback enrichment.
-type plexSubtitles struct{ a *App }
-
 var (
-	_ plex.SubtitleSource  = plexSubtitles{}
-	_ plex.SubtitleCatalog = plexSubtitles{}
-	_ plex.SubtitleSearch  = plexSubtitles{}
-	_ plex.SubtitleUpload  = plexSubtitles{}
+	_ frontend.SubtitleSidecarSource  = subtitleSurface{}
+	_ frontend.SubtitleSidecarCatalog = subtitleSurface{}
+	_ frontend.SubtitleSidecarSearch  = subtitleSurface{}
+	_ frontend.SubtitleSidecarUpload  = subtitleSurface{}
 )
 
-func (p plexSubtitles) OpenFormat(id, format string) (io.ReadCloser, string, error) {
-	return p.a.subtitles.OpenFormat(id, format)
+func (s subtitleSurface) OpenFormat(id, format string) (io.ReadCloser, string, error) {
+	return s.app.subtitles.OpenFormat(id, format)
 }
 
-func (p plexSubtitles) OpenFormatFrom(id, format, source string) (io.ReadCloser, string, error) {
-	return p.a.subtitles.OpenFormatFrom(id, format, source)
+func (s subtitleSurface) OpenFormatFrom(id, format, source string) (io.ReadCloser, string, error) {
+	return s.app.subtitles.OpenFormatFrom(id, format, source)
 }
 
-func (p plexSubtitles) CachedSidecars(ctx context.Context, t *core.Title, u *core.User, embedded []core.StreamInfo) []core.StreamInfo {
-	out := p.a.subtitles.CachedSidecars(t, p.a.subtitleUser(ctx, u), embedded, p.a.subtitlePrefs(ctx, u))
-	if !p.a.subtitles.Enabled() {
-		out = append(out, p.a.subtitles.ManualSidecars(t, embedded)...)
+func (s subtitleSurface) CachedSidecars(ctx context.Context, t *core.Title, u *core.User, embedded []core.StreamInfo) []core.StreamInfo {
+	out := s.app.subtitles.CachedSidecars(t, s.app.subtitleUser(ctx, u), embedded, s.app.subtitlePrefs(ctx, u))
+	if !s.app.subtitles.Enabled() {
+		out = append(out, s.app.subtitles.ManualSidecars(t, embedded)...)
 	}
 	return out
 }
 
-func (p plexSubtitles) SearchSubtitles(ctx context.Context, t *core.Title, _ *core.User, lang, release string) ([]plex.SubtitleOffer, error) {
+func (s subtitleSurface) SearchSubtitles(ctx context.Context, t *core.Title, _ *core.User, lang, release string) ([]frontend.SubtitleSearchOffer, error) {
 	asked := lang
-	cands, searchErr := p.a.subtitles.SearchOnDemand(ctx, t, lang, release)
+	cands, searchErr := s.app.subtitles.SearchOnDemand(ctx, t, lang, release)
 	if searchErr != nil {
 		cands = nil
 	}
-	out := make([]plex.SubtitleOffer, 0, len(cands))
+	out := make([]frontend.SubtitleSearchOffer, 0, len(cands))
 	for _, c := range cands {
 		if c.Language != "" {
 			lang = c.Language
@@ -95,15 +92,15 @@ func (p plexSubtitles) SearchSubtitles(ctx context.Context, t *core.Title, _ *co
 		if provider == "" {
 			provider = "OpenSubtitles"
 		}
-		out = append(out, plex.SubtitleOffer{
+		out = append(out, frontend.SubtitleSearchOffer{
 			ID: c.FileID, Language: lang, Title: title, Provider: provider,
 			Score: int(math.Round(c.Score)), HearingImpaired: c.HearingImp, Forced: c.Forced,
 			PerfectMatch: c.HashMatch || (release != "" && strings.EqualFold(c.Release, release)),
 		})
 	}
-	if p.a.lang != nil {
-		for _, o := range p.a.lang.Offers(t, asked) {
-			out = append(out, plex.SubtitleOffer{
+	if s.app.lang != nil {
+		for _, o := range s.app.lang.Offers(t, asked) {
+			out = append(out, frontend.SubtitleSearchOffer{
 				ID: o.ID, Language: o.Language, Title: o.Title, Provider: o.Provider,
 			})
 		}
@@ -114,14 +111,14 @@ func (p plexSubtitles) SearchSubtitles(ctx context.Context, t *core.Title, _ *co
 	return out, nil
 }
 
-func (p plexSubtitles) DownloadSubtitle(ctx context.Context, t *core.Title, user *core.User, id int64) (core.StreamInfo, error) {
-	if p.a.lang != nil && langfeat.IsReserved(id) {
-		st, err := p.a.lang.Fulfill(ctx, user, t, id)
+func (s subtitleSurface) DownloadSubtitle(ctx context.Context, t *core.Title, user *core.User, id int64) (core.StreamInfo, error) {
+	if s.app.lang != nil && langfeat.IsReserved(id) {
+		st, err := s.app.lang.Fulfill(ctx, user, t, id)
 		if err == nil || !errors.Is(err, core.ErrNotFound) {
 			return st, err
 		}
 	}
-	st, err := p.a.subtitles.DownloadOnDemand(ctx, t, id)
+	st, err := s.app.subtitles.DownloadOnDemand(ctx, t, id)
 	if err != nil {
 		return st, err
 	}
@@ -129,7 +126,7 @@ func (p plexSubtitles) DownloadSubtitle(ctx context.Context, t *core.Title, user
 	if pr := plex.FromContext(ctx); pr != nil {
 		clientID = pr.ClientID
 	}
-	p.a.startSubtitleCorrection(ctx, t, st.ExternalURL, p.a.playSession(user, t, clientID))
+	s.app.startSubtitleCorrection(ctx, t, st.ExternalURL, s.app.playSession(user, t, clientID))
 	return st, nil
 }
 
@@ -210,8 +207,8 @@ func (a *App) liveReleaseAccess(sess *core.PlaySession) subtitles.ReleaseAccess 
 	return access
 }
 
-func (p plexSubtitles) UploadSubtitle(_ context.Context, t *core.Title, _ *core.User, filename, format, language string, body []byte) (core.StreamInfo, error) {
-	return p.a.subtitles.StoreUpload(t, filename, format, language, body)
+func (s subtitleSurface) UploadSubtitle(_ context.Context, t *core.Title, _ *core.User, filename, format, language string, body []byte) (core.StreamInfo, error) {
+	return s.app.subtitles.StoreUpload(t, filename, format, language, body)
 }
 
 // markerDialogue is markers.Options.Dialogue: cue times from subtitle text

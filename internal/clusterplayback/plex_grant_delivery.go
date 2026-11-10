@@ -63,14 +63,14 @@ func plexGrantEnvelope(q *http.Request) bool {
 	return found
 }
 
-// ForwardPlexGrantMedia is deliberately distinct from account-token forwarding.
+// ForwardGrantMedia is deliberately distinct from account-token forwarding.
 // It transports the exact original supported grant envelope; only the owner's
 // original authentication and current-policy handlers authorize any bytes.
-func (r *Runtime) ForwardPlexGrantMedia(w http.ResponseWriter, q *http.Request, id string) bool {
+func (r *Runtime) ForwardGrantMedia(w http.ResponseWriter, q *http.Request, id string) bool {
 	if !plexGrantEnvelope(q) {
 		return false
 	}
-	return r.ForwardPlexMedia(w, q, id)
+	return r.ForwardMedia(w, q, id)
 }
 
 func boundedPlexClient(q *http.Request, values url.Values) bool {

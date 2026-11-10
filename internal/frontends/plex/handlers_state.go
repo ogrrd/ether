@@ -410,9 +410,9 @@ func (s *Server) scrobble(w http.ResponseWriter, r *http.Request, watched bool) 
 		}
 	}
 	if native, ok := s.d.State.(interface {
-		PlexScrobble(context.Context, int64, frontend.RatingKey, []frontend.RatingKey, bool) error
+		ScrobbleTree(context.Context, int64, frontend.RatingKey, []frontend.RatingKey, bool) error
 	}); ok {
-		if err := native.PlexScrobble(ctx, pr.User.ID, key, keys, watched); err != nil {
+		if err := native.ScrobbleTree(ctx, pr.User.ID, key, keys, watched); err != nil {
 			s.writeErr(w, r, err)
 			return
 		}
@@ -467,9 +467,9 @@ func (s *Server) handleRate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if native, ok := s.d.State.(interface {
-		PlexRate(context.Context, int64, frontend.RatingKey, float64) error
+		RateExact(context.Context, int64, frontend.RatingKey, float64) error
 	}); ok {
-		err = native.PlexRate(ctx, pr.User.ID, key, rating)
+		err = native.RateExact(ctx, pr.User.ID, key, rating)
 	} else {
 		err = s.d.State.Rate(ctx, pr.User.ID, key, math.Max(0, math.Min(10, rating)))
 	}

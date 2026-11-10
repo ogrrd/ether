@@ -83,11 +83,11 @@ func (e forwardOnlyEncoder) StartSegmentedHLS(context.Context, *core.User, strin
 }
 func (e forwardOnlyEncoder) SegmentedHLSSession(string) (core.HLSSession, bool) { return nil, false }
 func (e forwardOnlyEncoder) StopSegmentedHLS(string) bool                       { return false }
-func (e forwardOnlyEncoder) ForwardPlexMedia(w http.ResponseWriter, q *http.Request, id string) bool {
-	return e.r.ForwardPlexMedia(w, q, id)
+func (e forwardOnlyEncoder) ForwardMedia(w http.ResponseWriter, q *http.Request, id string) bool {
+	return e.r.ForwardMedia(w, q, id)
 }
-func (e forwardOnlyEncoder) ForwardPlexGrantMedia(w http.ResponseWriter, q *http.Request, id string) bool {
-	return e.r.ForwardPlexGrantMedia(w, q, id)
+func (e forwardOnlyEncoder) ForwardGrantMedia(w http.ResponseWriter, q *http.Request, id string) bool {
+	return e.r.ForwardGrantMedia(w, q, id)
 }
 
 func TestRealPlexRuntimeDecisionStartSeekAcrossFrontends(t *testing.T) {
@@ -316,7 +316,7 @@ func TestRealPlexRuntimeDecisionStartSeekAcrossFrontends(t *testing.T) {
 	q.RemoteAddr = start.RemoteAddr
 	q.Header = start.Header.Clone()
 	variant := httptest.NewRecorder()
-	if !owner.ForwardPlexMedia(variant, q, "real-composed-plex") {
+	if !owner.ForwardMedia(variant, q, "real-composed-plex") {
 		t.Fatal("variant was not forwarded")
 	}
 	if variant.Code != 200 {

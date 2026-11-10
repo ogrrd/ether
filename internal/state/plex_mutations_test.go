@@ -11,7 +11,7 @@ func TestPlexRatingTimestampMatrix(t *testing.T) {
 	k := core.MovieKey(42)
 	rate := func(v float64) core.WatchStatus {
 		t.Helper()
-		if err := s.PlexRate(ctx, 1, k, v); err != nil {
+		if err := s.RateExact(ctx, 1, k, v); err != nil {
 			t.Fatal(err)
 		}
 		st, err := s.Get(ctx, 1, k)
@@ -52,7 +52,7 @@ func TestPlexParentCountersAndManualHistory(t *testing.T) {
 	show := season.Parent()
 	apply := func(k core.RatingKey, leaves []core.RatingKey, watched bool) {
 		t.Helper()
-		if err := s.PlexScrobble(ctx, 1, k, leaves, watched); err != nil {
+		if err := s.ScrobbleTree(ctx, 1, k, leaves, watched); err != nil {
 			t.Fatal(err)
 		}
 	}

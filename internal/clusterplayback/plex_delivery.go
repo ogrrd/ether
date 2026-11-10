@@ -118,9 +118,9 @@ func (r *Runtime) plexDeliveryHTTP(w http.ResponseWriter, q *http.Request) {
 	handler.ServeHTTP(guarded, clone)
 }
 
-// ForwardPlexMedia forwards only validated representation paths. The receiver
+// ForwardMedia forwards only validated representation paths. The receiver
 // runs the original Plex token/grant checks. No control/start endpoint is eligible.
-func (r *Runtime) ForwardPlexMedia(w http.ResponseWriter, q *http.Request, publicID string) bool {
+func (r *Runtime) ForwardEncodedMedia(w http.ResponseWriter, q *http.Request, publicID string) bool {
 	if q.Header.Get(deliveryHop) != "" {
 		return false
 	}

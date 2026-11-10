@@ -58,9 +58,9 @@ func (r *Runtime) LoadPlexBinding(ctx context.Context, id string) ([]byte, error
 	return []byte(raw), nil
 }
 
-// RestorePlexSource restores a read-only source snapshot for original protocol
+// RestoreSource restores a read-only source snapshot for original protocol
 // authorization. It creates no preparation, producer, source pin or ownership.
-func (p *RemotePlayback) RestorePlexSource(ctx context.Context, id string, snapshot core.PlaySession) error {
+func (p *RemotePlayback) RestoreSource(ctx context.Context, id string, snapshot core.PlaySession) error {
 	return p.restoreProtocolSource(ctx, id, snapshot)
 }
 func (p *RemotePlayback) RestoreNeutralSource(ctx context.Context, id string, snapshot core.PlaySession) error {
@@ -92,7 +92,7 @@ func (p *RemotePlayback) restoreProtocolSource(ctx context.Context, id string, s
 	return nil
 }
 
-func (r *Runtime) DeletePlexBinding(ctx context.Context, id string) error {
+func (r *Runtime) DeleteBinding(ctx context.Context, id string) error {
 	c, err := r.CurrentCoordinator(ctx, id)
 	if err != nil {
 		return err

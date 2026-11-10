@@ -33,7 +33,7 @@ func (r *Runtime) NewPublicDelivery(authorizePlex func(context.Context, *http.Re
 
 		if id, ok := plexMediaSession(q.URL); ok {
 			if plexGrantEnvelope(q) {
-				if !r.ForwardPlexGrantMedia(w, q, id) {
+				if !r.ForwardGrantMedia(w, q, id) {
 					http.NotFound(w, q)
 				}
 				return
@@ -42,7 +42,7 @@ func (r *Runtime) NewPublicDelivery(authorizePlex func(context.Context, *http.Re
 				http.Error(w, "unauthorized", 401)
 				return
 			}
-			if !r.ForwardPlexMedia(w, q, id) {
+			if !r.ForwardMedia(w, q, id) {
 				http.NotFound(w, q)
 			}
 			return

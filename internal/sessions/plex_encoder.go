@@ -113,20 +113,20 @@ func (b *Broker) BindPlexDelivery(handler http.Handler) error {
 	}
 	return core.ErrNotAvailable
 }
-func (b *Broker) ForwardPlexMedia(w http.ResponseWriter, r *http.Request, id string) bool {
+func (b *Broker) ForwardEncodedMedia(w http.ResponseWriter, r *http.Request, id string) bool {
 	if remote, ok := b.deps.DistributedHLS.(interface {
-		ForwardPlexMedia(http.ResponseWriter, *http.Request, string) bool
+		ForwardEncodedMedia(http.ResponseWriter, *http.Request, string) bool
 	}); ok {
-		return remote.ForwardPlexMedia(w, r, id)
+		return remote.ForwardEncodedMedia(w, r, id)
 	}
 	return false
 }
 
-func (b *Broker) ForwardPlexGrantMedia(w http.ResponseWriter, r *http.Request, id string) bool {
+func (b *Broker) ForwardGrantMedia(w http.ResponseWriter, r *http.Request, id string) bool {
 	if remote, ok := b.deps.DistributedHLS.(interface {
-		ForwardPlexGrantMedia(http.ResponseWriter, *http.Request, string) bool
+		ForwardGrantMedia(http.ResponseWriter, *http.Request, string) bool
 	}); ok {
-		return remote.ForwardPlexGrantMedia(w, r, id)
+		return remote.ForwardGrantMedia(w, r, id)
 	}
 	return false
 }
@@ -157,11 +157,11 @@ func (b *Broker) LoadPlexBinding(ctx context.Context, id string) ([]byte, error)
 	return nil, core.ErrNotAvailable
 }
 
-func (b *Broker) DeletePlexBinding(ctx context.Context, id string) error {
+func (b *Broker) DeleteBinding(ctx context.Context, id string) error {
 	if remote, ok := b.deps.DistributedHLS.(interface {
-		DeletePlexBinding(context.Context, string) error
+		DeleteBinding(context.Context, string) error
 	}); ok {
-		return remote.DeletePlexBinding(ctx, id)
+		return remote.DeleteBinding(ctx, id)
 	}
 	return core.ErrNotAvailable
 }

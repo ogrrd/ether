@@ -2027,9 +2027,9 @@ func (s *Server) handlePart(w http.ResponseWriter, r *http.Request) {
 	live, anonymousContinuation := source.PreviousID, source.AnonymousContinuation
 	if anonymousContinuation {
 		if confirm, supported := s.playbackBroker.(interface {
-			ConfirmPlexAdmission(context.Context, *frontend.Viewer, bool) (*frontend.Viewer, error)
+			ConfirmAdmission(context.Context, *frontend.Viewer, bool) (*frontend.Viewer, error)
 		}); supported {
-			viewer, err := confirm.ConfirmPlexAdmission(ctx, pr.User, pr.ClientCaps(0).Remote)
+			viewer, err := confirm.ConfirmAdmission(ctx, pr.User, pr.ClientCaps(0).Remote)
 			if err != nil || viewer == nil || viewer.ID != pr.User.ID || !s.playableTitle(ctx, viewer, title) {
 				writeHTTPError(w, http.StatusForbidden)
 				return

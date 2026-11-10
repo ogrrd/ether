@@ -1594,7 +1594,7 @@ func (s *Server) handleOnDeck(w http.ResponseWriter, r *http.Request) {
 		customOrder = custom || err != nil
 	}
 	if paged, ok := s.d.Catalog.(interface {
-		PlexOnDeckPageSince(context.Context, int64, int, int, frontend.Filter, bool, time.Time) (frontend.WatchPage, error)
+		OnDeckPageSince(context.Context, int64, int, int, frontend.Filter, bool, time.Time) (frontend.WatchPage, error)
 	}); ok && pr.User != nil && !pendingVisible && !customOrder {
 		_, size := pr.pageOf(0)
 		filter := frontend.Filter{MaxContentRating: pr.User.MaxContentRating, SaferPlexRating: s.plexMetaOn()}
@@ -1626,7 +1626,7 @@ func (s *Server) handleOnDeck(w http.ResponseWriter, r *http.Request) {
 		// empty and still carries the bounded total.
 		start := max(pr.Start, 0)
 		size = max(min(size, plexOnDeckLimit-start), 0)
-		page, err := paged.PlexOnDeckPageSince(ctx, pr.User.ID, start, size, filter, r.URL.Path == "/hubs/home/onDeck", s.onDeckSince())
+		page, err := paged.OnDeckPageSince(ctx, pr.User.ID, start, size, filter, r.URL.Path == "/hubs/home/onDeck", s.onDeckSince())
 		if err != nil {
 			s.writeErr(w, r, err)
 			return
@@ -1791,7 +1791,7 @@ func (s *Server) handleRecentlyAdded(w http.ResponseWriter, r *http.Request) {
 	wantType := typeFromParam(rq.Get("type"))
 	wantSection, _ := strconv.Atoi(rq.Get("sectionID"))
 	if paged, ok := s.d.Catalog.(interface {
-		PlexRecentPage(context.Context, frontend.BrowseQuery, []frontend.MediaType) (frontend.Page, error)
+		RecentPage(context.Context, frontend.BrowseQuery, []frontend.MediaType) (frontend.Page, error)
 	}); ok && r.URL.Path == "/library/recentlyAdded" {
 		var kinds []frontend.MediaType
 		for _, sec := range s.userSections(pr.User) {
@@ -1819,7 +1819,7 @@ func (s *Server) handleRecentlyAdded(w http.ResponseWriter, r *http.Request) {
 		}
 		child := q.Filter
 		q.Filter.ChildVisibility = &child
-		page, err := paged.PlexRecentPage(ctx, q, kinds)
+		page, err := paged.RecentPage(ctx, q, kinds)
 		if err != nil {
 			s.writeErr(w, r, err)
 			return

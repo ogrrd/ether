@@ -73,9 +73,9 @@ func (s *Server) loadDistributedBinding(id string) (*transcodeEntry, bool) {
 		s.readCaps.mu.Unlock()
 	}
 	if restore, ok := s.d.Playback.(interface {
-		RestorePlexSource(context.Context, string, frontend.PlaySession) error
+		RestoreSource(context.Context, string, frontend.PlaySession) error
 	}); ok {
-		if restore.RestorePlexSource(ctx, id, snapshot.Source) != nil {
+		if restore.RestoreSource(ctx, id, snapshot.Source) != nil {
 			return nil, false
 		}
 	}

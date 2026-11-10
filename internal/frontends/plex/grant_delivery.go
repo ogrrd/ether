@@ -74,12 +74,12 @@ func (s *Server) forwardMissingPlexGrant(w http.ResponseWriter, r *http.Request,
 		return false
 	}
 	forward, ok := s.currentPlexEncoder().(interface {
-		ForwardPlexGrantMedia(http.ResponseWriter, *http.Request, string) bool
+		ForwardGrantMedia(http.ResponseWriter, *http.Request, string) bool
 	})
 	if !ok {
 		return false
 	}
 	// This is a terminal credential transfer. Never set pr.User/Capability,
 	// install a local entry, or resume the sender's authenticated handler chain.
-	return forward.ForwardPlexGrantMedia(w, r, id)
+	return forward.ForwardGrantMedia(w, r, id)
 }

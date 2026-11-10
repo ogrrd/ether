@@ -7,9 +7,9 @@ import (
 	"time"
 )
 
-// PlexRate preserves the distinction between clearing a rating and writing
+// RateExact preserves the distinction between clearing a rating and writing
 // another negative number. Equal values do not refresh the user's timestamps.
-func (s *State) PlexRate(ctx context.Context, user int64, key core.RatingKey, rating float64) error {
+func (s *State) RateExact(ctx context.Context, user int64, key core.RatingKey, rating float64) error {
 	return s.update(ctx, user, []core.RatingKey{key}, func(cur *row, now time.Time) (bool, bool, []Event) {
 		value := math.Max(0, math.Min(10, rating))
 		if (rating >= 0 || rating == -1) && cur.ws.UserRating == value {
@@ -26,9 +26,9 @@ func (s *State) PlexRate(ctx context.Context, user int64, key core.RatingKey, ra
 	})
 }
 
-// PlexScrobble keeps parent counters independent of the watched-leaf totals.
+// ScrobbleTree keeps parent counters independent of the watched-leaf totals.
 // Descendant expansion is supplied by the catalogue, never a state-table scan.
-func (s *State) PlexScrobble(ctx context.Context, user int64, key core.RatingKey, leaves []core.RatingKey, watched bool) error {
+func (s *State) ScrobbleTree(ctx context.Context, user int64, key core.RatingKey, leaves []core.RatingKey, watched bool) error {
 	if watched && (key.Kind() == core.KindCollection || key.Kind() == core.KindSmart) {
 		return nil
 	}

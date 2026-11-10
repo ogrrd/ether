@@ -64,9 +64,9 @@ func (s *Server) stopPlexHLS(id string) {
 // token/grant/policy middleware); mTLS peer trust is never viewer authorization.
 func (s *Server) forwardPlexMedia(w http.ResponseWriter, r *http.Request, id string) bool {
 	if forward, ok := s.currentPlexEncoder().(interface {
-		ForwardPlexMedia(http.ResponseWriter, *http.Request, string) bool
+		ForwardEncodedMedia(http.ResponseWriter, *http.Request, string) bool
 	}); ok {
-		return forward.ForwardPlexMedia(w, r, id)
+		return forward.ForwardEncodedMedia(w, r, id)
 	}
 	return false
 }

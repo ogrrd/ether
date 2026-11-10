@@ -14,9 +14,9 @@ func init() {
 	store.Register("catalog_plex_shelf_order", 1, `CREATE INDEX catalog_plex_shelf_order ON catalog_titles(type,released_ts DESC,key ASC); CREATE INDEX catalog_plex_show_order ON catalog_titles(show_key,key);`)
 }
 
-// PlexRecentPage merges independently indexed movie and episode streams in SQL.
+// RecentPage merges independently indexed movie and episode streams in SQL.
 // Only the requested page is hydrated; totals use the catalogue's count cache.
-func (c *Catalog) PlexRecentPage(ctx context.Context, q core.BrowseQuery, kinds []core.MediaType) (core.Page, error) {
+func (c *Catalog) RecentPage(ctx context.Context, q core.BrowseQuery, kinds []core.MediaType) (core.Page, error) {
 	var branches []string
 	var args []any
 	total := 0
@@ -59,14 +59,14 @@ func (c *Catalog) PlexRecentPage(ctx context.Context, q core.BrowseQuery, kinds 
 // PlexOnDeckPage starts with the viewer's indexed watch rows, chooses one
 // candidate per show, applies catalogue policy, and pages before hydration.
 func (c *Catalog) PlexOnDeckPage(ctx context.Context, uid int64, offset, limit int, f core.Filter, episodesOnly bool) (core.WatchPage, error) {
-	return c.PlexOnDeckPageSince(ctx, uid, offset, limit, f, episodesOnly, time.Time{})
+	return c.OnDeckPageSince(ctx, uid, offset, limit, f, episodesOnly, time.Time{})
 }
 
-// PlexOnDeckPageSince is PlexOnDeckPage within a window (PMS's
+// OnDeckPageSince is PlexOnDeckPage within a window (PMS's
 // OnDeckWindow): a show or movie last watched before since is left out,
 // except a season premiere (episode 1 of a season after the first) that
 // aired since then. A zero since keeps every row.
-func (c *Catalog) PlexOnDeckPageSince(ctx context.Context, uid int64, offset, limit int, f core.Filter, episodesOnly bool, since time.Time) (core.WatchPage, error) {
+func (c *Catalog) OnDeckPageSince(ctx context.Context, uid int64, offset, limit int, f core.Filter, episodesOnly bool, since time.Time) (core.WatchPage, error) {
 	if episodesOnly && f.Type == core.TypeMovie {
 		return core.WatchPage{}, nil
 	}

@@ -405,16 +405,16 @@ func TestSourceWorkerDeliveryAndExactRetirement(t *testing.T) {
 	}
 	plexRequest := httptest.NewRequest("GET", "https://public/video/:/transcode/universal/session/public-session/base/0.ts", nil)
 	plexResponse := httptest.NewRecorder()
-	if !worker.ForwardPlexMedia(plexResponse, plexRequest, request.SessionID) || plexResponse.Code != 401 {
+	if !worker.ForwardMedia(plexResponse, plexRequest, request.SessionID) || plexResponse.Code != 401 {
 		t.Fatal("Plex forwarding bypassed original authorization")
 	}
 	plexRequest.Header.Set("X-Plex-Token", "offline-plex-token")
 	plexRequest.Header.Set("Range", "bytes=1-3")
 	plexResponse = httptest.NewRecorder()
-	if !worker.ForwardPlexMedia(plexResponse, plexRequest, request.SessionID) || plexResponse.Code != 206 || plexResponse.Body.String() != "egm" {
+	if !worker.ForwardMedia(plexResponse, plexRequest, request.SessionID) || plexResponse.Code != 206 || plexResponse.Body.String() != "egm" {
 		t.Fatalf("Plex range proxy %d %q", plexResponse.Code, plexResponse.Body.String())
 	}
-	if worker.ForwardPlexMedia(httptest.NewRecorder(), httptest.NewRequest("GET", "https://public/video/:/transcode/universal/start.m3u8?session=public-session", nil), request.SessionID) {
+	if worker.ForwardMedia(httptest.NewRecorder(), httptest.NewRequest("GET", "https://public/video/:/transcode/universal/start.m3u8?session=public-session", nil), request.SessionID) {
 		t.Fatal("control URI admitted to media scope")
 	}
 	for _, test := range []struct {
@@ -429,7 +429,7 @@ func TestSourceWorkerDeliveryAndExactRetirement(t *testing.T) {
 		}
 		req.Header.Set(deliveryOrigin, `{"RemoteAddr":"127.0.0.1:1","Host":"private","Scheme":"http"}`)
 		response := httptest.NewRecorder()
-		if !worker.ForwardPlexMedia(response, req, request.SessionID) || response.Code != test.status {
+		if !worker.ForwardMedia(response, req, request.SessionID) || response.Code != test.status {
 			t.Fatalf("provenance %s %d %q", test.name, response.Code, response.Body.String())
 		}
 	}

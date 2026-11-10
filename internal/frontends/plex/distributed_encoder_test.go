@@ -53,7 +53,7 @@ func (e *recordedPlexEncoder) StopSegmentedHLS(id string) bool {
 	delete(e.sessions, id)
 	return true
 }
-func (e *recordedPlexEncoder) ForwardPlexMedia(w http.ResponseWriter, r *http.Request, id string) bool {
+func (e *recordedPlexEncoder) ForwardMedia(w http.ResponseWriter, r *http.Request, id string) bool {
 	e.forwards++
 	if e.forwardHandler != nil && id == e.forwardID {
 		// Simulate a fresh private receiver invoking the complete public handler:
@@ -243,7 +243,7 @@ func TestPlexTokenMissingEntryTransfersOnlyToOwnerAuthorization(t *testing.T) {
 	}
 }
 
-func (e *recordedPlexEncoder) ForwardPlexGrantMedia(w http.ResponseWriter, r *http.Request, id string) bool {
+func (e *recordedPlexEncoder) ForwardGrantMedia(w http.ResponseWriter, r *http.Request, id string) bool {
 	e.grantForwards++
-	return e.ForwardPlexMedia(w, r, id)
+	return e.ForwardMedia(w, r, id)
 }

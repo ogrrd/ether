@@ -292,10 +292,10 @@ func (b *Broker) confirm(ctx context.Context, v *core.Viewer, caps core.ClientCa
 	return v, nil
 }
 
-// ConfirmPlexAdmission is the fenced policy check a Plex plan uses.
+// ConfirmAdmission is the fenced policy check a Plex plan uses.
 // planPlexAdmission already calls confirm with the request caps. This is
 // the same check when the caller has only the remote bit.
-func (b *Broker) ConfirmPlexAdmission(ctx context.Context, v *core.Viewer, remote bool) (*core.Viewer, error) {
+func (b *Broker) ConfirmAdmission(ctx context.Context, v *core.Viewer, remote bool) (*core.Viewer, error) {
 	return b.confirm(ctx, v, core.ClientCaps{Remote: remote})
 }
 

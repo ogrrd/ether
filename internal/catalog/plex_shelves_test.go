@@ -27,7 +27,7 @@ func TestPlexShelfDeepPageAndCount(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	recent, err := c.PlexRecentPage(ctx, core.BrowseQuery{Filter: core.Filter{KnownAddedDate: true}, Offset: 220, Limit: 7}, []core.MediaType{core.TypeMovie})
+	recent, err := c.RecentPage(ctx, core.BrowseQuery{Filter: core.Filter{KnownAddedDate: true}, Offset: 220, Limit: 7}, []core.MediaType{core.TypeMovie})
 	if err != nil || recent.Total != 250 || len(recent.Items) != 7 || recent.Items[0].Key != core.MovieKey(1220) {
 		t.Fatalf("recent deep page %+v %v", recent, err)
 	}
@@ -46,7 +46,7 @@ func TestPlexShelfDeepPageAndCount(t *testing.T) {
 		t.Fatalf("onDeck past the end %+v %v", deck, err)
 	}
 	unwatched := true
-	recent, err = c.PlexRecentPage(ctx, core.BrowseQuery{Filter: core.Filter{KnownAddedDate: true, Group: &core.FilterGroup{Unwatched: &unwatched, UserID: 1}}, Offset: 0, Limit: 3}, []core.MediaType{core.TypeMovie})
+	recent, err = c.RecentPage(ctx, core.BrowseQuery{Filter: core.Filter{KnownAddedDate: true, Group: &core.FilterGroup{Unwatched: &unwatched, UserID: 1}}, Offset: 0, Limit: 3}, []core.MediaType{core.TypeMovie})
 	if err != nil || recent.Total != 20 || len(recent.Items) != 3 || recent.Items[0].Key != core.MovieKey(1230) {
 		t.Fatalf("filter before page %+v %v", recent, err)
 	}
@@ -158,7 +158,7 @@ func TestPlexOnDeckWindow(t *testing.T) {
 	if err != nil || all.Total != 6 {
 		t.Fatalf("unwindowed deck %+v %v", all, err)
 	}
-	page, err := c.PlexOnDeckPageSince(ctx, 1, 0, 50, core.Filter{}, false, since)
+	page, err := c.OnDeckPageSince(ctx, 1, 0, 50, core.Filter{}, false, since)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -276,7 +276,7 @@ func TestPlexOnDeckWindowMatchesWholeHistory(t *testing.T) {
 			want = append(want, item.Key)
 		}
 	}
-	got, err := c.PlexOnDeckPageSince(ctx, 1, 0, 1000, core.Filter{}, false, since)
+	got, err := c.OnDeckPageSince(ctx, 1, 0, 1000, core.Filter{}, false, since)
 	if err != nil {
 		t.Fatal(err)
 	}

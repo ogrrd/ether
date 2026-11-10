@@ -347,7 +347,7 @@ func testEncoderLossRecoveryInvariant(t *testing.T, reencoded bool, copyMode ...
 				w := httptest.NewRecorder()
 				if mode == "pause" || (mode == "stop-before-restore" || mode == "terminal-takeover") {
 					request := httptest.NewRequest("GET", "https://public/video/:/transcode/universal/session/recover/base/"+strconv.Itoa(n)+".ts", nil).WithContext(ctx)
-					if !runtimes[2].ForwardPlexMedia(w, request, "recover") {
+					if !runtimes[2].ForwardMedia(w, request, "recover") {
 						t.Fatal("media missed coordinator capture")
 					}
 				} else {

@@ -224,7 +224,7 @@ func TestUpcomingCollectionAndRecentlyAddedPageOverOpenableItems(t *testing.T) {
 		t.Fatalf("unexpected upcoming order: [%s %s %s]", p1.Metadata[0].RatingKey, p1.Metadata[1].RatingKey, p2.Metadata[0].RatingKey)
 	}
 
-	// Fallback /library/recentlyAdded path (fakeCatalog does not implement PlexRecentPage):
+	// Fallback /library/recentlyAdded path (fakeCatalog does not implement RecentPage):
 	// mBlocked is second newest, so slicing before openableTitles used to return only 1 item on Size=2.
 	m1.AddedAt = fixedNow.Add(-1 * time.Minute)
 	mBlocked.AddedAt = fixedNow.Add(-2 * time.Minute)

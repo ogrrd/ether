@@ -274,6 +274,55 @@ func (s surface) Events(ctx context.Context, scope frontend.EventScope) (<-chan 
 	return s.broker.Events(ctx, scope)
 }
 
+func (s surface) TrickplayOffer(ctx context.Context, a frontend.SessionAccess, item core.RatingKey) (frontend.TrickplayOffer, bool) {
+	if a.Protocol != s.protocol {
+		return frontend.TrickplayOffer{}, false
+	}
+	tiles, ok := s.broker.(frontend.TrickplayTiles)
+	if !ok {
+		return frontend.TrickplayOffer{}, false
+	}
+	return tiles.TrickplayOffer(ctx, a, item)
+}
+
+func (s surface) TrickplaySheet(ctx context.Context, a frontend.SessionAccess, item core.RatingKey, index int) ([]byte, error) {
+	if a.Protocol != s.protocol {
+		return nil, core.ErrUnauthorized
+	}
+	tiles, ok := s.broker.(frontend.TrickplayTiles)
+	if !ok {
+		return nil, core.ErrNotAvailable
+	}
+	return tiles.TrickplaySheet(ctx, a, item, index)
+}
+
+func (s surface) TrickplayAvailable(id string) bool {
+	if tp, ok := s.broker.(interface{ TrickplayAvailable(string) bool }); ok {
+		return tp.TrickplayAvailable(id)
+	}
+	return false
+}
+
+func (s surface) TrickplayBIF(id string) ([]byte, bool) {
+	if tp, ok := s.broker.(interface{ TrickplayBIF(string) ([]byte, bool) }); ok {
+		return tp.TrickplayBIF(id)
+	}
+	return nil, false
+}
+
+func (s surface) TrickplayFrame(id string, at time.Duration) ([]byte, bool) {
+	if tp, ok := s.broker.(interface{ TrickplayFrame(string, time.Duration) ([]byte, bool) }); ok {
+		return tp.TrickplayFrame(id, at)
+	}
+	return nil, false
+}
+
+func (s surface) CancelTrickplay(id string) {
+	if canceler, ok := s.broker.(frontend.TrickplayCanceler); ok {
+		canceler.CancelTrickplay(id)
+	}
+}
+
 func (s surface) PlexSessionForPlayback(ctx context.Context, a frontend.SessionAccess, item frontend.RatingKey, playbackID, transcodeID string) (string, error) {
 	if s.protocol != "plex" || a.Protocol != s.protocol {
 		return "", core.ErrUnauthorized

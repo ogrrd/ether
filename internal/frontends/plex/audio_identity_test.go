@@ -103,7 +103,7 @@ func TestMissingSelectedAudioUsesViewerPreferences(t *testing.T) {
 	if err := prefs.PutRules(context.Background(), ownerUser.ID, rules); err != nil {
 		t.Fatal(err)
 	}
-	f.srv.d.TrackPreferences = prefs
+	f.srv.UseTrackPreferences(prefs)
 	key := fightClub.Key
 	f.playback.info.Streams = []core.StreamInfo{{Index: 0, Type: "video", Codec: "h264"}, {Index: 1, Type: "audio", Language: "eng", Codec: "ac3", Channels: 6}}
 	english := audioIDFromResponse(t, f.get(t, "/library/metadata/"+key.String()).Body.String(), "eng")

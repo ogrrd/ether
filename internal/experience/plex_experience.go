@@ -8,11 +8,19 @@ import (
 	"github.com/braedonsaunders/ether/internal/frontend"
 )
 
-type plexExperience struct{}
+type plexExperience struct {
+	markers frontend.MarkerRanges
+}
 
 // NewPlexExperience returns the experience-backed implementation of the
 // Plex experience host contract.
-func NewPlexExperience() frontend.PlexExperience { return plexExperience{} }
+func NewPlexExperience(markers ...frontend.MarkerRanges) frontend.PlexExperience {
+	var m frontend.MarkerRanges
+	if len(markers) > 0 {
+		m = markers[0]
+	}
+	return plexExperience{markers: m}
+}
 
 func (plexExperience) NewRecent(o frontend.RecentOptions) frontend.Recent {
 	return Recent{Visibility: o.Visibility, Unrestricted: o.Unrestricted}
@@ -103,6 +111,9 @@ func (plexExperience) ShowOnDeck(eps []core.Title, st map[core.RatingKey]core.Wa
 func (plexExperience) RequestDatabaseObservation(ctx context.Context) (int64, time.Duration) {
 	return RequestDatabaseObservation(ctx)
 }
-func (plexExperience) PlaybackMarkerRanges(ctx context.Context, source frontend.MarkerRanges, key core.RatingKey, info core.MediaInfo) ([]frontend.MarkerRange, error) {
+func (e plexExperience) PlaybackMarkerRanges(ctx context.Context, source frontend.MarkerRanges, key core.RatingKey, info core.MediaInfo) ([]frontend.MarkerRange, error) {
+	if source == nil {
+		source = e.markers
+	}
 	return PlaybackMarkerRanges(ctx, source, key, info)
 }

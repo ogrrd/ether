@@ -503,8 +503,8 @@ func (s *Server) handleSubtitlePick(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.selections.update(pr.User.ID, int64(t.Key), func(sel *selection) { sel.subtitle, sel.subtitleSet, sel.subtitleStream = -1, true, &st })
-		if s.d.TrackPreferences != nil {
-			if err := s.d.TrackPreferences.Remember(ctx, pr.User.ID, t.Key, "subtitle", &st); err != nil {
+		if s.trackPrefs != nil {
+			if err := s.trackPrefs.Remember(ctx, pr.User.ID, t.Key, "subtitle", &st); err != nil {
 				s.log.Warn("save stream preference", "error", err)
 			}
 		}
@@ -627,8 +627,8 @@ func (s *Server) handleSubtitleUpload(w http.ResponseWriter, r *http.Request) {
 	s.selections.update(pr.User.ID, int64(t.Key), func(sel *selection) {
 		sel.subtitle, sel.subtitleSet, sel.subtitleStream = -1, true, &st
 	})
-	if s.d.TrackPreferences != nil {
-		if err := s.d.TrackPreferences.Remember(ctx, pr.User.ID, t.Key, "subtitle", &st); err != nil {
+	if s.trackPrefs != nil {
+		if err := s.trackPrefs.Remember(ctx, pr.User.ID, t.Key, "subtitle", &st); err != nil {
 			s.log.Warn("save stream preference", "error", err)
 		}
 	}

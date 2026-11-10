@@ -176,15 +176,12 @@ type PlexDeps struct {
 	DecisionTraces DecisionTraceSource
 	// Downloads remuxes resolved sources to temp MP4s for the Download
 	// Queue API; nil disables downloads (allowSync stays "0").
-	Downloads        DownloadRemuxer
-	TrackPreferences PlaybackTrackPreferences
-	Markers          MarkerRanges
-	Subtitles        PlexSubtitleSource
-	Extras           ExtrasProvider
+	Downloads DownloadRemuxer
+	Subtitles PlexSubtitleSource
+	Extras    ExtrasProvider
 	// Prerolls are owner pre-rolls (#298); nil leaves play queues and
 	// extras exactly as without the feature.
-	Prerolls  PrerollService
-	Trickplay TrickplayProvider
+	Prerolls PrerollService
 
 	// ApplyClientRules adjusts caps for the owner's quality rules. Nil leaves
 	// the request caps unchanged. The app wires resolver.ApplyClientRules so

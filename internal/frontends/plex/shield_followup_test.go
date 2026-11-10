@@ -57,7 +57,7 @@ func TestShieldTroyCaptureFollowup(t *testing.T) {
 						f.catalog.titles[troy.Key] = troy
 						f.srv.d.Transcoder = shieldContractTranscoder{f.trans}
 						prefs := trackprefs.New(store.OpenTest(t))
-						f.srv.d.TrackPreferences = prefs
+						f.srv.UseTrackPreferences(prefs)
 						rules := trackprefs.Default()
 						rules.SubtitleLanguages = []string{"en"}
 						rules.SubtitleMode = "always"

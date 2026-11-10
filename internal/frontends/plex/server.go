@@ -83,6 +83,9 @@ type Server struct {
 	}
 	channelRaster     frontend.SVGRasterizer
 	boundStreams      frontend.PlexStreamAPI
+	trackPrefs        frontend.PlaybackTrackPreferences
+	markers           frontend.MarkerRanges
+	trickplay         frontend.TrickplayProvider
 	variantIDs        *variantIDRegistry
 	playIDs           *playIdentities
 	versionFlows      *versionFlowStore

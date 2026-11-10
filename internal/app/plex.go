@@ -157,12 +157,10 @@ func (a *App) buildPlex(ctx context.Context, cfg config.Config) (frontend.PlexDe
 	deps.Discovery = a.discoveryFeatures.Frontend()
 	deps.LiveTV = a.livetv.Frontend()
 	deps.Subtitles = plexSubtitles{a}
-	deps.TrackPreferences = a.trackprefs
 	deps.SessionCoordination = a.sessionCoordination
 	deps.SessionStores = sessions.NewPlexSessionStores()
-	deps.Experience = experience.NewPlexExperience()
+	deps.Experience = experience.NewPlexExperience(a.markers)
 	deps.ArtworkStores = artworkservice.NewPlexArtworkStores()
-	deps.Markers = a.markers
 	// The remuxer is built once in buildIntegrations and shared with every
 	// front end. Support is the device-scoped "Record a problem" recorder.
 	deps.Downloads = a.downloadRemuxer
@@ -171,7 +169,6 @@ func (a *App) buildPlex(ctx context.Context, cfg config.Config) (frontend.PlexDe
 	}
 	deps.Extras = newPlexExtras(a.extras)
 	deps.Prerolls = a.prerollProvider()
-	deps.Trickplay = a.trickplay.Borrow()
 	a.wirePlexPolicy(&deps)
 	deps.FavoriteShows = a.favoriteShows
 	deps.Now = parityClock()

@@ -1369,8 +1369,8 @@ func (t fixtureTranscoder) HWAccel() core.HWAccel { return t.current().HWAccel()
 type fixtureTrickplay struct{ f *fixture }
 
 func (t fixtureTrickplay) provider() core.TrickplayProvider {
-	if t.f.srv != nil && t.f.srv.d.Trickplay != nil {
-		return t.f.srv.d.Trickplay
+	if t.f.srv != nil && t.f.srv.trickplay != nil {
+		return t.f.srv.trickplay
 	}
 	return nil
 }

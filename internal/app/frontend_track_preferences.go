@@ -93,3 +93,52 @@ func (s surfaceTrackPreferences) SetSubtitle(ctx context.Context, v *frontend.Vi
 	}
 	return s.app.trackprefs.SetSubtitlePreferences(ctx, v.ID, languages, mode)
 }
+
+func (s surfaceTrackPreferences) Select(ctx context.Context, user int64, key frontend.RatingKey, info frontend.MediaInfo, original string) (frontend.PlaybackPreferenceSelection, error) {
+	if s.app == nil || s.app.trackprefs == nil {
+		return frontend.PlaybackPreferenceSelection{}, core.ErrNotAvailable
+	}
+	return s.app.trackprefs.Select(ctx, user, key, info, original)
+}
+func (s surfaceTrackPreferences) SelectScoped(ctx context.Context, user int64, key frontend.RatingKey, info frontend.MediaInfo, original string, scope trackprefs.Scope) (frontend.PlaybackPreferenceSelection, bool, error) {
+	if s.app == nil || s.app.trackprefs == nil {
+		return frontend.PlaybackPreferenceSelection{}, false, core.ErrNotAvailable
+	}
+	return s.app.trackprefs.SelectScoped(ctx, user, key, info, original, scope)
+}
+func (s surfaceTrackPreferences) ScopedRules(ctx context.Context, user int64, scope trackprefs.Scope) (frontend.PlaybackPreferenceRules, bool, error) {
+	if s.app == nil || s.app.trackprefs == nil {
+		return frontend.PlaybackPreferenceRules{}, false, core.ErrNotAvailable
+	}
+	return s.app.trackprefs.ScopedRules(ctx, user, scope)
+}
+func (s surfaceTrackPreferences) GetRules(ctx context.Context, user int64) (frontend.PlaybackPreferenceRules, error) {
+	if s.app == nil || s.app.trackprefs == nil {
+		return frontend.PlaybackPreferenceRules{}, core.ErrNotAvailable
+	}
+	return s.app.trackprefs.GetRules(ctx, user)
+}
+func (s surfaceTrackPreferences) HasViewerRules(ctx context.Context, user int64) (bool, error) {
+	if s.app == nil || s.app.trackprefs == nil {
+		return false, core.ErrNotAvailable
+	}
+	return s.app.trackprefs.HasViewerRules(ctx, user)
+}
+func (s surfaceTrackPreferences) Remember(ctx context.Context, user int64, key frontend.RatingKey, kind string, track *frontend.StreamInfo) error {
+	if s.app == nil || s.app.trackprefs == nil {
+		return core.ErrNotAvailable
+	}
+	return s.app.trackprefs.Remember(ctx, user, key, kind, track)
+}
+func (s surfaceTrackPreferences) ForgetChoice(ctx context.Context, user int64, key frontend.RatingKey, kind string) error {
+	if s.app == nil || s.app.trackprefs == nil {
+		return core.ErrNotAvailable
+	}
+	return s.app.trackprefs.ForgetChoice(ctx, user, key, kind)
+}
+func (s surfaceTrackPreferences) PreloadChoices(ctx context.Context, user int64, keys []frontend.RatingKey) error {
+	if s.app == nil || s.app.trackprefs == nil {
+		return nil
+	}
+	return s.app.trackprefs.PreloadChoices(ctx, user, keys)
+}

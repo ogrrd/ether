@@ -8,6 +8,37 @@ import (
 	"github.com/braedonsaunders/ether/internal/frontend"
 )
 
+// UseHost attaches shared frontend.Host services to this server.
+func (s *Server) UseHost(host frontend.Host) {
+	if s == nil {
+		return
+	}
+	if tp, ok := host.TrackPreferences.(frontend.PlaybackTrackPreferences); ok && tp != nil {
+		s.trackPrefs = tp
+	}
+}
+
+// UseTrackPreferences attaches the viewer track-preference service.
+func (s *Server) UseTrackPreferences(tp frontend.PlaybackTrackPreferences) {
+	if s != nil {
+		s.trackPrefs = tp
+	}
+}
+
+// UseMarkers attaches a marker range provider override.
+func (s *Server) UseMarkers(m frontend.MarkerRanges) {
+	if s != nil {
+		s.markers = m
+	}
+}
+
+// UseTrickplay attaches a trickplay provider override.
+func (s *Server) UseTrickplay(tp frontend.TrickplayProvider) {
+	if s != nil {
+		s.trickplay = tp
+	}
+}
+
 // UsePlaybackBroker attaches the shared session broker. Mounted Plex playback
 // publishes through it. Timeline progress and stops are recorded only there.
 func (s *Server) UsePlaybackBroker(b frontend.Sessions) {

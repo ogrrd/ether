@@ -252,3 +252,37 @@ func (b *Broker) TrickplaySheet(ctx context.Context, a frontend.SessionAccess, i
 	}
 	return buf.Bytes(), nil
 }
+
+// TrickplayAvailable reports whether the borrowed provider has previews for id.
+func (b *Broker) TrickplayAvailable(id string) bool {
+	if b == nil || b.deps.Trickplay == nil || id == "" {
+		return false
+	}
+	return b.deps.Trickplay.TrickplayAvailable(id)
+}
+
+// TrickplayBIF returns the sparse BIF snapshot for id from the borrowed provider.
+func (b *Broker) TrickplayBIF(id string) ([]byte, bool) {
+	if b == nil || b.deps.Trickplay == nil || id == "" {
+		return nil, false
+	}
+	return b.deps.Trickplay.TrickplayBIF(id)
+}
+
+// TrickplayFrame returns a single generated JPEG frame for id at offset at.
+func (b *Broker) TrickplayFrame(id string, at time.Duration) ([]byte, bool) {
+	if b == nil || b.deps.Trickplay == nil || id == "" {
+		return nil, false
+	}
+	return b.deps.Trickplay.TrickplayFrame(id, at)
+}
+
+// CancelTrickplay cancels idle preview generation for id when supported.
+func (b *Broker) CancelTrickplay(id string) {
+	if b == nil || b.deps.Trickplay == nil || id == "" {
+		return
+	}
+	if canceler, ok := b.deps.Trickplay.(frontend.TrickplayCanceler); ok {
+		canceler.CancelTrickplay(id)
+	}
+}

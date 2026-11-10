@@ -406,8 +406,8 @@ func (s *Server) handleAccounts(w http.ResponseWriter, r *http.Request) {
 		if len(u.SubtitleLanguages) > 0 {
 			a.DefaultSubtitleLang = u.SubtitleLanguages[0]
 		}
-		if s.d.TrackPreferences != nil && viewerStoredSubtitlePreference(r.Context(), s.d.TrackPreferences, u.ID) {
-			if rules, err := s.d.TrackPreferences.GetRules(r.Context(), u.ID); err == nil {
+		if s.trackPrefs != nil && viewerStoredSubtitlePreference(r.Context(), s.trackPrefs, u.ID) {
+			if rules, err := s.trackPrefs.GetRules(r.Context(), u.ID); err == nil {
 				// Plex account subtitleMode: 0 manual, 1 with foreign audio, 2 always.
 				// Unset and off stay 0, which is the value already written for every account.
 				// Shared defaults (user 0) stay off this document so an untouched account

@@ -71,7 +71,7 @@ func TestIssue191ShieldDVHybridMultiVersionSubtitlesAndTautulli(t *testing.T) {
 	f.srv.d.Transcoder = shieldContractTranscoder{f.trans}
 
 	prefs := trackprefs.New(store.OpenTest(t))
-	f.srv.d.TrackPreferences = prefs
+	f.srv.UseTrackPreferences(prefs)
 	rules := trackprefs.Default()
 	rules.SubtitleLanguages = []string{"en"}
 	rules.SubtitleMode = "always"
@@ -269,7 +269,7 @@ func TestIssue191PlexIOSFirstOpenProbesEmbeddedSubtitles(t *testing.T) {
 		f := newFixture()
 		t.Cleanup(func() { _ = f.srv.Close() })
 		prefs := trackprefs.New(store.OpenTest(t))
-		f.srv.d.TrackPreferences = prefs
+		f.srv.UseTrackPreferences(prefs)
 		rules := trackprefs.Default()
 		rules.SubtitleLanguages = []string{"en"}
 		rules.SubtitleMode = "always"

@@ -88,6 +88,43 @@ func (s scorecardSessionWrapper) StartStream(ctx context.Context, a frontend.Ses
 	s.failure("start_stream", e)
 	return v, e
 }
+func (s scorecardSessionWrapper) TrickplayOffer(ctx context.Context, a frontend.SessionAccess, item core.RatingKey) (frontend.TrickplayOffer, bool) {
+	tiles, ok := s.embeddedScorecardSessions.(frontend.TrickplayTiles)
+	if !ok {
+		return frontend.TrickplayOffer{}, false
+	}
+	return tiles.TrickplayOffer(ctx, a, item)
+}
+func (s scorecardSessionWrapper) TrickplaySheet(ctx context.Context, a frontend.SessionAccess, item core.RatingKey, index int) ([]byte, error) {
+	tiles, ok := s.embeddedScorecardSessions.(frontend.TrickplayTiles)
+	if !ok {
+		return nil, core.ErrNotAvailable
+	}
+	return tiles.TrickplaySheet(ctx, a, item, index)
+}
+func (s scorecardSessionWrapper) TrickplayAvailable(id string) bool {
+	if tp, ok := s.embeddedScorecardSessions.(interface{ TrickplayAvailable(string) bool }); ok {
+		return tp.TrickplayAvailable(id)
+	}
+	return false
+}
+func (s scorecardSessionWrapper) TrickplayBIF(id string) ([]byte, bool) {
+	if tp, ok := s.embeddedScorecardSessions.(interface{ TrickplayBIF(string) ([]byte, bool) }); ok {
+		return tp.TrickplayBIF(id)
+	}
+	return nil, false
+}
+func (s scorecardSessionWrapper) TrickplayFrame(id string, at time.Duration) ([]byte, bool) {
+	if tp, ok := s.embeddedScorecardSessions.(interface{ TrickplayFrame(string, time.Duration) ([]byte, bool) }); ok {
+		return tp.TrickplayFrame(id, at)
+	}
+	return nil, false
+}
+func (s scorecardSessionWrapper) CancelTrickplay(id string) {
+	if canceler, ok := s.embeddedScorecardSessions.(frontend.TrickplayCanceler); ok {
+		canceler.CancelTrickplay(id)
+	}
+}
 func (s scorecardSessionWrapper) PlexSessionForPlayback(ctx context.Context, a frontend.SessionAccess, item frontend.RatingKey, playbackID, transcodeID string) (string, error) {
 	lookup, ok := s.embeddedScorecardSessions.(interface {
 		PlexSessionForPlayback(context.Context, frontend.SessionAccess, frontend.RatingKey, string, string) (string, error)

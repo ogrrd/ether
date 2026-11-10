@@ -15,7 +15,7 @@ func TestPartSelectionResetClearsOnlyRequestedPersistentChoice(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
 	prefs := trackprefs.New(store.OpenTest(t))
-	f.srv.d.TrackPreferences = prefs
+	f.srv.UseTrackPreferences(prefs)
 	ctx := context.Background()
 	rules := trackprefs.Default()
 	rules.PreferOriginal = false

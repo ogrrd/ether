@@ -973,7 +973,7 @@ func (s *Server) decisionMedia(t *frontend.Title, ps *frontend.PlaySession, dec 
 		}
 		m.Part[0].Key = s.playIDs.partKey(ik, m.ID, m.Part[0].Key, s.now())
 	}
-	if ps.Resolution != nil && s.d.Trickplay != nil && s.d.Trickplay.TrickplayAvailable(frontend.TrickplayCacheKey(ps)) {
+	if ps.Resolution != nil && s.trickplayAvailable(frontend.TrickplayCacheKey(ps)) {
 		m.Part[0].Indexes = "sd"
 	}
 	m.Selected = model.Ptr(true)
@@ -2329,7 +2329,7 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 				sel.subtitle, sel.subtitleSet, sel.subtitleStream = -1, true, nil
 			}
 		})
-		if resetter, ok := s.d.TrackPreferences.(interface {
+		if resetter, ok := s.trackPrefs.(interface {
 			ForgetChoice(context.Context, int64, frontend.RatingKey, string) error
 		}); ok {
 			if err := resetter.ForgetChoice(r.Context(), pr.User.ID, binding.Key, "subtitle"); err != nil {

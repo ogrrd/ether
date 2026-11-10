@@ -230,9 +230,9 @@ func TestVersionFlowSharedAcrossNodes(t *testing.T) {
 			a.srv.UsePlaybackBroker(b.srv.playbackBroker)
 			a.srv.UsePlexStreams(b.srv.boundStreams)
 			a.srv.d.Playback = pb
-			a.srv.d.Variants = ra
+			a.srv.UseVariants(ra)
 			b.srv.d.Playback = pb
-			b.srv.d.Variants = rb
+			b.srv.UseVariants(rb)
 			path := "/library/metadata/" + fightClub.Key.String()
 			headers := []string{"Accept", "application/json", "X-Plex-Product", "Plex for Samsung"}
 			fetch := func(f *fixture, stage, target string) []wireMedia {

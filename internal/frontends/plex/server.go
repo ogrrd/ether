@@ -89,6 +89,9 @@ type Server struct {
 	extras            any
 	prerolls          any
 	subtitles         frontend.SubtitleSidecarSource
+	variants          frontend.VariantResolver
+	plexGUID          frontend.LibraryGUIDs
+	plexMeta          frontend.LibraryMetadata
 	variantIDs        *variantIDRegistry
 	playIDs           *playIdentities
 	versionFlows      *versionFlowStore

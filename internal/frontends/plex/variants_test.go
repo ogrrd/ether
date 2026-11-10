@@ -148,7 +148,6 @@ func newVariantFixture(t *testing.T, playback core.Playback) *variantFixture {
 		Auth:              &fakeAuth{users: map[string]core.User{ownerToken: ownerUser, friendToken: friendUser}},
 		Playback:          playback,
 		Transcoder:        newFakeTranscoder(core.Decision{Kind: core.DecisionDirectPlay, VideoCopy: true, AudioCopy: true, Container: "mkv"}),
-		Variants:          vr,
 		DisableEnrichment: true,
 		Config: func() config.Config {
 			c := config.Config{}
@@ -161,6 +160,7 @@ func newVariantFixture(t *testing.T, playback core.Playback) *variantFixture {
 		Identity: Identity{Version: "1.43.4.10903-e5521bd8c", Platform: "Linux"},
 		Now:      func() time.Time { return fixedNow },
 	}))
+	srv.UseVariants(vr)
 	t.Cleanup(func() { srv.Close() })
 	mountTestBroker(srv, func() time.Time { return fixedNow })
 	return &variantFixture{srv: srv, resolver: vr, playback: playback}

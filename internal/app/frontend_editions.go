@@ -84,3 +84,24 @@ func (s surfaceEditions) EditionsMany(ctx context.Context, _ *core.Viewer, _ cor
 	}
 	return out, nil
 }
+
+func (s surfaceEditions) VariantResolver() frontend.VariantResolver {
+	if s.app == nil || s.app.resolver == nil {
+		return nil
+	}
+	return s.app.resolver
+}
+
+func (s surfaceEditions) LibraryGUIDs() frontend.LibraryGUIDs {
+	if s.app == nil || s.app.plexGUID == nil {
+		return nil
+	}
+	return s.app.plexGUID
+}
+
+func (s surfaceEditions) LibraryMetadata() frontend.LibraryMetadata {
+	if s.app == nil || s.app.plexMeta == nil {
+		return nil
+	}
+	return s.app.plexMeta
+}

@@ -96,7 +96,6 @@ func (a *App) buildPlex(ctx context.Context, cfg config.Config) (frontend.PlexDe
 		}
 		return a.availability.Prioritize(ctx, items)
 	}
-	deps.Variants = a.resolver // "Play Version" release picker (cache-only)
 	deps.LiveLogoKey = a.cfg.DerivedKey("ether-live-logo-v1")
 	deps.PublicURL = func() string {
 		if a.registrar == nil {
@@ -123,16 +122,16 @@ func (a *App) buildPlex(ctx context.Context, cfg config.Config) (frontend.PlexDe
 		ClientIdentifier: clientID,
 		Background:       true,
 	})
-	a.plexGUID, deps.PlexGUID = guidService, guidService
+	a.plexGUID = guidService
 	metadataService := plexmeta.New(a.db, plexmeta.Options{
 		HTTP:             a.opts.plextvHTTP,
 		Token:            plexToken,
 		ClientIdentifier: clientID,
 		GUID: func(ctx context.Context, k core.RatingKey) string {
-			if deps.PlexGUID == nil {
+			if guidService == nil {
 				return ""
 			}
-			return deps.PlexGUID.Cached(ctx, k)
+			return guidService.Cached(ctx, k)
 		},
 		Enabled: func() bool {
 			cfg := a.cfg.Read()
@@ -140,7 +139,7 @@ func (a *App) buildPlex(ctx context.Context, cfg config.Config) (frontend.PlexDe
 		},
 		Background: true,
 	})
-	a.plexMeta, deps.PlexMeta = metadataService, metadataService
+	a.plexMeta = metadataService
 	if err := a.buildPlexWatch(); err != nil {
 		guidService.Close()
 		metadataService.Close()

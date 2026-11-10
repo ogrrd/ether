@@ -111,8 +111,6 @@ type PlexDeps struct {
 	JudgedOnFacts       func(context.Context) func(Title) bool
 	PrioritizeAvailable func(context.Context, []Title) []Title
 	EpisodeOrder        EpisodeOrder
-	PlexGUID            LibraryGUIDs
-	PlexMeta            LibraryMetadata
 	Discovery           *DiscoveryFeatures
 	// Search is the app's shared search (every frontend's); zero builds it
 	// from this server's own dependencies.
@@ -128,9 +126,6 @@ type PlexDeps struct {
 	Auth         Auth
 	Playback     Playback
 	Transcoder   Transcoder
-	// Variants lists distinct release versions for "Play Version" detail
-	// pages (optional: without it, detail pages stay single-Media).
-	Variants VariantResolver
 	// DecisionTraces is the latest resolution for a title, copied into a
 	// support capture. Nil leaves playback unchanged.
 	DecisionTraces DecisionTraceSource

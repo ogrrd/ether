@@ -25,6 +25,21 @@ func (s *Server) UseHost(host frontend.Host) {
 	if sub, ok := host.Subtitles.(frontend.SubtitleSidecarSource); ok && sub != nil {
 		s.subtitles = sub
 	}
+	if vr, ok := host.Editions.(interface{ VariantResolver() frontend.VariantResolver }); ok {
+		if v := vr.VariantResolver(); v != nil {
+			s.variants = v
+		}
+	}
+	if lg, ok := host.Editions.(interface{ LibraryGUIDs() frontend.LibraryGUIDs }); ok {
+		if g := lg.LibraryGUIDs(); g != nil {
+			s.plexGUID = g
+		}
+	}
+	if lm, ok := host.Editions.(interface{ LibraryMetadata() frontend.LibraryMetadata }); ok {
+		if m := lm.LibraryMetadata(); m != nil {
+			s.plexMeta = m
+		}
+	}
 }
 
 // UseTrackPreferences attaches the viewer track-preference service.
@@ -66,6 +81,27 @@ func (s *Server) UsePrerolls(p any) {
 func (s *Server) UseSubtitles(sub frontend.SubtitleSidecarSource) {
 	if s != nil {
 		s.subtitles = sub
+	}
+}
+
+// UseVariants attaches a variant resolver override.
+func (s *Server) UseVariants(v frontend.VariantResolver) {
+	if s != nil {
+		s.variants = v
+	}
+}
+
+// UsePlexGUID attaches a library GUID service override.
+func (s *Server) UsePlexGUID(g frontend.LibraryGUIDs) {
+	if s != nil {
+		s.plexGUID = g
+	}
+}
+
+// UsePlexMeta attaches a library metadata service override.
+func (s *Server) UsePlexMeta(m frontend.LibraryMetadata) {
+	if s != nil {
+		s.plexMeta = m
 	}
 }
 

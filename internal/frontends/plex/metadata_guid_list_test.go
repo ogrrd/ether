@@ -27,7 +27,8 @@ func TestMetadataByPlexGUIDList(t *testing.T) {
 	}
 	pg := plexguid.New(db, plexguid.Options{})
 	defer pg.Close()
-	f := newFixture(func(d *Deps) { d.PlexGUID = pg })
+	f := newFixture()
+	f.srv.UsePlexGUID(pg)
 	defer f.srv.Close()
 	f.srv.d.Catalog = guidCatalog{f.catalog}
 

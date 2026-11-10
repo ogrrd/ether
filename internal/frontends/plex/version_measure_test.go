@@ -64,9 +64,9 @@ func TestVersionBrowseMeasurement(t *testing.T) {
 	f := newFixture(func(d *Deps) {
 		d.Config = func() config.Config { return cfg }
 		d.DisableEnrichment = true
-		d.Variants = vr
 		d.Hooks = Hooks{}
 	})
+	f.srv.UseVariants(vr)
 	defer f.srv.Close()
 	titles := make([]core.Title, 200)
 	f.catalog.titles = map[core.RatingKey]core.Title{}

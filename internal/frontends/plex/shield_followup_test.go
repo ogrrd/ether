@@ -70,7 +70,7 @@ func TestShieldTroyCaptureFollowup(t *testing.T) {
 							{Index: 3, Type: "subtitle", Codec: "hdmv_pgs_subtitle", Language: "en"},
 						}}
 						f.playback.info = facts
-						f.srv.d.Variants = &fakeVariantResolver{byKey: testVariantLists()}
+						f.srv.UseVariants(&fakeVariantResolver{byKey: testVariantLists()})
 						pb := &shieldMetadataPlayback{Playback: f.playback, facts: facts, ready: warm}
 						f.srv.d.Playback = pb
 						device := "SHIELD Android TV"

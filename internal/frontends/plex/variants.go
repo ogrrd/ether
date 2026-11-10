@@ -76,7 +76,7 @@ func (s *Server) partTitle(partID int64) (key frontend.RatingKey, releaseID stri
 // pre-play and the selected queue item freeze a short-lived flow. Clustered
 // flows adopt the committed snapshot before returning metadata.
 func (s *Server) mediaForVariants(ctx context.Context, pr *Request, t *frontend.Title, stamp int64, probed frontend.MediaInfo, probedRelease string, ps *frontend.PlaySession) ([]model.Media, string) {
-	if s.d.Variants == nil || pr.User == nil {
+	if s.variants == nil || pr.User == nil {
 		return nil, ""
 	}
 	ik := s.playIdentityFor(pr, t.Key)
@@ -134,7 +134,7 @@ func (s *Server) mediaForVariants(ctx context.Context, pr *Request, t *frontend.
 		}
 		if rel != "" && pin.autoAligned != rel && vs[0].Auto && vs[0].Release.ID != rel {
 			vctx, cancel := detailVariantContext(ctx, pr)
-			resolved, err := s.d.Variants.Variants(vctx, frontend.ResolveRequest{Title: t, Client: caps, User: pr.User, PlayedRelease: rel}, frontend.MaxVariants)
+			resolved, err := s.variants.Variants(vctx, frontend.ResolveRequest{Title: t, Client: caps, User: pr.User, PlayedRelease: rel}, frontend.MaxVariants)
 			cancel()
 			var auto *frontend.ReleaseVariant
 			if err == nil && len(resolved) > 0 && resolved[0].Auto && resolved[0].Release.ID == rel {
@@ -145,7 +145,7 @@ func (s *Server) mediaForVariants(ctx context.Context, pr *Request, t *frontend.
 		}
 	} else {
 		vctx, cancel := detailVariantContext(ctx, pr)
-		resolved, err := s.d.Variants.Variants(vctx, frontend.ResolveRequest{Title: t, Client: caps, User: pr.User, PlayedRelease: probedRelease}, frontend.MaxVariants)
+		resolved, err := s.variants.Variants(vctx, frontend.ResolveRequest{Title: t, Client: caps, User: pr.User, PlayedRelease: probedRelease}, frontend.MaxVariants)
 		cancel()
 		if err != nil {
 			s.log.Debug("variants unavailable", "key", t.Key, "err", err)
@@ -707,7 +707,7 @@ type variantWatches struct {
 // a library timeline entry tells the open page to reload, as PMS does on a
 // metadata change, so Play Version is there without leaving the page.
 func (s *Server) watchVariants(pr *Request, t *frontend.Title) {
-	if s.d.Variants == nil || pr == nil || pr.User == nil || t == nil {
+	if s.variants == nil || pr == nil || pr.User == nil || t == nil {
 		return
 	}
 	key := fmt.Sprintf("%d|%s|%d", pr.User.ID, pr.ClientID, t.Key)
@@ -743,12 +743,12 @@ func (s *Server) watchVariants(pr *Request, t *frontend.Title) {
 			case <-timer.C:
 			}
 			if retryAdmission && s.detailSearchAllowed(pr) {
-				if refiller, ok := s.d.Variants.(frontend.SearchCacheRefiller); ok {
+				if refiller, ok := s.variants.(frontend.SearchCacheRefiller); ok {
 					retryAdmission = refiller.RefillSearchCache(&title) == nil
 				}
 			}
 			vctx, cancel := context.WithTimeout(s.ctx, variantRenderBudget)
-			vs, err := s.d.Variants.Variants(vctx, frontend.ResolveRequest{Title: &title, Client: caps, User: &user}, frontend.MaxVariants)
+			vs, err := s.variants.Variants(vctx, frontend.ResolveRequest{Title: &title, Client: caps, User: &user}, frontend.MaxVariants)
 			cancel()
 			if err == nil && len(vs) >= 2 {
 				s.notifyTimeline(title.Key, title.Type, "", user.ID)

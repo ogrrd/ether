@@ -22,7 +22,7 @@ func TestPlaceholderArtworkAuthorization(t *testing.T) {
 	defer upstream.Close()
 	for _, enabled := range []bool{false, true} {
 		t.Run(map[bool]string{false: "overlay_off", true: "overlay_on"}[enabled], func(t *testing.T) {
-			f := newFixture(func(d *Deps) {
+			f := newFixture(func(d *testServerDeps) {
 				d.ImageURL = func(path, size string) string { return upstream.URL + path }
 				d.HTTPClient = upstream.Client()
 			})
@@ -31,12 +31,12 @@ func TestPlaceholderArtworkAuthorization(t *testing.T) {
 			title := core.Title{Key: core.MovieKey(991123), Type: core.TypeMovie, Title: "Future", Released: fixedNow.Add(48 * time.Hour), PosterPath: "/future.jpg", BackdropPath: "/future-art.jpg"}
 			f.catalog.titles[title.Key] = title
 			c := &scopedFakeCollections{&fakeCollections{cols: map[core.RatingKey]core.Collection{ck: {Key: ck, Type: core.TypeMovie, Upcoming: true}}, items: map[core.RatingKey][]core.Title{ck: {title}}}}
-			f.srv.d.Collections = c
+			f.srv.setCollections(c)
 			ov := overlays.New(discoveryDB(t), overlays.Options{Images: &discoveryImageSource{}})
 			if err := ov.SaveSettings(context.Background(), overlays.Settings{Enabled: enabled, Localize: true}); err != nil {
 				t.Fatal(err)
 			}
-			f.srv.d.Discovery = (&discovery.Features{Overlays: ov}).Frontend()
+			f.srv.setDiscovery((&discovery.Features{Overlays: ov}).Frontend())
 			md := f.srv.placeholderMetadata(context.Background(), &Request{User: &ownerUser, Language: "fr-CA"}, &title, ck)
 			for _, path := range []string{md.Thumb, md.Art} {
 				u, err := url.Parse(path)

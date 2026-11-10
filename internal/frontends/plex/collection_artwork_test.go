@@ -51,9 +51,9 @@ func TestGeneratedCollectionArtwork(t *testing.T) {
 	f.cols.cols[owned.Key] = owned
 	f.cols.items[owned.Key] = []core.Title{alien}
 	art := &artCollections{fakeCollections: f.cols}
-	d := f.srv.d
+	d := f.srv.currentTestDeps()
 	d.Collections = art
-	f.srv = NewServer(testDeps(d))
+	f.srv = newTestServer(d)
 	defer f.srv.Close()
 
 	// The collection's thumb URL carries its update stamp.
@@ -93,9 +93,9 @@ func TestCustomCollectionArtEndpoint(t *testing.T) {
 	f.cols.cols[owned.Key] = owned
 	f.cols.items[owned.Key] = []core.Title{alien}
 	art := &artCollections{fakeCollections: f.cols, allowArt: true}
-	d := f.srv.d
+	d := f.srv.currentTestDeps()
 	d.Collections = art
-	f.srv = NewServer(testDeps(d))
+	f.srv = newTestServer(d)
 	defer f.srv.Close()
 
 	stamp := strconv.FormatInt(updated.Unix(), 10)

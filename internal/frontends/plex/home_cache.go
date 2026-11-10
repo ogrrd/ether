@@ -54,11 +54,6 @@ const (
 	homeRewarmEvery    = time.Minute
 )
 
-// HomeCacheSource supplies the revision inputs of cached Home screens.
-// Revision must be cheap and shared across cluster nodes (the database);
-// Layout and Catalog are local generations.
-type HomeCacheSource = frontend.PlexHomeCacheSource
-
 // homeBuild is one built Home screen.
 type homeBuild struct {
 	mc *model.MediaContainer
@@ -114,13 +109,12 @@ func newHomeCache() *homeCache {
 func (s *Server) serveHome(w http.ResponseWriter, r *http.Request, route string, build homeBuildFunc) {
 	ctx := r.Context()
 	pr := FromContext(ctx)
-	src := s.d.HomeCache
-	if s.home == nil || src == nil || src.Revision == nil || pr == nil || pr.User == nil || s.liveSessionOnClient(pr) {
+	if s.home == nil || pr == nil || pr.User == nil || s.liveSessionOnClient(pr) {
 		s.writeHomeBuild(w, r, build(ctx, r))
 		return
 	}
-	rev, err := src.Revision(ctx, pr.User)
-	if err != nil {
+	rev, ok, err := s.exp().HomeRevision(ctx, pr.User)
+	if !ok || err != nil {
 		s.writeHomeBuild(w, r, build(ctx, r))
 		return
 	}
@@ -181,10 +175,7 @@ func (s *Server) serveHome(w http.ResponseWriter, r *http.Request, route string,
 
 // homeBuildRequest is r with the cache's build context.
 func (s *Server) homeBuildRequest(r *http.Request) *http.Request {
-	if src := s.d.HomeCache; src != nil && src.NoProviderWait != nil {
-		return r.WithContext(src.NoProviderWait(r.Context()))
-	}
-	return r
+	return r.WithContext(s.exp().NoProviderWait(r.Context()))
 }
 
 // writeHomeBuild writes an uncached build exactly as the handler always did.
@@ -246,18 +237,12 @@ func (s *Server) homeKey(route string, r *http.Request, pr *Request) string {
 // homeStamps returns the hard stamp (a mismatch rebuilds on the request)
 // and the soft one (a mismatch refreshes behind the response).
 func (s *Server) homeStamps(pr *Request, rev frontend.HomeRevision) (string, string) {
-	src := s.d.HomeCache
 	restricted := s.viewerRestricted(pr.User)
 	userJSON, _ := json.Marshal(pr.User)
 	var layout, config, catalog uint64
-	if src.Layout != nil {
-		layout = src.Layout()
-	}
-	if src.Config != nil {
-		config = src.Config()
-	}
-	if src.Catalog != nil {
-		catalog = src.Catalog()
+	if s.pageFreshness != nil {
+		f := s.pageFreshness()
+		layout, config, catalog = f.Layout, f.Config, f.Catalog
 	}
 	hard := rev.Viewer + "|" + strconv.FormatUint(layout, 36) + "|" + strconv.FormatUint(config, 36) + "|" + strconv.FormatBool(restricted) + "|" + strconv.FormatBool(pr.User.Delegated) + "|" + string(userJSON)
 	soft := strconv.FormatUint(catalog, 36)
@@ -403,8 +388,8 @@ func (s *Server) refreshHome(key string) {
 	}
 	ctx = reqmemo.With(ctx)
 	pr := FromContext(ctx)
-	rev, err := s.d.HomeCache.Revision(ctx, pr.User)
-	if err != nil {
+	rev, ok, err := s.exp().HomeRevision(ctx, pr.User)
+	if !ok || err != nil {
 		return
 	}
 	hard, soft := s.homeStamps(pr, rev)
@@ -466,7 +451,7 @@ type homeImpression struct {
 
 // impressionHubs is what recordImpressions reports for the written rows.
 func (s *Server) impressionHubs(pr *Request, written []model.Hub, served map[string]frontend.Hub) []homeImpression {
-	if _, ok := s.d.Recommender.(frontend.ImpressionSink); !ok || pr.User == nil {
+	if _, ok := s.recommender().(frontend.ImpressionSink); !ok || pr.User == nil {
 		return nil
 	}
 	out := make([]homeImpression, 0, len(written))
@@ -486,7 +471,7 @@ func (s *Server) impressionHubs(pr *Request, written []model.Hub, served map[str
 }
 
 func (s *Server) recordCompactImpressions(pr *Request, hc frontend.HubContext, rows []homeImpression) {
-	sink, ok := s.d.Recommender.(frontend.ImpressionSink)
+	sink, ok := s.recommender().(frontend.ImpressionSink)
 	if !ok || pr.User == nil || len(rows) == 0 {
 		return
 	}

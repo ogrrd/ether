@@ -19,7 +19,7 @@ func TestResilienceMixedClientLifecycles(t *testing.T) {
 	if n, err := strconv.Atoi(os.Getenv("ETHER_RESILIENCE_CYCLES")); err == nil && n > 0 && n <= 1000 {
 		cycles = n
 	}
-	f := newFixture(func(d *Deps) { d.Hooks = Hooks{}; d.DisableEnrichment = true })
+	f := newFixture(func(d *testServerDeps) { d.Hooks = Hooks{}; d.DisableEnrichment = true })
 	defer f.srv.Close()
 	var requests atomic.Int64
 	profiles := []struct{ product, platform, accept string }{

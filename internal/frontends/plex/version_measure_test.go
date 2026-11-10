@@ -61,7 +61,7 @@ func TestVersionBrowseMeasurement(t *testing.T) {
 	rs := resolver.New(idx, nil, nil, cfg, resolver.Options{Now: func() time.Time { return fixedNow }})
 	defer rs.Close()
 	vr := &versionMeasureResolver{Service: rs}
-	f := newFixture(func(d *Deps) {
+	f := newFixture(func(d *testServerDeps) {
 		d.Config = func() config.Config { return cfg }
 		d.DisableEnrichment = true
 		d.Variants = vr
@@ -89,7 +89,7 @@ func TestVersionBrowseMeasurement(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		hubs = append(hubs, core.Hub{ID: fmt.Sprintf("movie.measure.%d", i), Title: "Measured shelf", Type: core.TypeMovie, Items: titles[i*40 : (i+1)*40]})
 	}
-	f.srv.d.Recommender = &fakeRecommender{home: hubs, section: map[core.MediaType][]core.Hub{core.TypeMovie: hubs}}
+	f.srv.setRecommender(&fakeRecommender{home: hubs, section: map[core.MediaType][]core.Hub{core.TypeMovie: hubs}})
 	caps := (&Request{User: &ownerUser, ClientID: "client-1", Product: "Plex for LG"}).ClientCaps(cfg.Transcode.RemoteMaxBitrateKbps)
 	if vs, e := rs.Variants(context.Background(), core.ResolveRequest{Title: &titles[1], User: &ownerUser, Client: caps}, core.MaxVariants); e != nil || len(vs) < 2 {
 		t.Fatalf("fixture variants=%d err=%v", len(vs), e)

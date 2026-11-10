@@ -36,7 +36,7 @@ func TestRemoteArtworkCannotExecuteOnOwnerOrigin(t *testing.T) {
 				_, _ = w.Write([]byte(tc.body))
 			}))
 			defer upstream.Close()
-			f := newFixture(func(d *Deps) {
+			f := newFixture(func(d *testServerDeps) {
 				d.ImageURL = func(path, size string) string { return upstream.URL + "/" + size + path }
 				d.HTTPClient = upstream.Client()
 			})
@@ -83,9 +83,9 @@ func TestCustomCollectionArtworkCannotExecuteOnOwnerOrigin(t *testing.T) {
 	key := core.SmartKey(12)
 	f.cols.cols[key] = core.Collection{Key: key, Title: "Custom artwork", Kind: "smart", Type: core.TypeMovie, ChildCount: 1}
 	f.cols.items[key] = []core.Title{alien}
-	d := f.srv.d
+	d := f.srv.currentTestDeps()
 	d.Collections = &customURLCollections{fakeCollections: f.cols, images: artwork.NewImages(artwork.ImagesOptions{HTTPClient: upstream.Client()}), url: upstream.URL + "/poster.svg"}
-	f.srv = NewServer(testDeps(d))
+	f.srv = newTestServer(d)
 	defer f.srv.Close()
 	for _, path := range []string{
 		"/library/metadata/" + key.String() + "/thumb?X-Plex-Token=" + friendToken,

@@ -219,10 +219,10 @@ type facetFilterCatalog interface {
 
 func (s *Server) firstCharacter(ctx context.Context, f frontend.Filter) ([]frontend.FacetValue, error) {
 	f.FirstCharacter = ""
-	if fc, ok := s.d.Catalog.(facetFilterCatalog); ok {
+	if fc, ok := s.catalog().(facetFilterCatalog); ok {
 		return fc.FacetFilter(ctx, f, "firstCharacter")
 	}
-	return s.d.Catalog.Facet(ctx, f.Type, "firstCharacter")
+	return s.catalog().Facet(ctx, f.Type, "firstCharacter")
 }
 
 func (s *Server) facet(ctx context.Context, t frontend.MediaType, name string) ([]frontend.FacetValue, error) {
@@ -236,7 +236,7 @@ func (s *Server) facet(ctx context.Context, t frontend.MediaType, name string) (
 	if ok && s.now().Sub(e.at) < facetTTL {
 		return e.vals, nil
 	}
-	vals, err := s.d.Catalog.Facet(ctx, t, name)
+	vals, err := s.catalog().Facet(ctx, t, name)
 	if err != nil {
 		return nil, err
 	}

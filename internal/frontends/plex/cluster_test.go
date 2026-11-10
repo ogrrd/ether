@@ -22,7 +22,7 @@ func twoServers(t *testing.T) (*fixture, *fixture, *clusterbus.Hub) {
 	db := store.OpenTest(t)
 	hub := clusterbus.NewHub()
 	mk := func(name string) *fixture {
-		f := newFixture(func(d *Deps) {
+		f := newFixture(func(d *testServerDeps) {
 			d.DB, d.Cluster = db, hub.Node(name)
 			d.DisableEnrichment = true
 			d.SessionHeartbeat = 50 * time.Millisecond
@@ -274,7 +274,7 @@ func TestClusterNotificationsReachOtherNodes(t *testing.T) {
 
 // A standalone server keeps sessions local while persisting its play queues.
 func TestStandaloneServerKeepsSessionsLocalAndQueuesDurable(t *testing.T) {
-	f := newFixture(func(d *Deps) { d.DB = store.OpenTest(t) })
+	f := newFixture(func(d *testServerDeps) { d.DB = store.OpenTest(t) })
 	defer f.srv.Close()
 	if f.srv.cl != nil || !f.srv.queues.Persistent() {
 		t.Fatal("standalone session or durable queue wiring is incorrect")

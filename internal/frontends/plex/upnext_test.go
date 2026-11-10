@@ -32,7 +32,7 @@ func TestPostplayUpNextReloadAndPlayQueue(t *testing.T) {
 				f := newFixture()
 				defer f.srv.Close()
 				// The next episode must work without the optional recommender.
-				f.srv.d.Recommender = nil
+				f.srv.setRecommender(nil)
 				f.state.set(ownerUser.ID, ws(bbE1.Key, 0, 1))
 				headers := map[string]string{"Accept": "application/" + format}
 				for k, v := range client.Headers {
@@ -103,7 +103,7 @@ func TestPostplayUpNextReloadAndPlayQueue(t *testing.T) {
 func TestUpNextCannotExposeHiddenSourceOrNextEpisode(t *testing.T) {
 	for _, hidden := range []core.Title{bbE1, bbE2, breakingBad} {
 		t.Run(hidden.Key.String(), func(t *testing.T) {
-			f := newFixture(func(d *Deps) { d.AccessPolicy = keywordPolicy{blocked: "blocked"} })
+			f := newFixture(func(d *testServerDeps) { d.AccessPolicy = keywordPolicy{blocked: "blocked"} })
 			defer f.srv.Close()
 			hidden.Keywords = []string{"blocked"}
 			f.catalog.titles[hidden.Key] = hidden

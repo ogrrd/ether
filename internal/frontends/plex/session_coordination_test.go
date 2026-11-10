@@ -11,7 +11,7 @@ import (
 
 func TestPlexUsesSharedPlaybackCoordination(t *testing.T) {
 	coord := sessions.NewCoordination()
-	f := newFixture(func(d *Deps) { d.SessionCoordination = coord })
+	f := newFixture(func(d *testServerDeps) { d.SessionCoordination = coord })
 	defer f.srv.Close()
 	unlock, err := coord.Gates.Acquire(context.Background(), "owner/1/device")
 	if err != nil {

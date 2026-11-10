@@ -14,7 +14,7 @@ import (
 // API. Keep the measured refusals distinct from an absent media item.
 func (s *Server) handlePlaylistMetadataRefusal(w http.ResponseWriter, r *http.Request) {
 	k, err := keyParam(r)
-	if err != nil || k.Kind() != frontend.KindPlaylist || s.d.Playlists == nil {
+	if err != nil || k.Kind() != frontend.KindPlaylist || s.playlists() == nil {
 		writeHTTPError(w, http.StatusNotFound)
 		return
 	}
@@ -46,7 +46,7 @@ func (s *Server) handlePlaylistUpload(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handlePlaylistArtworkCandidates(w http.ResponseWriter, r *http.Request) {
 	k, err := keyParam(r)
-	if err != nil || k.Kind() != frontend.KindPlaylist || s.d.Playlists == nil {
+	if err != nil || k.Kind() != frontend.KindPlaylist || s.playlists() == nil {
 		writeHTTPError(w, http.StatusNotFound)
 		return
 	}

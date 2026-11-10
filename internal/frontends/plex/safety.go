@@ -35,7 +35,7 @@ func (s *Server) catalogBrowse(ctx context.Context, q frontend.BrowseQuery) (fro
 	if s.plexMetaOn() {
 		q.Filter.SaferPlexRating = true
 	}
-	return s.d.Catalog.Browse(ctx, q)
+	return s.catalog().Browse(ctx, q)
 }
 
 func (s *Server) visibleTitles(u *frontend.User, ts []frontend.Title) []frontend.Title {
@@ -66,9 +66,9 @@ func (s *Server) titleAllowed(u *frontend.User, t *frontend.Title) bool {
 }
 
 func (s *Server) visibility() frontend.Visibility {
-	v := frontend.Visibility{Policy: s.d.AccessPolicy, FilterAvailable: s.d.FilterAvailable, JudgedOnFacts: s.d.JudgedOnFacts,
+	v := frontend.Visibility{Policy: s.d.AccessPolicy, FilterAvailable: s.filterAvailable(), JudgedOnFacts: s.judgedOnFacts(),
 		SectionFor: func(t frontend.MediaType) (int, bool) { sec, ok := s.untitledSectionFor(t); return sec.ID, ok }}
-	if s.d.Catalog != nil {
+	if s.catalog() != nil {
 		v.GetTitle = s.seriesTitle
 	}
 	if s.d.Playback != nil {
@@ -118,7 +118,7 @@ func (s *Server) admittedTitle(t *frontend.Title) bool {
 	if t == nil || t.IsFutureRelease(s.now()) {
 		return false
 	}
-	if catalog, ok := s.d.Catalog.(interface{ TitleOpenable(*frontend.Title) bool }); ok {
+	if catalog, ok := s.catalog().(interface{ TitleOpenable(*frontend.Title) bool }); ok {
 		return catalog.TitleOpenable(t)
 	}
 	return !t.Adult
@@ -160,7 +160,7 @@ func (s *Server) withSeriesRows(ctx context.Context, u *frontend.User, ts []fron
 	if len(shows) == 0 {
 		return ctx
 	}
-	if rows, ok := s.d.Catalog.(interface {
+	if rows, ok := s.catalog().(interface {
 		CachedVisibilityRows(context.Context, []frontend.RatingKey, frontend.TitleFacts) (map[frontend.RatingKey]frontend.Title, error)
 	}); ok {
 		parents, err := rows.CachedVisibilityRows(ctx, shows, s.visibility().TitleFacts(u))
@@ -175,7 +175,7 @@ func (s *Server) withSeriesRows(ctx context.Context, u *frontend.User, ts []fron
 			return context.WithValue(ctx, seriesRowsKey{}, merged)
 		}
 	}
-	if pre, ok := s.d.Catalog.(interface {
+	if pre, ok := s.catalog().(interface {
 		PreloadStored(context.Context, []frontend.RatingKey)
 	}); ok && len(shows) > 1 {
 		pre.PreloadStored(ctx, shows)

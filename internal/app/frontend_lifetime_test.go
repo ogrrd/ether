@@ -10,7 +10,6 @@ import (
 	artworkservice "github.com/braedonsaunders/ether/internal/artwork/service"
 	"github.com/braedonsaunders/ether/internal/config"
 	"github.com/braedonsaunders/ether/internal/core"
-	"github.com/braedonsaunders/ether/internal/experience"
 	"github.com/braedonsaunders/ether/internal/frontends/plex"
 	"github.com/braedonsaunders/ether/internal/sessions"
 )
@@ -54,7 +53,6 @@ func TestNeutralServerLibrariesMatchPlexIncludingSpike(t *testing.T) {
 		cfg.Spike.Enabled = spike
 		deps := plex.Deps{
 			SessionStores:     sessions.NewPlexSessionStores(),
-			Experience:        experience.NewPlexExperience(),
 			ArtworkStores:     artworkservice.NewPlexArtworkStores(),
 			DisableEnrichment: true,
 		}

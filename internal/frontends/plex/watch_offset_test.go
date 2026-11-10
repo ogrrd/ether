@@ -18,7 +18,7 @@ func TestWatchProgressFollowsClientTimelineNotEncoder(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
 	watch := state.New(store.OpenTest(t), state.Options{})
-	f.srv.d.State = watch
+	f.srv.setState(watch)
 
 	const client = 1426 * time.Second // 23:46
 	rec := f.get(t, "/:/timeline?ratingKey="+fightClub.Key.String()+"&state=playing&time=1426000&duration=5424620")
@@ -56,7 +56,7 @@ func TestPartialSoakAfterUnscrobbleStaysInProgress(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
 	watch := state.New(store.OpenTest(t), state.Options{})
-	f.srv.d.State = watch
+	f.srv.setState(watch)
 
 	key := fightClub.Key.String()
 

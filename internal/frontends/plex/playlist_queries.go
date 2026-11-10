@@ -63,8 +63,8 @@ func (s *Server) playlistListingMetadata(ctx context.Context, pl *frontend.Playl
 	md.ViewCount = 1
 	md.LastViewedAt = md.AddedAt
 	pr := FromContext(ctx)
-	if s.d.State != nil && pr != nil && pr.User != nil {
-		if st, err := s.d.State.Get(ctx, pr.User.ID, pl.Key); err == nil && (!st.UpdatedAt.IsZero() || st.ViewCount > 0 || !st.LastViewedAt.IsZero()) {
+	if s.state() != nil && pr != nil && pr.User != nil {
+		if st, err := s.state().Get(ctx, pr.User.ID, pl.Key); err == nil && (!st.UpdatedAt.IsZero() || st.ViewCount > 0 || !st.LastViewedAt.IsZero()) {
 			md.ViewCount = st.ViewCount
 			md.LastViewedAt = unixOrZero(st.LastViewedAt)
 			md.ViewOffset = st.ViewOffset.Milliseconds()
@@ -141,8 +141,8 @@ func (s *Server) writePlaylistListing(w http.ResponseWriter, r *http.Request) {
 		mc.Meta = playlistMeta(r)
 	}
 	var rows []model.Metadata
-	if s.d.Playlists != nil && pr.User != nil {
-		pls, err := s.d.Playlists.List(ctx, pr.User.ID)
+	if s.playlists() != nil && pr.User != nil {
+		pls, err := s.playlists().List(ctx, pr.User.ID)
 		if err != nil {
 			s.writeErr(w, r, err)
 			return
@@ -344,7 +344,7 @@ func (s *Server) playlistItemRows(ctx context.Context, pr *Request, pl *frontend
 			br := s.parseBrowse(ctx, sec, typ, pr.User, filterQuery, filterQuery.Encode())
 			br.q.Filter.IncludeKeys = keys
 			br.q.Limit = maxExpand
-			page, err := s.d.Catalog.Browse(ctx, br.q)
+			page, err := s.catalog().Browse(ctx, br.q)
 			if err != nil {
 				return playlistRows{}, err
 			}
@@ -426,7 +426,7 @@ func playlistHasItemFilters(q url.Values) bool {
 }
 
 func (s *Server) smartPlaylistSQLAvailable() bool {
-	c, ok := s.d.Catalog.(interface{ BrowsePlaylistInSQL() bool })
+	c, ok := s.catalog().(interface{ BrowsePlaylistInSQL() bool })
 	return ok && c.BrowsePlaylistInSQL()
 }
 
@@ -448,7 +448,7 @@ func (s *Server) writeSmartPlaylistItems(w http.ResponseWriter, r *http.Request,
 	}
 	if source.unwatched != nil || source.inProgress != nil || source.lastViewedAfter > 0 || source.lastViewedBefore > 0 {
 		uid := int64(0)
-		if pr.User != nil && s.d.State != nil {
+		if pr.User != nil && s.state() != nil {
 			uid = pr.User.ID
 		}
 		state := frontend.FilterGroup{UserID: uid, Unwatched: source.unwatched, InProgress: source.inProgress, LastViewedAfter: source.lastViewedAfter, LastViewedBefore: source.lastViewedBefore}
@@ -461,7 +461,7 @@ func (s *Server) writeSmartPlaylistItems(w http.ResponseWriter, r *http.Request,
 	if source.sortLastViewed {
 		source.q.SortLastViewed = true
 		source.q.Desc = source.lastViewedDesc
-		if pr.User != nil && s.d.State != nil {
+		if pr.User != nil && s.state() != nil {
 			source.q.SortViewerID = pr.User.ID
 		}
 	}
@@ -476,7 +476,7 @@ func (s *Server) writeSmartPlaylistItems(w http.ResponseWriter, r *http.Request,
 		if share, ok := s.d.AccessPolicy.(interface {
 			BrowseShareFilter(*frontend.User, frontend.MediaType) frontend.Filter
 		}); ok {
-			policy, _ = s.d.Experience.MergeShareFilter(policy, share.BrowseShareFilter(pr.User, frontend.TypeEpisode))
+			policy, _ = s.exp().MergeShareFilter(policy, share.BrowseShareFilter(pr.User, frontend.TypeEpisode))
 		}
 		source.q.Filter.ChildVisibility = &policy
 	}
@@ -506,7 +506,7 @@ func (s *Server) writeSmartPlaylistItems(w http.ResponseWriter, r *http.Request,
 		return
 	}
 	storedOnly := typ == frontend.TypeEpisode
-	sqlAvailability, _ := s.d.Catalog.(interface{ BrowseAvailabilityInSQL() bool })
+	sqlAvailability, _ := s.catalog().(interface{ BrowseAvailabilityInSQL() bool })
 	rows := s.renderTitles(ctx, pr, titles, renderOpts{media: true, storedOnly: storedOnly, availabilityInSQL: sqlAvailability != nil && sqlAvailability.BrowseAvailabilityInSQL()})
 	mc := &model.MediaContainer{RatingKey: pl.Key.String(), Title1: pl.Title, PlaylistType: "video", Smart: model.Ptr(true), LeafCount: model.Ptr(total), Metadata: rows, Size: len(rows)}
 	if total > 0 {

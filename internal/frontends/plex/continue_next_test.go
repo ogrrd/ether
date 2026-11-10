@@ -42,10 +42,10 @@ func TestContinueWatchingAdvancesCompletedEpisode(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
 	local := &continueCatalog{fakeCatalog: f.catalog}
-	f.srv.d.Catalog = local
+	f.srv.setCatalog(local)
 	f.state.set(ownerUser.ID, ws(bbE1.Key, 0, 1))
 	history := &completedEpisodeState{f.state, []core.HistoryEntry{{Key: bbE1.Key, ViewedAt: fixedNow, Completed: true}}}
-	f.srv.d.State = history
+	f.srv.setState(history)
 	for _, path := range []string{"/hubs/continueWatching/items", "/library/onDeck", "/hubs/sections/2/continueWatching/items"} {
 		mc := decodeJSON(t, f.get(t, path, jsonAccept...))
 		rows, _ := mc["Metadata"].([]any)

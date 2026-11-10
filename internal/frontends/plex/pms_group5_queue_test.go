@@ -114,14 +114,14 @@ func TestPMSGroup5QueueFlagsAndShuffle(t *testing.T) {
 
 func TestPMSGroup5QueueDurableRestart(t *testing.T) {
 	db := store.OpenTest(t)
-	a := newFixture(func(d *Deps) { d.DB = db; d.DisableEnrichment = true })
+	a := newFixture(func(d *testServerDeps) { d.DB = db; d.DisableEnrichment = true })
 	q, err := a.srv.queues.CreateWith(ownerUser.ID, "persistent", []core.RatingKey{fightClub.Key, bbE1.Key}, fixedNow, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	a.srv.queues.SelectItem(ownerUser.ID, q.Items[1].ID)
 	a.srv.Close()
-	b := newFixture(func(d *Deps) { d.DB = db; d.DisableEnrichment = true })
+	b := newFixture(func(d *testServerDeps) { d.DB = db; d.DisableEnrichment = true })
 	defer b.srv.Close()
 	restored, ok := b.srv.queues.Get(q.ID, ownerUser.ID)
 	if !ok || restored.Selected != 1 || restored.Items[1].ID != q.Items[1].ID {

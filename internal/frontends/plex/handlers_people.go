@@ -87,7 +87,7 @@ func (s *Server) resolvePerson(w http.ResponseWriter, r *http.Request) (resolved
 		writeHTTPError(w, http.StatusNotFound)
 		return out, false
 	}
-	cat, ok := s.d.Catalog.(personByIDCatalog)
+	cat, ok := s.catalog().(personByIDCatalog)
 	if !ok {
 		writeHTTPError(w, http.StatusNotFound)
 		return out, false

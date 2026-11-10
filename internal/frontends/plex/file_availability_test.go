@@ -89,7 +89,7 @@ func fileProbeManager(t *testing.T, f *fixture, res fileProbeResolver, engine *f
 }
 
 func TestMetadataFileChecksUseSourceWithoutPlaybackAdmission(t *testing.T) {
-	f := newFixture(func(d *Deps) { d.DisableEnrichment = true })
+	f := newFixture(func(d *testServerDeps) { d.DisableEnrichment = true })
 	engine := &fileProbeEngine{}
 	m := fileProbeManager(t, f, fileProbeResolver{releases: []string{"checked"}}, engine)
 	f.srv.d.Playback = m
@@ -154,7 +154,7 @@ func TestFileAvailabilityOnlyDefinitiveEvidenceHidesAVersion(t *testing.T) {
 		{"version opens empty", fileProbeResolver{releases: []string{"b"}}, &fileProbeEngine{empty: map[string]bool{"b": true}}, "b", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			f := newFixture(func(d *Deps) { d.DisableEnrichment = true })
+			f := newFixture(func(d *testServerDeps) { d.DisableEnrichment = true })
 			m := fileProbeManager(t, f, tc.resolver, tc.engine)
 			f.srv.d.Playback = m
 			defer f.srv.Close()

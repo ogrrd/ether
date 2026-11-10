@@ -48,7 +48,7 @@ func TestDecisionSessionResumePointInvariant(t *testing.T) {
 			defer f.srv.Close()
 			f.playback.info.Duration = length
 			watch := state.New(store.OpenTest(t), state.Options{})
-			f.srv.d.State = watch
+			f.srv.setState(watch)
 			tr := &deliveryTranscoder{fakeTranscoder: f.trans, failed: tc.failed}
 			f.srv.d.Transcoder = tr
 			ctx := context.Background()

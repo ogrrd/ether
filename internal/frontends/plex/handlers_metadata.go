@@ -344,7 +344,7 @@ func (s *Server) detail(ctx context.Context, pr *Request, t *frontend.Title, chi
 			}
 		}
 	}
-	if related && s.d.Recommender != nil {
+	if related && s.recommender() != nil {
 		if hubs, err := s.detailRelated(ctx, pr).Rows(ctx, pr.User, t.Key, 12); err == nil {
 			md.Related = &model.Related{Hub: s.renderHubs(ctx, pr, hubs, hubCtx{related: t.Key})}
 		} else {
@@ -370,7 +370,7 @@ func (s *Server) detail(ctx context.Context, pr *Request, t *frontend.Title, chi
 func (s *Server) sameDayUnavailable(ctx context.Context, pr *Request, t *frontend.Title) bool {
 	var source frontend.AvailabilitySource
 	source, _ = s.d.Variants.(frontend.AvailabilitySource)
-	return s.d.Experience.SameDayUnavailable(ctx, t, s.now(), s.d.FilterAvailable, source)
+	return s.exp().SameDayUnavailable(ctx, t, s.now(), s.filterAvailable(), source)
 }
 
 // showOnDeck picks the episode to resume or start next.
@@ -380,7 +380,7 @@ func (s *Server) showOnDeck(ctx context.Context, pr *Request, show frontend.Rati
 		return nil, nil
 	}
 	st := s.stateFor(ctx, pr, eps)
-	return s.d.Experience.ShowOnDeck(eps, st, func(t *frontend.Title) bool { return s.sameDayUnavailable(ctx, pr, t) }), st
+	return s.exp().ShowOnDeck(eps, st, func(t *frontend.Title) bool { return s.sameDayUnavailable(ctx, pr, t) }), st
 }
 
 const detailWarmWaitBudget = 4 * time.Second
@@ -452,7 +452,7 @@ func (s *Server) seasonNextEpisode(ctx context.Context, pr *Request, eps []front
 		return nil
 	}
 	now := s.now()
-	return s.d.Experience.SeasonNextEpisode(eps, s.stateFor(ctx, pr, eps), now, func(t *frontend.Title) bool { return s.sameDayUnavailable(ctx, pr, t) })
+	return s.exp().SeasonNextEpisode(eps, s.stateFor(ctx, pr, eps), now, func(t *frontend.Title) bool { return s.sameDayUnavailable(ctx, pr, t) })
 }
 
 func (s *Server) handleChildren(w http.ResponseWriter, r *http.Request) {
@@ -519,7 +519,7 @@ func (s *Server) handleChildren(w http.ResponseWriter, r *http.Request) {
 		mc.ParentTitle = ""
 		// PMS always sends parentTitle here, empty.
 		mc.Extra = append(mc.Extra, model.A("parentTitle", ""))
-		if st, err := s.d.Catalog.Get(ctx, show); err == nil {
+		if st, err := s.catalog().Get(ctx, show); err == nil {
 			s.rememberTitle(st)
 			if st.ContentRating != "" {
 				mc.Extra = append(mc.Extra, model.A("grandparentContentRating", st.ContentRating))
@@ -721,8 +721,8 @@ func (s *Server) handleParent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	up := k.Parent()
-	if s.d.EpisodeOrder != nil && k.Kind() == frontend.KindEpisode {
-		if n, _, _, ok := s.d.EpisodeOrder.Position(r.Context(), FromContext(r.Context()).User, k); ok {
+	if s.episodeOrder() != nil && k.Kind() == frontend.KindEpisode {
+		if n, _, _, ok := s.episodeOrder().Position(r.Context(), FromContext(r.Context()).User, k); ok {
 			up = frontend.SeasonKey(k.TMDB(), n)
 		}
 	}
@@ -767,7 +767,7 @@ func (s *Server) handleSimilar(w http.ResponseWriter, r *http.Request) {
 		limit = min(n, 100)
 	}
 	items, err := s.recommendationCandidates(ctx, pr.User, limit, func(ctx context.Context, fetch int) ([]frontend.Title, error) {
-		return s.d.Catalog.Similar(ctx, k, fetch)
+		return s.catalog().Similar(ctx, k, fetch)
 	})
 	if err != nil && !errors.Is(err, frontend.ErrNotFound) {
 		s.writeErr(w, r, err)
@@ -827,8 +827,8 @@ func collectionDevice(ctx context.Context) string {
 }
 
 func (s *Server) collectionSelection() frontend.ScopedCollection {
-	return s.d.Experience.NewScopedCollection(frontend.ScopedCollectionOptions{
-		Collections:  s.d.Collections,
+	return s.exp().NewScopedCollection(frontend.ScopedCollectionOptions{
+		Collections:  s.collections(),
 		Visibility:   s.visibility(),
 		Now:          s.now,
 		Unrestricted: func(viewer *frontend.User) bool { return !s.viewerRestricted(viewer) },
@@ -907,13 +907,13 @@ func (s *Server) collectionRows(ctx context.Context, cs []frontend.Collection) [
 		return nil
 	}
 	var state map[frontend.RatingKey]frontend.WatchStatus
-	if pr := FromContext(ctx); pr != nil && pr.User != nil && s.d.State != nil {
+	if pr := FromContext(ctx); pr != nil && pr.User != nil && s.state() != nil {
 		keys := make([]frontend.RatingKey, len(cs))
 		for i := range cs {
 			keys[i] = cs[i].Key
 		}
 		var err error
-		if state, err = s.d.State.GetMany(ctx, pr.User.ID, keys); err != nil {
+		if state, err = s.state().GetMany(ctx, pr.User.ID, keys); err != nil {
 			state = nil
 		}
 	}
@@ -940,8 +940,8 @@ func (s *Server) sectionCollections(w http.ResponseWriter, r *http.Request, sec 
 	_, mc.Title2 = sectionTypeTitle(sec)
 	mc.ViewGroup = string(sec.Type)
 	var all []frontend.Collection
-	if s.d.Collections != nil {
-		cs, err := s.d.Collections.List(ctx, pr.User, sec.Type)
+	if s.collections() != nil {
+		cs, err := s.collections().List(ctx, pr.User, sec.Type)
 		if err != nil {
 			s.writeErr(w, r, err)
 			return
@@ -962,9 +962,9 @@ func (s *Server) handleCollections(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	pr := FromContext(ctx)
 	mc := libraryContainer()
-	if s.d.Collections != nil {
+	if s.collections() != nil {
 		for _, sec := range s.userSections(pr.User) {
-			cs, err := s.d.Collections.List(ctx, pr.User, sec.Type)
+			cs, err := s.collections().List(ctx, pr.User, sec.Type)
 			if err != nil {
 				s.writeErr(w, r, err)
 				return
@@ -1025,7 +1025,7 @@ func (s *Server) collectionItems(w http.ResponseWriter, r *http.Request, k front
 		mc.SetSyncProjection(true)
 	}
 	if !c.Upcoming {
-		sqlAvail, _ := s.d.Catalog.(interface{ BrowseAvailabilityInSQL() bool })
+		sqlAvail, _ := s.catalog().(interface{ BrowseAvailabilityInSQL() bool })
 		if sqlAvail != nil && sqlAvail.BrowseAvailabilityInSQL() && !s.viewerRestricted(pr.User) && shelfToken(r.URL.RawQuery) == "" && !s.plexMetaOn() {
 			page, err := s.collectionSelection().Page(ctx, pr.User, c, k, collectionDevice(ctx), offset, size)
 			if err != nil {

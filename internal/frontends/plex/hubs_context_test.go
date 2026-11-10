@@ -64,9 +64,9 @@ func newContextualFixture(t *testing.T, rec *contextualRecommender) *fixture {
 	t.Helper()
 	f := newFixture()
 	f.srv.Close()
-	d := f.srv.d
+	d := f.srv.currentTestDeps()
 	d.Recommender = rec
-	f.srv = NewServer(testDeps(d))
+	f.srv = newTestServer(d)
 	t.Cleanup(func() { f.srv.Close() })
 	return f
 }

@@ -26,12 +26,12 @@ func TestHomeShelfSurvivesHTTPCountSequence(t *testing.T) {
 		title.Popularity = 100
 		f.catalog.titles[title.Key] = title
 	}
-	e, err := personalize.New(personalize.Options{DB: discoveryDB(t), Catalog: f.catalog, State: f.srv.d.State, RefreshEvery: -1, FlushEvery: time.Hour})
+	e, err := personalize.New(personalize.Options{DB: discoveryDB(t), Catalog: f.catalog, State: f.srv.state(), RefreshEvery: -1, FlushEvery: time.Hour})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer e.Close()
-	f.srv.d.Recommender = e
+	f.srv.setRecommender(e)
 	ctx := context.Background()
 	if err := e.Rebuild(ctx, &ownerUser); err != nil {
 		t.Fatal(err)

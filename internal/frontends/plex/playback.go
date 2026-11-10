@@ -538,7 +538,7 @@ func (s *Server) prepare(ctx context.Context, pr *Request, p *playRequest) (*fro
 	if s.d.Playback == nil {
 		return nil, nil, frontend.Decision{}, errors.New("playback not configured")
 	}
-	t, err := s.d.Catalog.Get(ctx, p.key)
+	t, err := s.catalog().Get(ctx, p.key)
 	if err != nil || (t != nil && t.IsFutureRelease(s.now())) {
 		if title, _, e := s.lookupPlaceholder(ctx, pr, p.key, p.collection); e == nil {
 			return title, nil, frontend.Decision{}, frontend.ErrUnreleased
@@ -773,7 +773,7 @@ const decisionSourceWait = 12 * time.Second
 // version picks and requests this cannot pre-check go straight on.
 func (s *Server) awaitSource(ctx context.Context, r *http.Request, pr *Request) (*frontend.Title, error) {
 	pw, ok := s.d.Playback.(frontend.PlaybackPrepareWithin)
-	if !ok || pr == nil || pr.User == nil || s.d.Catalog == nil {
+	if !ok || pr == nil || pr.User == nil || s.catalog() == nil {
 		return nil, nil
 	}
 	if tt := chi.URLParam(r, "ttype"); tt != "" && tt != "video" {
@@ -783,7 +783,7 @@ func (s *Server) awaitSource(ctx context.Context, r *http.Request, pr *Request) 
 	if err != nil || p.key == 0 || p.partReleaseID != "" || p.mediaIndex > 0 || !isPlayableKey(p.key) {
 		return nil, nil
 	}
-	t, err := s.d.Catalog.Get(ctx, p.key)
+	t, err := s.catalog().Get(ctx, p.key)
 	if err != nil || t == nil || !s.playableTitle(ctx, pr.User, t) {
 		return nil, nil
 	}
@@ -2000,7 +2000,7 @@ func (s *Server) handlePart(w http.ResponseWriter, r *http.Request) {
 		writeHTTPError(w, http.StatusNotFound)
 		return
 	}
-	title, titleErr := s.d.Catalog.Get(ctx, key)
+	title, titleErr := s.catalog().Get(ctx, key)
 	if titleErr != nil || !s.playableTitle(ctx, pr.User, title) {
 		writeHTTPError(w, http.StatusNotFound)
 		return
@@ -2037,7 +2037,7 @@ func (s *Server) handlePart(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if !ok || ps == nil {
-		t, err := s.d.Catalog.Get(ctx, key)
+		t, err := s.catalog().Get(ctx, key)
 		if err == nil && !s.titleVisible(pr.User, t) {
 			err = frontend.ErrNotFound
 		}
@@ -2157,7 +2157,7 @@ func (s *Server) handlePartSelect(w http.ResponseWriter, r *http.Request) {
 	}
 	// Resolve and authorize the part before interpreting either selector.
 	key, _, found := s.partTitle(rawID)
-	if !found || s.d.Catalog == nil {
+	if !found || s.catalog() == nil {
 		writeHTTPError(w, http.StatusNotFound)
 		return
 	}

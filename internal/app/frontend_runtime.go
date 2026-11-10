@@ -729,5 +729,8 @@ func (a *App) browseFreshness() frontend.PageFreshness {
 	if a.safety != nil {
 		f.Safety = a.safety.Generation()
 	}
+	if a.personalize != nil {
+		f.Layout = a.personalize.LayoutVersion()
+	}
 	return f
 }

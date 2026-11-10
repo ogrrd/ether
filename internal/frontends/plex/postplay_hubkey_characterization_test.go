@@ -29,7 +29,7 @@ func TestPostplayRelatedHubKeyAuthorizationCharacterization(t *testing.T) {
 				parent.Adult = true
 				f.catalog.titles[parent.Key] = parent
 			case "unavailable":
-				f.srv.d.FilterAvailable = func(_ context.Context, items []core.Title) []core.Title {
+				f.srv.setFilterAvailable(func(_ context.Context, items []core.Title) []core.Title {
 					out := make([]core.Title, 0, len(items))
 					for _, item := range items {
 						if item.Key != candidate.Key {
@@ -37,7 +37,7 @@ func TestPostplayRelatedHubKeyAuthorizationCharacterization(t *testing.T) {
 						}
 					}
 					return out
-				}
+				})
 			}
 			f.catalog.titles[candidate.Key] = candidate
 			rec.fakeRecommender.related = []core.Hub{{ID: "movie.similar", Title: "Related", Type: core.TypeMovie, Items: []core.Title{candidate, fightClub}}}

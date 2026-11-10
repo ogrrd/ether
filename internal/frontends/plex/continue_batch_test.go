@@ -23,10 +23,10 @@ func TestContinueColdSeriesQueries(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			f := newFixture(func(d *Deps) { d.Catalog = c })
+			f := newFixture(func(d *testServerDeps) { d.Catalog = c })
 			defer f.srv.Close()
 			history := &completedEpisodeState{fakeState: f.state}
-			f.srv.d.State = history
+			f.srv.setState(history)
 			for id := int64(1); id <= int64(count); id++ {
 				titles := []core.Title{
 					{Key: core.ShowKey(id), Type: core.TypeShow, Title: "Series", Released: fixedNow.Add(-48 * time.Hour), ChildCount: 1},

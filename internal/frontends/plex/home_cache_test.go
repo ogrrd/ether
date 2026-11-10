@@ -43,11 +43,11 @@ func TestHomeCacheRevisionContract(t *testing.T) {
 	}
 	restricted := core.User{ID: 3, PlexID: 3003, Username: "kid", Title: "Kid", MaxContentRating: "NC-17"}
 	var rec *buildCountingRecommender
-	f := newFixture(func(d *Deps) {
+	f := newFixture(func(d *testServerDeps) {
 		rec = &buildCountingRecommender{fakeRecommender: d.Recommender.(*fakeRecommender)}
 		d.Recommender = rec
 		d.Auth = &fakeAuth{users: map[string]core.User{ownerToken: ownerUser, friendToken: friendUser, "kid-token": restricted}}
-		d.HomeCache = &HomeCacheSource{Revision: func(_ context.Context, u *core.User) (experience.HomeRevision, error) {
+		d.HomeCache = &testHomeCache{Revision: func(_ context.Context, u *core.User) (experience.HomeRevision, error) {
 			mu.Lock()
 			defer mu.Unlock()
 			return revs[u.ID], nil

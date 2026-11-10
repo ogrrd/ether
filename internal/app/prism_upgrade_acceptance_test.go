@@ -27,6 +27,8 @@ import (
 	"github.com/braedonsaunders/ether/internal/config"
 	"github.com/braedonsaunders/ether/internal/core"
 	"github.com/braedonsaunders/ether/internal/experience"
+	"github.com/braedonsaunders/ether/internal/frontend"
+	"github.com/braedonsaunders/ether/internal/frontend/frontendtest"
 	"github.com/braedonsaunders/ether/internal/handles/capability"
 	"github.com/braedonsaunders/ether/internal/frontends/plex"
 	"github.com/braedonsaunders/ether/internal/plextv"
@@ -436,17 +438,22 @@ func assertUpgradeBoundary(t *testing.T) {
 
 func assertPlexProtocol(t *testing.T, db *sql.DB, cfg *config.Store, users *auth.Service, validator *upgradeValidator, titles func() (string, string)) {
 	t.Helper()
-	srv := plex.NewServer(plex.Deps{SessionStores: sessions.NewPlexSessionStores(), Experience: experience.NewPlexExperience(), ArtworkStores: artworkservice.NewPlexArtworkStores(),
+	srv := plex.NewServer(plex.Deps{SessionStores: sessions.NewPlexSessionStores(), ArtworkStores: artworkservice.NewPlexArtworkStores(),
 		Auth:              users,
 		Config:            cfg.Get,
 		DB:                db,
 		DisableEnrichment: true,
 		ImageCacheBytes:   1 << 20,
-		LibraryTitles:     titles,
 		Logger:            discardLog(),
 		Now:               func() time.Time { return upgradeClock },
 	})
 	t.Cleanup(func() { srv.Close() })
+	if _, err := (plex.Frontend{Server: srv}).Mount(context.Background(), frontend.Host{
+		Sessions:   &frontendtest.Sessions{},
+		Experience: experience.NewDirectService(experience.ServiceDeps{LibraryTitles: titles, Now: func() time.Time { return upgradeClock }}),
+	}); err != nil {
+		t.Fatal(err)
+	}
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/identity", nil)

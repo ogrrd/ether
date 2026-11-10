@@ -7,7 +7,7 @@ import (
 )
 
 func TestHomeHubStructuralOptionsAndInlineOnDeckExclusions(t *testing.T) {
-	f := newFixture(func(d *Deps) {
+	f := newFixture(func(d *testServerDeps) {
 		d.Recommender = &fakeRecommender{home: []core.Hub{{ID: "tv.test", Title: "Series", Type: core.TypeShow, Items: []core.Title{breakingBad}}}}
 	})
 	defer f.srv.Close()

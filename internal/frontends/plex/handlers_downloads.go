@@ -294,7 +294,7 @@ func (s *Server) downloadCaps(r *http.Request, pr *Request) frontend.ClientCaps 
 // expandDownloadKey turns a show/season key into its episodes; playable
 // keys pass through. Returns titles the user may see.
 func (s *Server) expandDownloadKey(ctx context.Context, u *frontend.User, k frontend.RatingKey) ([]frontend.Title, error) {
-	t, err := s.d.Catalog.Get(ctx, k)
+	t, err := s.catalog().Get(ctx, k)
 	if err != nil {
 		return nil, err
 	}
@@ -305,13 +305,13 @@ func (s *Server) expandDownloadKey(ctx context.Context, u *frontend.User, k fron
 	case frontend.TypeMovie, frontend.TypeEpisode:
 		return []frontend.Title{*t}, nil
 	case frontend.TypeSeason:
-		kids, err := s.d.Catalog.Children(ctx, k)
+		kids, err := s.catalog().Children(ctx, k)
 		if err != nil {
 			return nil, err
 		}
 		return s.visibleTitles(u, kids), nil
 	case frontend.TypeShow:
-		eps, err := s.d.Catalog.Grandchildren(ctx, k)
+		eps, err := s.catalog().Grandchildren(ctx, k)
 		if err != nil {
 			return nil, err
 		}
@@ -514,7 +514,7 @@ func (s *Server) handleDownloadItemDecision(w http.ResponseWriter, r *http.Reque
 	}
 	ctx := r.Context()
 	pr := FromContext(ctx)
-	t, err := s.d.Catalog.Get(ctx, it.Key)
+	t, err := s.catalog().Get(ctx, it.Key)
 	if err == nil && !s.visibleTitle(ctx, pr.User, t) {
 		err = frontend.ErrNotFound // restrictions can change after queueing
 	}
@@ -560,7 +560,7 @@ func (s *Server) handleDownloadItemMedia(w http.ResponseWriter, r *http.Request)
 	s.downloads.Unlock()
 	// Restrictions can change after an item was queued: serve the cached
 	// file only while the viewer may still see the title.
-	if t, err := s.d.Catalog.Get(r.Context(), key); err != nil || !s.visibleTitle(r.Context(), FromContext(r.Context()).User, t) {
+	if t, err := s.catalog().Get(r.Context(), key); err != nil || !s.visibleTitle(r.Context(), FromContext(r.Context()).User, t) {
 		writeHTTPError(w, http.StatusNotFound)
 		return
 	}
@@ -660,7 +660,7 @@ func (s *Server) processDownloadItem(ctx context.Context, it *downloadItem, run 
 			}
 			subtitle := -1
 			sel := resolveSelection(s.selections.get(viewerID, int64(it.Key)), ps.Info)
-			if title, err := s.d.Catalog.Get(ctx, it.Key); err == nil && title != nil {
+			if title, err := s.catalog().Get(ctx, it.Key); err == nil && title != nil {
 				sel = s.preferredSelection(ctx, it.User, it.Key, ps.Info, title.Language, sel)
 			}
 			if sel.subtitleSet && sel.subtitle >= 0 && sel.subtitle < len(ps.Info.Streams) {

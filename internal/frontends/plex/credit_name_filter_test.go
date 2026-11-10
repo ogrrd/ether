@@ -50,7 +50,7 @@ func TestCreditNameHTTPPaging(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	f := newFixture(func(d *Deps) { d.Catalog = c })
+	f := newFixture(func(d *testServerDeps) { d.Catalog = c })
 	defer f.srv.Close()
 	for _, tc := range []struct {
 		query       string

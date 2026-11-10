@@ -24,7 +24,7 @@ func TestTVAppPlayQueueContract(t *testing.T) {
 	for _, product := range []string{"Plex for LG", "Plex for VIDAA"} {
 		t.Run(product, func(t *testing.T) {
 			f, pb := newVariantPlaybackFixture(t)
-			cat := f.srv.d.Catalog.(*fakeCatalog)
+			cat := f.srv.catalog().(*fakeCatalog)
 			for _, x := range []core.Title{breakingBad, bbS1, bbE1, bbE2} {
 				cat.titles[x.Key] = x
 			}

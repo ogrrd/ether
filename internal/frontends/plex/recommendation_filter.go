@@ -13,7 +13,7 @@ type recommendationFilter interface {
 // recommendationCandidates preserves the original first source request and
 // expands only if a viewer exclusion leaves the bounded source page short.
 func (s *Server) recommendationCandidates(ctx context.Context, user *frontend.Viewer, limit int, load func(context.Context, int) ([]frontend.Title, error)) ([]frontend.Title, error) {
-	filter, ok := s.d.Recommender.(recommendationFilter)
+	filter, ok := s.recommender().(recommendationFilter)
 	if !ok || user == nil || limit <= 0 {
 		return load(ctx, limit)
 	}

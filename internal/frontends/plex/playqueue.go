@@ -214,8 +214,8 @@ func (s *Server) continuousKeys(ctx context.Context, pr *Request, uri string, co
 	}
 	ep := keys[0]
 	season := ep.Season()
-	if s.d.EpisodeOrder != nil {
-		if n, _, _, ok := s.d.EpisodeOrder.Position(ctx, pr.User, ep); ok {
+	if s.episodeOrder() != nil {
+		if n, _, _, ok := s.episodeOrder().Position(ctx, pr.User, ep); ok {
 			season = n
 		}
 	}
@@ -246,8 +246,8 @@ func (s *Server) queueSpecial(ctx context.Context, pr *Request, key frontend.Rat
 	if key.Kind() != frontend.KindEpisode || key.Season() != 0 {
 		return false
 	}
-	if s.d.EpisodeOrder != nil {
-		if season, _, _, ok := s.d.EpisodeOrder.Position(ctx, pr.User, key); ok && season > 0 {
+	if s.episodeOrder() != nil {
+		if season, _, _, ok := s.episodeOrder().Position(ctx, pr.User, key); ok && season > 0 {
 			return false
 		}
 	}

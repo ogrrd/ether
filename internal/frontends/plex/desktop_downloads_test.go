@@ -135,7 +135,7 @@ func (c *slowChecker) CheckFileAvailability(ctx context.Context, _ *core.User, k
 // bounded concurrency inside one budget, and a Part without a verdict keeps
 // its offered (available) state.
 func TestFileAvailabilityAnnotatesEveryPart(t *testing.T) {
-	f := newFixture(func(d *Deps) { d.DisableEnrichment = true })
+	f := newFixture(func(d *testServerDeps) { d.DisableEnrichment = true })
 	defer f.srv.Close()
 	// Titles 1, 5, 9 are dead; 2, 6, 10 (busy check slots) and 3, 7, 11
 	// (nothing found yet) get no verdict and keep the offered state.

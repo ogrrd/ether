@@ -23,7 +23,7 @@ var (
 )
 
 func (s *Server) handleDevices(w http.ResponseWriter, r *http.Request) {
-	devs := s.d.Dashboard.Devices()
+	devs := s.dashboard().Devices()
 	mc := &model.MediaContainer{Size: len(devs)}
 	for _, d := range devs {
 		mc.Device = append(mc.Device, modelDevice(d))
@@ -37,7 +37,7 @@ func (s *Server) handleDevice(w http.ResponseWriter, r *http.Request) {
 		writeHTTPError(w, http.StatusNotFound)
 		return
 	}
-	dev, found := s.d.Dashboard.Device(id)
+	dev, found := s.dashboard().Device(id)
 	if !found {
 		writeHTTPError(w, http.StatusNotFound)
 		return
@@ -56,7 +56,7 @@ func (s *Server) handleStatisticsBandwidth(w http.ResponseWriter, r *http.Reques
 	if !ok {
 		return
 	}
-	page := s.d.Dashboard.Bandwidth(q)
+	page := s.dashboard().Bandwidth(q)
 	mc := statisticsContainer(page.TotalSize, len(page.Rows)+len(page.Devices)+len(page.Accounts), q.Offset)
 	for _, row := range page.Rows {
 		mc.StatisticsBandwidth = append(mc.StatisticsBandwidth, model.StatisticsBandwidth{
@@ -72,7 +72,7 @@ func (s *Server) handleStatisticsMedia(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	page := s.d.Dashboard.Media(q)
+	page := s.dashboard().Media(q)
 	mc := statisticsContainer(page.TotalSize, len(page.Media)+len(page.Devices)+len(page.Accounts), q.Offset)
 	for _, row := range page.Media {
 		mc.StatisticsMedia = append(mc.StatisticsMedia, model.StatisticsMedia{
@@ -90,7 +90,7 @@ func (s *Server) handleStatisticsResources(w http.ResponseWriter, r *http.Reques
 	}
 	var rows []frontend.ResourceSample
 	if len(q.Timespans) == 1 && q.Timespans[0] == frontend.StatisticsSecond {
-		rows = s.d.Resources.Query(frontend.StatisticsSecond, q.AtMin, q.AtMax, q.ExactAt, q.HasExact, q.HasAtMin, q.HasAtMax)
+		rows = s.resources().Query(frontend.StatisticsSecond, q.AtMin, q.AtMax, q.ExactAt, q.HasExact, q.HasAtMin, q.HasAtMax)
 	}
 	sortResources(rows, q.Sort, q.Desc)
 	total := len(rows)
@@ -389,7 +389,7 @@ func (w *countWriter) Flush() {
 }
 
 func (s *Server) noteStreamBytes(r *http.Request, n int64) {
-	if n <= 0 || s.d.Dashboard == nil {
+	if n <= 0 || s.dashboard() == nil {
 		return
 	}
 	pr := FromContext(r.Context())
@@ -399,5 +399,5 @@ func (s *Server) noteStreamBytes(r *http.Request, n int64) {
 		account = pr.User.ID
 		name = pr.User.Username
 	}
-	s.d.Dashboard.RecordBytes(account, name, pr.ClientID, pr.DeviceName, pr.Platform, !pr.Remote, n)
+	s.dashboard().RecordBytes(account, name, pr.ClientID, pr.DeviceName, pr.Platform, !pr.Remote, n)
 }

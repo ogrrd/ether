@@ -19,7 +19,7 @@ func (f failingNeutralLayout) FinalizeNeutralHome(context.Context, *core.User, c
 func TestNeutralPlexHomeLayoutFailurePreservesRows(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
-	f.srv.d.Recommender = failingNeutralLayout{}
+	f.srv.setRecommender(failingNeutralLayout{})
 	rows := []model.Hub{{HubIdentifier: "a", Metadata: []model.Metadata{{Title: "original"}}}}
 	got := f.srv.finalizeHomeRows(context.Background(), &Request{User: &ownerUser}, core.HubContext{}, "home", rows)
 	if !reflect.DeepEqual(got, rows) {
@@ -48,8 +48,8 @@ func TestNeutralPlexHomeLayoutMatchesLegacySidecars(t *testing.T) {
 	neutral := &neutralRenderedLayout{renderedLayout: &renderedLayout{}}
 	rows := []model.Hub{{HubIdentifier: "a", Size: 1, Metadata: []model.Metadata{{Title: "A"}}}, {HubIdentifier: "b", Size: 2, Metadata: []model.Metadata{{Title: "B"}}}}
 	pr := &Request{User: &core.User{ID: 1}}
-	old := (&Server{d: testDeps(Deps{Recommender: legacy})}).finalizeHomeRows(context.Background(), pr, core.HubContext{}, "home", rows)
-	got := (&Server{d: testDeps(Deps{Recommender: neutral})}).finalizeHomeRows(context.Background(), pr, core.HubContext{}, "home", rows)
+	old := (newTestServer(testServerDeps{Recommender: legacy})).finalizeHomeRows(context.Background(), pr, core.HubContext{}, "home", rows)
+	got := (newTestServer(testServerDeps{Recommender: neutral})).finalizeHomeRows(context.Background(), pr, core.HubContext{}, "home", rows)
 	if !reflect.DeepEqual(got, old) || len(neutral.got) != 2 || neutral.got[1].ItemCount != 2 {
 		t.Fatalf("legacy=%+v neutral=%+v input=%+v", old, got, neutral.got)
 	}
@@ -61,7 +61,7 @@ func (r *renderedLayout) FinalizeHome(_ context.Context, _ *core.User, _ core.Hu
 }
 func TestFinalLayoutReceivesRenderedAvailability(t *testing.T) {
 	r := &renderedLayout{}
-	s := &Server{d: testDeps(Deps{Recommender: r})}
+	s := newTestServer(testServerDeps{Recommender: r})
 	rows := []model.Hub{
 		{HubIdentifier: "movie.inprogress.1", Size: 0},
 		{HubIdentifier: "movie.top10", Size: 10, Key: "/original/key", Metadata: []model.Metadata{{Title: "Original metadata"}}},
@@ -81,10 +81,10 @@ func TestFinalLayoutReceivesRenderedAvailability(t *testing.T) {
 func TestHomeRowAssemblyStableForSameCandidates(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
-	f.srv.d.Recommender = &fakeRecommender{home: []core.Hub{
+	f.srv.setRecommender(&fakeRecommender{home: []core.Hub{
 		{ID: "home.top10.today", Title: "Top 10", Type: core.TypeMovie, Promoted: true, Items: []core.Title{fightClub}},
 		{ID: "home.shortontime", Title: "Short on Time", Type: core.TypeMovie, Promoted: true, Items: []core.Title{alien}},
-	}}
+	}})
 	for _, path := range []string{"/hubs", "/hubs/promoted"} {
 		first := hubIDs(t, f.get(t, path, "Accept", "application/json").Body.Bytes())
 		second := hubIDs(t, f.get(t, path, "Accept", "application/json").Body.Bytes())

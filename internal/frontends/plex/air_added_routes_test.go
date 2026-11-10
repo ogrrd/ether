@@ -50,7 +50,7 @@ func TestSectionDateSortRoutesUseAirDates(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	f := newFixture(func(d *Deps) { d.Catalog = c })
+	f := newFixture(func(d *testServerDeps) { d.Catalog = c })
 	defer f.srv.Close()
 	decode := func(t *testing.T, rec *httptest.ResponseRecorder) model.MediaContainer {
 		t.Helper()
@@ -141,7 +141,7 @@ func TestSectionAllLeavesAndSeasonRoutesForTracearr(t *testing.T) {
 		}
 	}
 
-	f := newFixture(func(d *Deps) { d.Catalog = c })
+	f := newFixture(func(d *testServerDeps) { d.Catalog = c })
 	defer f.srv.Close()
 	decode := func(t *testing.T, rec *httptest.ResponseRecorder) model.MediaContainer {
 		t.Helper()

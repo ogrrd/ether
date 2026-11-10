@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/braedonsaunders/ether/internal/availability"
+	"github.com/braedonsaunders/ether/internal/catalog"
 	"github.com/braedonsaunders/ether/internal/core"
 	"github.com/braedonsaunders/ether/internal/experience"
 	"github.com/braedonsaunders/ether/internal/favorites"
@@ -112,6 +113,9 @@ func (a *App) configuredLibraries() []experience.Library {
 // newSurfaceExperience builds an explicitly surface-bound service. A shared
 // situation is inserted by surfaceExperience.Rows before ranking and receipt issuance.
 func (a *App) newSurfaceExperience(protocol core.Protocol, artwork ...frontend.Artwork) (frontend.Experience, error) {
+	if a.spikeLibrary != nil && protocol == "plex" {
+		return a.spikeLibrary.Experience(), nil
+	}
 	if a.users == nil || a.catalog == nil || a.safety == nil || a.state == nil || a.personalize == nil || a.favorites == nil || a.playlists == nil || a.db == nil {
 		return nil, errors.New("experience: dependencies unavailable")
 	}
@@ -407,6 +411,47 @@ func (a *App) newSurfaceExperience(protocol core.Protocol, artwork ...frontend.A
 	}}
 	if a.recommend != nil {
 		deps.Related = a.recommend
+	}
+	cat := core.Catalog(a.catalog)
+	if a.availability != nil {
+		cat = &availabilityCatalog{Catalog: a.catalog, availability: a.availability}
+		deps.FilterAvailable = a.availability.FilterDiscovery
+		deps.JudgedOnFacts = a.availability.JudgedOnFacts
+	}
+	deps.Catalog = cat
+	if a.discoveryPersonal != nil {
+		deps.Collections = a.discoveryPersonal.ReviewCollections(a.collections)
+	}
+	deps.Recommender = a.personalize
+	deps.VibeSearch = a.collections
+	deps.SearchSources = a.searchSources()
+	deps.FavoriteShows = a.favoriteShows
+	deps.PrioritizeAvailable = func(ctx context.Context, items []core.Title) []core.Title {
+		if a.availability == nil {
+			return items
+		}
+		return a.availability.Prioritize(ctx, items)
+	}
+	deps.EpisodeOrder = a.episodeorder
+	if a.discoveryFeatures != nil {
+		deps.Discovery = a.discoveryFeatures.Frontend()
+	}
+	if a.stats != nil {
+		deps.Dashboard = a.stats.Dashboard()
+	}
+	if a.hostResources != nil {
+		deps.Resources = a.hostResources
+	}
+	deps.LibraryTitles = a.libraryTitles
+	deps.Now = parityClock()
+	if a.db != nil {
+		db := a.db
+		deps.HomeRevision = func(ctx context.Context, u *core.User) (frontend.HomeRevision, error) {
+			return experience.ReadHomeRevision(ctx, db, u)
+		}
+		deps.NoProviderWait = func(ctx context.Context) context.Context {
+			return catalog.WithReadWaitBudget(ctx, 0)
+		}
 	}
 	service, err := experience.NewService(deps)
 	if err != nil {

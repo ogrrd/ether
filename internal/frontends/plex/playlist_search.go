@@ -14,11 +14,11 @@ import (
 // Playlist search never expands a smart query or scans the catalogue. Section
 // membership comes from stored member identities or the smart query's section.
 func (s *Server) searchPlaylists(ctx context.Context, pr *Request, query, directories string, limit int) []model.Metadata {
-	if s.d.Playlists == nil || pr.User == nil || query == "" {
+	if s.playlists() == nil || pr.User == nil || query == "" {
 		return nil
 	}
 	var lists []frontend.Playlist
-	if headers, ok := s.d.Playlists.(interface {
+	if headers, ok := s.playlists().(interface {
 		ListHeaders(context.Context, int64) ([]frontend.Playlist, error)
 	}); ok {
 		// Read only the playlists whose titles match, not every item of
@@ -31,7 +31,7 @@ func (s *Server) searchPlaylists(ctx context.Context, pr *Request, query, direct
 			if h.UserID != pr.User.ID || playlistSearchScore(h.Title, query) == 0 {
 				continue
 			}
-			pl, err := s.d.Playlists.Get(ctx, pr.User.ID, h.Key)
+			pl, err := s.playlists().Get(ctx, pr.User.ID, h.Key)
 			if err != nil {
 				continue
 			}
@@ -39,7 +39,7 @@ func (s *Server) searchPlaylists(ctx context.Context, pr *Request, query, direct
 		}
 	} else {
 		var err error
-		if lists, err = s.d.Playlists.List(ctx, pr.User.ID); err != nil {
+		if lists, err = s.playlists().List(ctx, pr.User.ID); err != nil {
 			return nil
 		}
 	}
@@ -157,10 +157,10 @@ func playlistSearchScore(title, query string) float64 {
 func (s *Server) sectionPlaylistsHub(ctx context.Context, pr *Request, section, count int) (model.Hub, bool) {
 	h := model.Hub{Title: "Recent Playlists", Type: "playlist", HubIdentifier: "recent.library.playlists." + strconv.Itoa(section), Style: "shelf"}
 	h.Key = "/playlists/all?type=15&playlistType=video&sort=lastViewedAt:desc&sectionID=" + strconv.Itoa(section)
-	if pr.User == nil || s.d.Playlists == nil {
+	if pr.User == nil || s.playlists() == nil {
 		return h, false
 	}
-	pls, err := s.d.Playlists.List(ctx, pr.User.ID)
+	pls, err := s.playlists().List(ctx, pr.User.ID)
 	if err != nil {
 		return h, false
 	}

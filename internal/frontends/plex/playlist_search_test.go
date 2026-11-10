@@ -19,7 +19,7 @@ func TestPlaylistSearchAndRecentProjection(t *testing.T) {
 	f.pls.pls[a.Key].AddedAt = fixedNow.Add(-48 * time.Hour)
 	f.pls.pls[b.Key].AddedAt = fixedNow.Add(-24 * time.Hour)
 	// A recently played older list must precede a newer unplayed one.
-	if err := f.srv.d.State.Scrobble(context.Background(), ownerUser.ID, a.Key); err != nil {
+	if err := f.srv.state().Scrobble(context.Background(), ownerUser.ID, a.Key); err != nil {
 		t.Fatal(err)
 	}
 	for _, path := range []string{"/hubs/search?query=Night", "/library/search?query=Night"} {

@@ -71,9 +71,12 @@ type Server struct {
 	guidResolving    map[string]bool
 	home             *homeCache
 
-	d      Deps
-	log    *slog.Logger
-	router chi.Router
+	d             Deps
+	experience    frontend.Experience
+	personalHomes frontend.PersonalHomeStore
+	pageFreshness func() frontend.PageFreshness
+	log           *slog.Logger
+	router        chi.Router
 
 	sections []Section
 
@@ -149,13 +152,9 @@ func NewServer(d Deps) *Server {
 	if d.SessionStores == nil {
 		panic("plex: Deps.SessionStores is required (wire sessions.NewPlexSessionStores())")
 	}
-	if d.Experience == nil {
-		panic("plex: Deps.Experience is required (wire experience.NewPlexExperience())")
-	}
 	if d.ArtworkStores == nil {
 		panic("plex: Deps.ArtworkStores is required (wire artworkservice.NewPlexArtworkStores())")
 	}
-	d.Dashboard, d.Resources = d.Experience.StatisticsDefaults(d.Dashboard, d.Resources, d.Now)
 	coord := d.SessionCoordination
 	if coord == nil || coord.PlaybackOwners() == nil || coord.LifecycleGates() == nil {
 		coord = d.SessionStores.NewCoordination()
@@ -204,30 +203,6 @@ func NewServer(d Deps) *Server {
 		s.versionFlows = newVersionFlowStore(s, d.DB)
 		s.queues.Configure(d.Now, s.cl.queuePersistence())
 	}
-	if !d.DisableEnrichment && d.Catalog != nil {
-		s.titleJobs = newBGQueue(ctx, &s.wg, titleFetchWorkers, titleFetchQueueLen)
-		s.blurJobs = newBGQueue(ctx, &s.wg, ultraBlurWorkers, ultraBlurQueueLen)
-		s.titles = newTitleCache(s.titleJobs, s.now, s.log, s.enrichFetch)
-		if pre, ok := d.Catalog.(interface {
-			PreloadStored(context.Context, []frontend.RatingKey)
-		}); ok {
-			// Detail fetches scheduled together (a hub's shows) read their
-			// stored titles in one batch; each fetch then reads the cache.
-			s.titles.prefetch = pre.PreloadStored
-		}
-		s.ultra = d.ArtworkStores.NewPaletteCache(d.DB, s.blurJobs.submit, s.now, s.log, func(ctx context.Context, key frontend.RatingKey, path string) (frontend.ArtworkPalette, error) {
-			var art frontend.ArtworkCollectionArt
-			if c, ok := s.d.Collections.(frontend.ArtworkCollectionArt); ok {
-				art = c
-			}
-			return d.ArtworkStores.ComputeItemPalette(ctx, s.images, s.d.ImageURL, key, path, s.now(), art)
-		})
-	}
-	if p, ok := d.Catalog.(interface {
-		PersistsArtwork(context.Context, frontend.RatingKey) bool
-	}); ok && s.ultra != nil {
-		s.ultra.PersistFor(p.PersistsArtwork)
-	}
 	if d.ArtworkPalettes != nil {
 		s.ultra = d.ArtworkPalettes
 	}
@@ -245,16 +220,103 @@ func NewServer(d Deps) *Server {
 	s.router = s.routes()
 	s.wg.Add(1)
 	go s.janitor()
-	if d.HomeCache != nil && d.HomeCache.Revision != nil {
-		s.home = newHomeCache()
-		s.wg.Add(1)
-		go s.homeRefresher()
-	}
 	if s.cl != nil {
 		s.cl.start()
 	}
 	return s
 }
+
+func (s *Server) attachHost(host frontend.Host) {
+	if s == nil {
+		return
+	}
+	if host.PersonalHomes != nil {
+		s.personalHomes = host.PersonalHomes
+	}
+	if host.PageFreshness != nil {
+		s.pageFreshness = host.PageFreshness
+	}
+	if host.Experience != nil {
+		s.attachExperience(host.Experience)
+	}
+}
+
+func (s *Server) attachExperience(exp frontend.Experience) {
+	if s == nil || exp == nil {
+		return
+	}
+	s.experience = exp
+	cat := s.catalog()
+	if !s.d.DisableEnrichment && cat != nil && s.titles == nil {
+		s.titleJobs = newBGQueue(s.ctx, &s.wg, titleFetchWorkers, titleFetchQueueLen)
+		s.blurJobs = newBGQueue(s.ctx, &s.wg, ultraBlurWorkers, ultraBlurQueueLen)
+		s.titles = newTitleCache(s.titleJobs, s.now, s.log, s.enrichFetch)
+		if s.ultra == nil {
+			s.ultra = s.d.ArtworkStores.NewPaletteCache(s.d.DB, s.blurJobs.submit, s.now, s.log, func(ctx context.Context, key frontend.RatingKey, path string) (frontend.ArtworkPalette, error) {
+				var art frontend.ArtworkCollectionArt
+				if c, ok := s.collections().(frontend.ArtworkCollectionArt); ok {
+					art = c
+				}
+				return s.d.ArtworkStores.ComputeItemPalette(ctx, s.images, s.d.ImageURL, key, path, s.now(), art)
+			})
+		}
+	}
+	if s.titles != nil {
+		if pre, ok := cat.(interface {
+			PreloadStored(context.Context, []frontend.RatingKey)
+		}); ok {
+			s.titles.prefetch = pre.PreloadStored
+		} else {
+			s.titles.prefetch = nil
+		}
+	}
+	if p, ok := cat.(interface {
+		PersistsArtwork(context.Context, frontend.RatingKey) bool
+	}); ok && s.ultra != nil {
+		s.ultra.PersistFor(p.PersistsArtwork)
+	}
+	if s.home == nil {
+		if _, hasRev, _ := exp.HomeRevision(s.ctx, nil); hasRev {
+			s.home = newHomeCache()
+			s.wg.Add(1)
+			go s.homeRefresher()
+		}
+	}
+	s.sections = s.buildSections()
+}
+
+func (s *Server) exp() frontend.Experience {
+	if s != nil && s.experience != nil {
+		return s.experience
+	}
+	return noopExperience{}
+}
+func (s *Server) catalog() frontend.Catalog         { return s.exp().CatalogSource() }
+func (s *Server) collections() frontend.Collections { return s.exp().CollectionsSource() }
+func (s *Server) state() frontend.State             { return s.exp().StateSource() }
+func (s *Server) playlists() frontend.Playlists     { return s.exp().PlaylistsSource() }
+func (s *Server) recommender() frontend.Recommender { return s.exp().RecommenderSource() }
+func (s *Server) vibeSearch() frontend.VibeSearcher { return s.exp().VibeSearchSource() }
+func (s *Server) searchSources() frontend.SearchSources {
+	return s.exp().SearchSources()
+}
+func (s *Server) favoriteShows() func(context.Context, *frontend.User) (map[frontend.RatingKey]bool, error) {
+	return s.exp().FavoriteShowsFunc()
+}
+func (s *Server) filterAvailable() func(context.Context, []frontend.Title) []frontend.Title {
+	return s.exp().FilterAvailableFunc()
+}
+func (s *Server) judgedOnFacts() func(context.Context) func(frontend.Title) bool {
+	return s.exp().JudgedOnFactsFunc()
+}
+func (s *Server) prioritizeAvailable() func(context.Context, []frontend.Title) []frontend.Title {
+	return s.exp().PrioritizeAvailableFunc()
+}
+func (s *Server) episodeOrder() frontend.EpisodeOrder       { return s.exp().EpisodeOrderSource() }
+func (s *Server) discovery() *frontend.DiscoveryFeatures    { return s.exp().DiscoveryFeatures() }
+func (s *Server) dashboard() frontend.Dashboard             { return s.exp().DashboardSource() }
+func (s *Server) resources() frontend.ResourceStatistics    { return s.exp().ResourcesSource() }
+func (s *Server) libraryTitles() (movies, shows string)     { return s.exp().LibraryTitles() }
 
 // ServeHTTP implements http.Handler.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) { s.router.ServeHTTP(w, r) }
@@ -384,10 +446,7 @@ func librarySectionTitle(t frontend.MediaType, movies, shows string) string {
 // IDs and UUIDs are not rewritten; UUIDs stay derived from section id only.
 // Empty library names already resolve to Movies and TV Shows.
 func (s *Server) withLibraryTitles(secs []Section) []Section {
-	var movies, shows string
-	if s.d.LibraryTitles != nil {
-		movies, shows = s.d.LibraryTitles()
-	}
+	movies, shows := s.libraryTitles()
 	out := append([]Section(nil), secs...)
 	for i := range out {
 		switch out[i].Type {
@@ -539,3 +598,193 @@ func (s *Server) releaseMountedPlayback() {
 		s.releaseAllDownloads()
 	}
 }
+
+type noopExperience struct{}
+
+func (noopExperience) Views(context.Context, *frontend.Viewer) ([]frontend.View, error) {
+	return nil, nil
+}
+func (noopExperience) Collections(context.Context, *frontend.Viewer, frontend.Device, frontend.CollectionQuery) (frontend.CollectionPage, error) {
+	return frontend.CollectionPage{}, nil
+}
+func (noopExperience) NotInterested(context.Context, *frontend.Viewer, frontend.Device, frontend.PageQuery) (frontend.NotInterestedPage, error) {
+	return frontend.NotInterestedPage{}, nil
+}
+func (noopExperience) NotInterestedItem(context.Context, *frontend.Viewer, frontend.Device, frontend.RatingKey) (frontend.NotInterestedEntry, error) {
+	return frontend.NotInterestedEntry{}, frontend.ErrNotFound
+}
+func (noopExperience) ResolveExternal(context.Context, *frontend.Viewer, frontend.Device, frontend.ExternalRequest) (frontend.RatingKey, error) {
+	return 0, frontend.ErrNotFound
+}
+func (noopExperience) Rows(context.Context, frontend.RowRequest) ([]frontend.Row, error) {
+	return nil, nil
+}
+func (noopExperience) Item(context.Context, frontend.ItemRequest) (frontend.ItemDetail, error) {
+	return frontend.ItemDetail{}, frontend.ErrNotFound
+}
+func (noopExperience) Children(context.Context, *frontend.Viewer, frontend.Device, frontend.RatingKey, frontend.ItemQuery) (frontend.Page, error) {
+	return frontend.Page{}, nil
+}
+func (noopExperience) LibraryItems(context.Context, *frontend.Viewer, frontend.Device, string, frontend.ItemQuery) (frontend.Page, error) {
+	return frontend.Page{}, nil
+}
+func (noopExperience) Similar(context.Context, *frontend.Viewer, frontend.Device, frontend.RatingKey, frontend.ItemQuery) (frontend.SearchPage, error) {
+	return frontend.SearchPage{}, nil
+}
+func (noopExperience) Ancestors(context.Context, *frontend.Viewer, frontend.Device, frontend.RatingKey) ([]frontend.Title, error) {
+	return nil, nil
+}
+func (noopExperience) Facets(context.Context, *frontend.Viewer, frontend.Device, string, string) ([]frontend.FacetValue, error) {
+	return nil, nil
+}
+func (noopExperience) ResolveFacet(context.Context, *frontend.Viewer, frontend.Device, string, string, string) (frontend.FacetValue, error) {
+	return frontend.FacetValue{}, frontend.ErrNotFound
+}
+func (noopExperience) PersonFacetIDs(context.Context, *frontend.Viewer, frontend.Device, frontend.RatingKey, []int64) (map[int64]string, error) {
+	return nil, nil
+}
+func (noopExperience) NamedFacetIDs(context.Context, *frontend.Viewer, frontend.Device, frontend.RatingKey, string, []string) (map[string]string, error) {
+	return nil, nil
+}
+func (noopExperience) Search(context.Context, *frontend.Viewer, frontend.Device, string, frontend.ItemQuery) (frontend.SearchPage, error) {
+	return frontend.SearchPage{}, nil
+}
+func (noopExperience) UserData(context.Context, *frontend.Viewer, []frontend.RatingKey) (map[frontend.RatingKey]frontend.WatchStatus, error) {
+	return nil, nil
+}
+func (noopExperience) SetPlayed(context.Context, *frontend.Viewer, frontend.RatingKey) error {
+	return nil
+}
+func (noopExperience) SetUnplayed(context.Context, *frontend.Viewer, frontend.RatingKey) error {
+	return nil
+}
+func (noopExperience) SetFavorite(context.Context, *frontend.Viewer, frontend.RatingKey, bool) error {
+	return nil
+}
+func (noopExperience) SetNotInterested(context.Context, *frontend.Viewer, frontend.RatingKey, bool) error {
+	return nil
+}
+func (noopExperience) SetWatchlist(context.Context, *frontend.Viewer, frontend.RatingKey, bool) error {
+	return nil
+}
+func (noopExperience) SetEntityFavorite(context.Context, *frontend.Viewer, frontend.FavoriteRef, bool) error {
+	return nil
+}
+func (noopExperience) EntityFavorites(context.Context, *frontend.Viewer, []frontend.FavoriteRef) (map[frontend.FavoriteRef]bool, error) {
+	return nil, nil
+}
+func (noopExperience) ResolveEventSubject(context.Context, *frontend.Viewer, frontend.Device, frontend.FavoriteRef) (frontend.ResolvedEventSubject, error) {
+	return frontend.ResolvedEventSubject{}, frontend.ErrNotFound
+}
+func (noopExperience) SetRating(context.Context, *frontend.Viewer, frontend.RatingKey, float64) error {
+	return nil
+}
+func (noopExperience) SetLikes(context.Context, *frontend.Viewer, frontend.RatingKey, *bool) error {
+	return nil
+}
+func (noopExperience) RemoveFromContinue(context.Context, *frontend.Viewer, frontend.RatingKey) error {
+	return nil
+}
+func (noopExperience) NewRecent(frontend.RecentOptions) frontend.Recent { return nil }
+func (noopExperience) NewDetailRelated(frontend.DetailRelatedOptions) frontend.DetailRelated {
+	return nil
+}
+func (noopExperience) NewEpisodeBatch(frontend.EpisodeBatchOptions) frontend.EpisodeBatch {
+	return nil
+}
+func (noopExperience) NewContinueDeck(frontend.ContinueDeckOptions) frontend.ContinueDeck {
+	return nil
+}
+func (noopExperience) NewContinue(frontend.ContinueOptions) frontend.Continue { return nil }
+func (noopExperience) NewRowSelection(frontend.RowSelectionOptions) frontend.RowSelection {
+	return nil
+}
+func (noopExperience) NewHomeSelection(frontend.HomeSelectionOptions) frontend.HomeSelection {
+	return nil
+}
+func (noopExperience) NewScopedCollection(frontend.ScopedCollectionOptions) frontend.ScopedCollection {
+	return nil
+}
+func (noopExperience) NewPlaylistSelection(frontend.PlaylistSelectionOptions) frontend.PlaylistSelection {
+	return nil
+}
+func (noopExperience) NewPostPlaySelection(frontend.PostPlaySelectionOptions) frontend.PostPlaySelection {
+	return nil
+}
+func (noopExperience) NewDiscoverySelection(frontend.DiscoverySelectionOptions) frontend.DiscoverySelection {
+	return nil
+}
+func (noopExperience) NewTrackPreferenceSelector(frontend.TrackPreferenceSelectorOptions) frontend.TrackPreferenceSelector {
+	return nil
+}
+func (noopExperience) SearchFor(frontend.SearchSources, frontend.Visibility, func(*frontend.User) bool) frontend.Search {
+	return nil
+}
+func (noopExperience) StatisticsDefaults(d frontend.Dashboard, r frontend.ResourceStatistics, _ func() time.Time) (frontend.Dashboard, frontend.ResourceStatistics) {
+	return d, r
+}
+func (noopExperience) MergeShareFilter(filter, _ frontend.Filter) (frontend.Filter, bool) {
+	return filter, false
+}
+func (noopExperience) ArrangeHome(_ context.Context, _ frontend.Recommender, _ *frontend.User, _ frontend.HubContext, _ string, rows []frontend.Hub, _ []frontend.NeutralHomeRow) ([]int, error) {
+	idx := make([]int, len(rows))
+	for i := range rows {
+		idx[i] = i
+	}
+	return idx, nil
+}
+func (noopExperience) DetailExtras(context.Context, frontend.ExtrasSource, *frontend.Title, string, map[int]bool) ([]frontend.ExtraClip, error) {
+	return nil, nil
+}
+func (noopExperience) DiscoverySearch(*frontend.DiscoveryFeatures) func(context.Context, *frontend.User, string, int) ([]frontend.Title, bool) {
+	return nil
+}
+func (noopExperience) FamiliarFrom(any) func(context.Context, *frontend.User, []frontend.RatingKey) map[frontend.RatingKey]int {
+	return nil
+}
+func (noopExperience) ContinueFilter(_ frontend.State, personal func(context.Context, *frontend.User, []frontend.Title) []frontend.Title) func(context.Context, *frontend.User, []frontend.Title) []frontend.Title {
+	return personal
+}
+func (noopExperience) SameDayUnavailable(context.Context, *frontend.Title, time.Time, func(context.Context, []frontend.Title) []frontend.Title, frontend.AvailabilitySource) bool {
+	return false
+}
+func (noopExperience) SeasonNextEpisode([]frontend.Title, map[frontend.RatingKey]frontend.WatchStatus, time.Time, func(*frontend.Title) bool) *frontend.Title {
+	return nil
+}
+func (noopExperience) ShowOnDeck([]frontend.Title, map[frontend.RatingKey]frontend.WatchStatus, func(*frontend.Title) bool) *frontend.Title {
+	return nil
+}
+func (noopExperience) RequestDatabaseObservation(context.Context) (int64, time.Duration) {
+	return 0, 0
+}
+func (noopExperience) PlaybackMarkerRanges(context.Context, frontend.MarkerRanges, frontend.RatingKey, frontend.MediaInfo) ([]frontend.MarkerRange, error) {
+	return nil, nil
+}
+func (noopExperience) CatalogSource() frontend.Catalog         { return nil }
+func (noopExperience) CollectionsSource() frontend.Collections { return nil }
+func (noopExperience) StateSource() frontend.State             { return nil }
+func (noopExperience) PlaylistsSource() frontend.Playlists     { return nil }
+func (noopExperience) RecommenderSource() frontend.Recommender { return nil }
+func (noopExperience) VibeSearchSource() frontend.VibeSearcher { return nil }
+func (noopExperience) SearchSources() frontend.SearchSources   { return frontend.SearchSources{} }
+func (noopExperience) FavoriteShowsFunc() func(context.Context, *frontend.User) (map[frontend.RatingKey]bool, error) {
+	return nil
+}
+func (noopExperience) FilterAvailableFunc() func(context.Context, []frontend.Title) []frontend.Title {
+	return nil
+}
+func (noopExperience) JudgedOnFactsFunc() func(context.Context) func(frontend.Title) bool {
+	return nil
+}
+func (noopExperience) PrioritizeAvailableFunc() func(context.Context, []frontend.Title) []frontend.Title {
+	return nil
+}
+func (noopExperience) EpisodeOrderSource() frontend.EpisodeOrder      { return nil }
+func (noopExperience) DiscoveryFeatures() *frontend.DiscoveryFeatures { return nil }
+func (noopExperience) DashboardSource() frontend.Dashboard            { return nil }
+func (noopExperience) ResourcesSource() frontend.ResourceStatistics   { return nil }
+func (noopExperience) LibraryTitles() (string, string)                { return "", "" }
+func (noopExperience) HomeRevision(context.Context, *frontend.User) (frontend.HomeRevision, bool, error) {
+	return frontend.HomeRevision{}, false, nil
+}
+func (noopExperience) NoProviderWait(ctx context.Context) context.Context { return ctx }

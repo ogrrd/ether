@@ -101,7 +101,7 @@ func TestHLSPlayerLab(t *testing.T) {
 			if e != nil {
 				t.Fatal(e)
 			}
-			f := newFixture(func(d *Deps) { d.Hooks = Hooks{} })
+			f := newFixture(func(d *testServerDeps) { d.Hooks = Hooks{} })
 			defer f.srv.Close()
 			f.playback.info = *info
 			f.srv.d.Playback = &playerLabPlayback{f.playback, source.URL + "/fixture.mp4"}
@@ -194,7 +194,7 @@ func TestHLSPlayerDriverLab(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	f := newFixture(func(d *Deps) { d.Hooks = Hooks{} })
+	f := newFixture(func(d *testServerDeps) { d.Hooks = Hooks{} })
 	defer f.srv.Close()
 	f.playback.info = *info
 	f.srv.d.Playback = &playerLabPlayback{f.playback, source.URL + "/fixture.mp4"}
@@ -258,7 +258,7 @@ func TestHLSJellyfinLab(t *testing.T) {
 			if e != nil {
 				t.Fatal(e)
 			}
-			f := newFixture(func(d *Deps) { d.Hooks = Hooks{} })
+			f := newFixture(func(d *testServerDeps) { d.Hooks = Hooks{} })
 			defer f.srv.Close()
 			f.playback.info = *info
 			mediaBytes, readErr := os.ReadFile(input)

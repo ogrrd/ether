@@ -41,7 +41,7 @@ func (s *Server) remoteArtworkAllowed(r *http.Request, u *url.URL) bool {
 		return false
 	}
 	for _, key := range keys {
-		title, err := s.d.Catalog.Get(r.Context(), key)
+		title, err := s.catalog().Get(r.Context(), key)
 		if err == nil && s.visibleTitle(r.Context(), viewer, title) {
 			return true
 		}

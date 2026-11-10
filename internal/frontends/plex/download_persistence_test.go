@@ -13,10 +13,10 @@ import (
 
 func TestDownloadQueueSurvivesRestart(t *testing.T) {
 	f := newDownloadFixture(t, true)
-	deps := f.srv.d
+	deps := f.srv.currentTestDeps()
 	f.srv.Close()
 	deps.DB = store.OpenTest(t)
-	f.srv = NewServer(testDeps(deps))
+	f.srv = newTestServer(deps)
 	qid := f.queue(t)
 	rec := f.do(t, http.MethodPost, "/downloadQueue/"+itoa(qid)+"/add?key="+fightClub.Key.String(), ownerToken, nil)
 	if rec.Code != 200 {
@@ -25,7 +25,7 @@ func TestDownloadQueueSurvivesRestart(t *testing.T) {
 	it := f.waitStatus(t, qid, downloadAvailable)
 	id := int64(it["id"].(float64))
 	f.srv.Close()
-	f.srv = NewServer(testDeps(deps))
+	f.srv = newTestServer(deps)
 	if got := f.queue(t); got != qid {
 		t.Fatalf("queue changed: %d => %d", qid, got)
 	}
@@ -88,13 +88,13 @@ func TestDownloadQueuePreauthReadRefusal(t *testing.T) {
 
 func TestOfflineTranscodeFollowsClaim(t *testing.T) {
 	f := newDownloadFixture(t, false)
-	deps := f.srv.d
+	deps := f.srv.currentTestDeps()
 	cfg := deps.Config()
 	cfg.Plex.Claimed = false
 	cfg.Plex.Token = ""
 	deps.Config = func() config.Config { return cfg }
 	f.srv.Close()
-	f.srv = NewServer(testDeps(deps))
+	f.srv = newTestServer(deps)
 	rec := f.do(t, http.MethodGet, "/", ownerToken, nil)
 	if _, ok := decodeContainer(t, rec)["offlineTranscode"]; ok {
 		t.Fatalf("unclaimed offlineTranscode: %s", rec.Body.String())
@@ -103,11 +103,11 @@ func TestOfflineTranscodeFollowsClaim(t *testing.T) {
 
 func TestDownloadPendingRestartsWithFreshRun(t *testing.T) {
 	f := newDownloadFixture(t, true)
-	deps := f.srv.d
+	deps := f.srv.currentTestDeps()
 	f.srv.Close()
 	deps.DB = store.OpenTest(t)
 	f.remux.block = make(chan struct{})
-	f.srv = NewServer(testDeps(deps))
+	f.srv = newTestServer(deps)
 	qid := f.queue(t)
 	rec := f.do(t, http.MethodPost, "/downloadQueue/"+itoa(qid)+"/add?key="+fightClub.Key.String()+"&maxVideoBitrate=4000", ownerToken, nil)
 	if rec.Code != 200 {
@@ -128,7 +128,7 @@ func TestDownloadPendingRestartsWithFreshRun(t *testing.T) {
 	}
 	f.srv.Close()
 	close(f.remux.block)
-	f.srv = NewServer(testDeps(deps))
+	f.srv = newTestServer(deps)
 	f.waitStatus(t, qid, downloadAvailable)
 	f.remux.mu.Lock()
 	reqs := append([]core.DownloadRemuxRequest(nil), f.remux.requests...)

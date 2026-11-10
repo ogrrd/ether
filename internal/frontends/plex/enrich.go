@@ -367,7 +367,7 @@ func (s *Server) rememberTitle(t *frontend.Title) {
 // search or list hit with no row is read from memory: rendering a search
 // page must not open (promote) every hit on it, only opening a title does.
 func (s *Server) enrichFetch(ctx context.Context, key frontend.RatingKey) (*frontend.Title, error) {
-	if m, ok := s.d.Catalog.(memoryTitles); ok {
+	if m, ok := s.catalog().(memoryTitles); ok {
 		t, stored, err := m.MemoryTitle(ctx, key)
 		switch {
 		case err != nil:
@@ -378,5 +378,5 @@ func (s *Server) enrichFetch(ctx context.Context, key frontend.RatingKey) (*fron
 			return nil, frontend.ErrNotFound
 		}
 	}
-	return s.d.Catalog.Get(ctx, key)
+	return s.catalog().Get(ctx, key)
 }

@@ -17,7 +17,7 @@ func TestActivePlaybackWatchEvidence(t *testing.T) {
 			f := newFixture()
 			defer f.srv.Close()
 			watch := state.New(store.OpenTest(t), state.Options{})
-			f.srv.d.State = watch
+			f.srv.setState(watch)
 			if err := watch.Progress(context.Background(), ownerUser.ID, fightClub.Key, 120*time.Second, 1000*time.Second, "playing"); err != nil {
 				t.Fatal(err)
 			}

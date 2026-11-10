@@ -7,14 +7,14 @@ import (
 )
 
 func (s *Server) continueExperience(pr *Request) frontend.Continue {
-	batchOpts := frontend.EpisodeBatchOptions{Catalog: s.d.Catalog, State: s.d.State}
-	if s.d.EpisodeOrder != nil {
-		batchOpts.EpisodeOrder = s.d.EpisodeOrder
+	batchOpts := frontend.EpisodeBatchOptions{Catalog: s.catalog(), State: s.state()}
+	if s.episodeOrder() != nil {
+		batchOpts.EpisodeOrder = s.episodeOrder()
 	}
-	batch := s.d.Experience.NewEpisodeBatch(batchOpts)
+	batch := s.exp().NewEpisodeBatch(batchOpts)
 	deckOpts := frontend.ContinueDeckOptions{
 		Load: func(ctx context.Context, shows []frontend.RatingKey) (map[frontend.RatingKey][]frontend.Title, map[frontend.RatingKey]frontend.WatchStatus) {
-			if pre, ok := s.d.Catalog.(interface {
+			if pre, ok := s.catalog().(interface {
 				PreloadStored(context.Context, []frontend.RatingKey)
 			}); ok && len(shows) > 1 {
 				pre.PreloadStored(ctx, shows)
@@ -37,19 +37,19 @@ func (s *Server) continueExperience(pr *Request) frontend.Continue {
 			return s.showOnDeck(ctx, pr, show, memo)
 		},
 	}
-	if s.d.EpisodeOrder != nil {
+	if s.episodeOrder() != nil {
 		deckOpts.Order = func(ctx context.Context, show frontend.RatingKey, eps []frontend.Title) ([]frontend.Title, error) {
-			return s.d.EpisodeOrder.OrderStoredGrandchildren(ctx, pr.User, show, eps)
+			return s.episodeOrder().OrderStoredGrandchildren(ctx, pr.User, show, eps)
 		}
 	}
-	deck := s.d.Experience.NewContinueDeck(deckOpts)
-	opts := frontend.ContinueOptions{ShowOnDeck: deck.Select, PrepareShowOnDeck: deck.Prepare, State: s.d.State, Now: s.now, FavoriteShows: s.d.FavoriteShows,
+	deck := s.exp().NewContinueDeck(deckOpts)
+	opts := frontend.ContinueOptions{ShowOnDeck: deck.Select, PrepareShowOnDeck: deck.Prepare, State: s.state(), Now: s.now, FavoriteShows: s.favoriteShows(),
 		Grandchildren: func(ctx context.Context, k frontend.RatingKey) ([]frontend.Title, error) {
 			return s.metadataGrandchildren(ctx, pr, k)
 		},
 		Unrestricted: func(u *frontend.Viewer) bool { return !s.viewerRestricted(u) },
 		NextEpisode: func(ctx context.Context, k frontend.RatingKey) (*frontend.Title, error) {
-			if local, ok := s.d.Catalog.(interface {
+			if local, ok := s.catalog().(interface {
 				ContinueEpisodes(context.Context, []frontend.RatingKey) (map[frontend.RatingKey]*frontend.Title, error)
 			}); ok {
 				next, err := local.ContinueEpisodes(ctx, []frontend.RatingKey{k})
@@ -61,7 +61,7 @@ func (s *Server) continueExperience(pr *Request) frontend.Continue {
 				}
 				return nil, frontend.ErrNotFound
 			}
-			return s.d.Catalog.NextEpisode(ctx, k)
+			return s.catalog().NextEpisode(ctx, k)
 		}, Visible: s.visibleTitle,
 		SameDayUnavailable: func(ctx context.Context, t *frontend.Title) bool { return s.sameDayUnavailable(ctx, pr, t) },
 		GetTitles:          s.getTitles, SectionAllowed: func(u *frontend.Viewer, t frontend.MediaType) bool {
@@ -73,22 +73,22 @@ func (s *Server) continueExperience(pr *Request) frontend.Continue {
 	// those parents together before walking the history candidates; otherwise
 	// a cold cache hydrates each show's facts, counts and dates separately.
 	// Keep Get's normal freshness and policy checks after this stored preload.
-	if pre, ok := s.d.Catalog.(interface {
+	if pre, ok := s.catalog().(interface {
 		PreloadStored(context.Context, []frontend.RatingKey)
 	}); ok {
 		opts.PrefetchTitles = pre.PreloadStored
 	}
-	if s.d.Discovery != nil && s.d.Discovery.Personal != nil {
-		opts.Filter = s.d.Discovery.Personal.FilterContinue
+	if s.discovery() != nil && s.discovery().Personal != nil {
+		opts.Filter = s.discovery().Personal.FilterContinue
 	}
-	if s.d.EpisodeOrder != nil {
-		opts.EpisodeOrder = s.d.EpisodeOrder
+	if s.episodeOrder() != nil {
+		opts.EpisodeOrder = s.episodeOrder()
 	}
-	if local, ok := s.d.Catalog.(interface {
+	if local, ok := s.catalog().(interface {
 		ContinueEpisodes(context.Context, []frontend.RatingKey) (map[frontend.RatingKey]*frontend.Title, error)
 	}); ok {
 		opts.NextEpisodes = local.ContinueEpisodes
 	}
-	opts.Filter = s.d.Experience.ContinueFilter(opts.State, opts.Filter)
-	return s.d.Experience.NewContinue(opts)
+	opts.Filter = s.exp().ContinueFilter(opts.State, opts.Filter)
+	return s.exp().NewContinue(opts)
 }

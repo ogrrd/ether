@@ -126,7 +126,7 @@ func (s *Server) extrasFor(ctx context.Context, pr *Request, parent *frontend.Ti
 			want[n] = true
 		}
 	}
-	list, err := s.d.Experience.DetailExtras(ctx, s.d.Extras, parent, s.viewerLanguage(pr), want)
+	list, err := s.exp().DetailExtras(ctx, s.d.Extras, parent, s.viewerLanguage(pr), want)
 	if err != nil {
 		s.log.Debug("extras list", "key", parent.Key, "err", err)
 		return nil
@@ -312,7 +312,7 @@ func (s *Server) handleExtraPlayback(w http.ResponseWriter, r *http.Request) boo
 		writeHTTPError(w, http.StatusNotFound)
 		return true
 	}
-	parent, err := s.d.Catalog.Get(ctx, e.ParentKey)
+	parent, err := s.catalog().Get(ctx, e.ParentKey)
 	if err != nil || !s.visibleTitle(ctx, pr.User, parent) {
 		writeHTTPError(w, http.StatusNotFound)
 		return true
@@ -593,7 +593,7 @@ func (s *Server) handleExtraPart(w http.ResponseWriter, r *http.Request) bool {
 		writeHTTPError(w, http.StatusNotFound)
 		return true
 	}
-	parent, err := s.d.Catalog.Get(ctx, e.ParentKey)
+	parent, err := s.catalog().Get(ctx, e.ParentKey)
 	if err != nil || !s.visibleTitle(ctx, pr.User, parent) {
 		writeHTTPError(w, http.StatusNotFound)
 		return true
@@ -692,18 +692,18 @@ func (s *Server) prewarmFeature(ctx context.Context, pr *Request, feature fronte
 // cinemaTrailerKeys picks up to n trailers of other, unwatched movies
 // for this viewer (PMS Cinema Trailers semantics), in candidate order.
 func (s *Server) cinemaTrailerKeys(ctx context.Context, pr *Request, feature frontend.RatingKey, n int) []frontend.RatingKey {
-	if n <= 0 || s.d.Extras == nil || !s.d.Extras.Enabled() || s.d.Catalog == nil {
+	if n <= 0 || s.d.Extras == nil || !s.d.Extras.Enabled() || s.catalog() == nil {
 		return nil
 	}
 	if n > frontend.MaxExtras {
 		n = frontend.MaxExtras
 	}
 	candidates, err := s.recommendationCandidates(ctx, pr.User, 24, func(ctx context.Context, fetch int) ([]frontend.Title, error) {
-		items, err := s.d.Catalog.Similar(ctx, feature, fetch)
+		items, err := s.catalog().Similar(ctx, feature, fetch)
 		if err == nil && len(items) > 0 {
 			return items, nil
 		}
-		page, err := s.d.Catalog.Browse(ctx, frontend.BrowseQuery{
+		page, err := s.catalog().Browse(ctx, frontend.BrowseQuery{
 			Filter: frontend.Filter{Type: frontend.TypeMovie}, Sort: frontend.SortPopularity, Desc: true, Limit: fetch,
 		})
 		return page.Items, err

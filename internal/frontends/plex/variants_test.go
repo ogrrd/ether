@@ -142,10 +142,11 @@ func newVariantFixture(t *testing.T, playback core.Playback) *variantFixture {
 		facets:   map[string][]core.FacetValue{},
 	}
 	vr := &fakeVariantResolver{byKey: testVariantLists()}
-	srv := NewServer(testDeps(Deps{
-		Catalog:           cat,
-		State:             newFakeState(),
-		Auth:              &fakeAuth{users: map[string]core.User{ownerToken: ownerUser, friendToken: friendUser}},
+	srv := newTestServer(testServerDeps{
+		Catalog: cat,
+		State:   newFakeState(),
+		Deps: Deps{
+			Auth:              &fakeAuth{users: map[string]core.User{ownerToken: ownerUser, friendToken: friendUser}},
 		Playback:          playback,
 		Transcoder:        newFakeTranscoder(core.Decision{Kind: core.DecisionDirectPlay, VideoCopy: true, AudioCopy: true, Container: "mkv"}),
 		Variants:          vr,
@@ -159,8 +160,9 @@ func newVariantFixture(t *testing.T, playback core.Playback) *variantFixture {
 			return c
 		},
 		Identity: Identity{Version: "1.43.4.10903-e5521bd8c", Platform: "Linux"},
-		Now:      func() time.Time { return fixedNow },
-	}))
+			Now:      func() time.Time { return fixedNow },
+		},
+	})
 	t.Cleanup(func() { srv.Close() })
 	mountTestBroker(srv, func() time.Time { return fixedNow })
 	return &variantFixture{srv: srv, resolver: vr, playback: playback}

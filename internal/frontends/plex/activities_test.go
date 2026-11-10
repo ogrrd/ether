@@ -14,7 +14,7 @@ import (
 )
 
 func TestActivityRegistryLifecycleAndVisibility(t *testing.T) {
-	f := newFixture(func(d *Deps) { d.DisableEnrichment = true })
+	f := newFixture(func(d *testServerDeps) { d.DisableEnrichment = true })
 	defer f.srv.Close()
 	a := model.Activity{UUID: "task", Type: "subtitle.download", UserID: ownerUser.ID, Title: "Downloading subtitles"}
 	publish := func(event string) {
@@ -51,7 +51,7 @@ func TestActivityRegistryLifecycleAndVisibility(t *testing.T) {
 }
 
 func TestActivityAndUpdaterContracts(t *testing.T) {
-	f := newFixture(func(d *Deps) { d.DisableEnrichment = true })
+	f := newFixture(func(d *testServerDeps) { d.DisableEnrichment = true })
 	defer f.srv.Close()
 	for _, test := range []struct {
 		method, path string
@@ -127,7 +127,7 @@ func TestNotificationLanguageSelection(t *testing.T) {
 }
 
 func TestActivitySocketLanguageIsBoundToHandshake(t *testing.T) {
-	f := newFixture(func(d *Deps) { d.DisableEnrichment = true })
+	f := newFixture(func(d *testServerDeps) { d.DisableEnrichment = true })
 	defer f.srv.Close()
 	server := httptest.NewServer(f.srv)
 	defer server.Close()
@@ -181,7 +181,7 @@ func TestActivitySocketLanguageIsBoundToHandshake(t *testing.T) {
 }
 
 func TestUnsupportedManagementRefusals(t *testing.T) {
-	f := newFixture(func(d *Deps) { d.DisableEnrichment = true })
+	f := newFixture(func(d *testServerDeps) { d.DisableEnrichment = true })
 	defer f.srv.Close()
 	sub, _ := f.srv.notifier.subscribe(nil, &ownerUser)
 	defer f.srv.notifier.unsubscribe(sub)

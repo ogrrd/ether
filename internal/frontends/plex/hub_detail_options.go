@@ -32,10 +32,10 @@ func (s *Server) applyHubDetailOptions(ctx context.Context, mc *model.MediaConta
 			if title == nil {
 				// Cache eviction must not erase a requested block. Production
 				// adapters use a local point read without remote discovery.
-				if stored, ok := s.d.Catalog.(frontend.StoredTitleLookup); ok {
+				if stored, ok := s.catalog().(frontend.StoredTitleLookup); ok {
 					title, _ = stored.StoredTitle(ctx, frontend.RatingKey(n))
 				} else {
-					title, _ = s.d.Catalog.Get(ctx, frontend.RatingKey(n))
+					title, _ = s.catalog().Get(ctx, frontend.RatingKey(n))
 				}
 			}
 			if title == nil {

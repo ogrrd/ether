@@ -194,6 +194,23 @@ type ServiceDeps struct {
 
 	// Enrich must use cached or estimated data; it must never resolve releases.
 	Enrich func(context.Context, *core.User, core.Device, *core.Title) (frontend.ItemDetail, error)
+
+	Catalog             core.Catalog
+	Recommender         core.Recommender
+	VibeSearch          frontend.VibeSearcher
+	SearchSources       frontend.SearchSources
+	FavoriteShows       func(context.Context, *core.User) (map[core.RatingKey]bool, error)
+	FilterAvailable     func(context.Context, []core.Title) []core.Title
+	JudgedOnFacts       func(context.Context) func(core.Title) bool
+	PrioritizeAvailable func(context.Context, []core.Title) []core.Title
+	EpisodeOrder        frontend.EpisodeOrder
+	Discovery           *frontend.DiscoveryFeatures
+	Dashboard           frontend.Dashboard
+	Resources           frontend.ResourceStatistics
+	LibraryTitles       func() (movies, shows string)
+	HomeRevision        func(context.Context, *core.User) (frontend.HomeRevision, error)
+	NoProviderWait      func(context.Context) context.Context
+	Now                 func() time.Time
 }
 
 type Service struct {

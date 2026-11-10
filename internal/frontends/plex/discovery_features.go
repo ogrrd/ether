@@ -19,14 +19,14 @@ import (
 type DiscoveryFeatures = frontend.DiscoveryFeatures
 
 func (s *Server) discoveryHubs(ctx context.Context, pr *Request, limit int) []hubSpec {
-	d := s.d.Discovery
+	d := s.discovery()
 	if d == nil || pr.User == nil {
 		return nil
 	}
 	var out []hubSpec
 	add := func(purpose frontend.RowPurpose, load func(context.Context, *frontend.User, int) ([]frontend.Hub, error)) {
 		var hubs []frontend.Hub
-		selector := s.d.Experience.NewDiscoverySelection(frontend.DiscoverySelectionOptions{Visibility: s.visibility(), Unrestricted: func(u *frontend.User) bool { return !s.viewerRestricted(u) }})
+		selector := s.exp().NewDiscoverySelection(frontend.DiscoverySelectionOptions{Visibility: s.visibility(), Unrestricted: func(u *frontend.User) bool { return !s.viewerRestricted(u) }})
 		rows := selector.Load(ctx, pr.User, limit, func(ctx context.Context, fetch int) []frontend.DiscoveryCandidate {
 			hubs, _ = load(ctx, pr.User, fetch)
 			candidates := make([]frontend.DiscoveryCandidate, len(hubs))
@@ -50,21 +50,21 @@ func (s *Server) discoveryHubs(ctx context.Context, pr *Request, limit int) []hu
 	return out
 }
 func (s *Server) discoveryRemoveContinue(ctx context.Context, pr *Request, key frontend.RatingKey) error {
-	if s.d.Discovery == nil || s.d.Discovery.Personal == nil || pr.User == nil {
+	if s.discovery() == nil || s.discovery().Personal == nil || pr.User == nil {
 		return nil
 	}
-	t, e := s.d.Catalog.Get(ctx, key)
+	t, e := s.catalog().Get(ctx, key)
 	if e != nil {
 		return e
 	}
 	if !s.visibleTitle(ctx, pr.User, t) {
 		return frontend.ErrNotFound
 	}
-	return s.d.Discovery.Personal.RemoveContinue(ctx, pr.User.ID, key)
+	return s.discovery().Personal.RemoveContinue(ctx, pr.User.ID, key)
 }
 
 func (s *Server) decorateDiscoveryMetadata(ctx context.Context, pr *Request, t *frontend.Title, m *model.Metadata, detail bool) {
-	d := s.d.Discovery
+	d := s.discovery()
 	if d == nil || t == nil || pr.User == nil || !s.titleAllowed(pr.User, t) {
 		return
 	}
@@ -162,7 +162,7 @@ func (s *Server) decorateDiscoveryMetadata(ctx context.Context, pr *Request, t *
 	}
 	if d.LLM != nil && d.Watchlist != nil && (t.Type == frontend.TypeSeason || t.Type == frontend.TypeEpisode) {
 		if d.Watchlist.RecapsEnabled(ctx) {
-			entry := d.CachedRecap(pr.User, t, s.d.State, s.now())
+			entry := d.CachedRecap(pr.User, t, s.state(), s.now())
 			if entry != "" {
 				m.Summary = "Previously watched: " + entry + "\n\n" + m.Summary
 			}
@@ -183,7 +183,7 @@ func (s *Server) handleDiscoveryPoster(w http.ResponseWriter, r *http.Request) {
 // serveDiscoveryPoster also serves Plex's photo transcode wrapper. Keep the
 // authenticated outer request: credentials inside an artwork URL grant nothing.
 func (s *Server) serveDiscoveryPoster(w http.ResponseWriter, r *http.Request, k frontend.RatingKey, kind, lang string) {
-	d := s.d.Discovery
+	d := s.discovery()
 	if d == nil || d.Overlays == nil {
 		writeHTTPError(w, 404)
 		return

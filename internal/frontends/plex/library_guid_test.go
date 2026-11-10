@@ -39,9 +39,9 @@ func TestLibraryGUIDLookup(t *testing.T) {
 	}
 	pg := plexguid.New(db, plexguid.Options{})
 	defer pg.Close()
-	f := newFixture(func(d *Deps) { d.PlexGUID = pg })
+	f := newFixture(func(d *testServerDeps) { d.PlexGUID = pg })
 	defer f.srv.Close()
-	f.srv.d.Catalog = guidCatalog{f.catalog}
+	f.srv.setCatalog(guidCatalog{f.catalog})
 	for _, tc := range []struct {
 		path string
 		want []core.RatingKey
@@ -137,7 +137,7 @@ func TestLibraryGUIDVisibilityAndPaging(t *testing.T) {
 			case "future":
 				title.Released = fixedNow.Add(time.Hour)
 			case "availability":
-				f.srv.d.FilterAvailable = func(context.Context, []core.Title) []core.Title { return nil }
+				f.srv.setFilterAvailable(func(context.Context, []core.Title) []core.Title { return nil })
 			}
 			f.catalog.titles[title.Key] = title
 			rec := f.get(t, "/library/all?guid=tmdb://550&type=1", jsonAccept...)
@@ -195,7 +195,7 @@ func TestLibraryGUIDColdLookup(t *testing.T) {
 	defer upstream.Close()
 	pg := plexguid.New(db, plexguid.Options{BaseURL: upstream.URL, Token: func() string { return "fixture" }})
 	defer pg.Close()
-	f := newFixture(func(d *Deps) { d.PlexGUID = pg })
+	f := newFixture(func(d *testServerDeps) { d.PlexGUID = pg })
 	defer f.srv.Close()
 	for i := 0; i < 2; i++ {
 		rec := f.get(t, "/library/all?guid="+url.QueryEscape(guid), jsonAccept...)

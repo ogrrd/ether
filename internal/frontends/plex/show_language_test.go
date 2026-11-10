@@ -38,7 +38,7 @@ func TestRenderResolvesEpisodeShowLanguagesInOneBatch(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
 	cat := &countingShowCatalog{fakeCatalog: f.catalog}
-	f.srv.d.Catalog = cat
+	f.srv.setCatalog(cat)
 	f.srv.d.TrackPreferences = trackprefs.New(store.OpenTest(t))
 	var eps []core.Title
 	want := map[core.RatingKey]string{}

@@ -98,9 +98,9 @@ func TestTimelineBandwidthDecisionLifecycle(t *testing.T) {
 
 func TestTimelineStopDisarmsAcrossNodesAndRetainsSessionLatch(t *testing.T) {
 	db := store.OpenTest(t)
-	a := newFixture(func(d *Deps) { d.DB = db })
+	a := newFixture(func(d *testServerDeps) { d.DB = db })
 	defer a.srv.Close()
-	b := newFixture(func(d *Deps) { d.DB = db })
+	b := newFixture(func(d *testServerDeps) { d.DB = db })
 	defer b.srv.Close()
 	pr := &Request{User: &ownerUser, ClientID: "player", SessionID: "public-session"}
 	a.srv.armDecision(pr, fightClub.Key)

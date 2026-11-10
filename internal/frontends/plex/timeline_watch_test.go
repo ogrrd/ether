@@ -64,7 +64,7 @@ func TestPlexTimelinePlayLatches(t *testing.T) {
 			f := newFixture()
 			defer f.srv.Close()
 			watch := state.New(store.OpenTest(t), state.Options{})
-			f.srv.d.State = watch
+			f.srv.setState(watch)
 			for i, step := range tc.steps {
 				rec := f.get(t, fmt.Sprintf("/:/timeline?ratingKey=%s&state=%s&time=%d&duration=1000000", step.key, step.status, step.position), "Accept", "application/json")
 				if rec.Code != http.StatusOK {
@@ -97,7 +97,7 @@ func TestPlexTimelineNoopDurationAndOffline(t *testing.T) {
 	defer f.srv.Close()
 	at := time.Unix(1000000, 0)
 	watch := state.New(store.OpenTest(t), state.Options{Now: func() time.Time { return at }})
-	f.srv.d.State = watch
+	f.srv.setState(watch)
 	key := fightClub.Key.String()
 	call := func(query string) {
 		t.Helper()
@@ -136,7 +136,7 @@ func TestPlexTimelineQueueResolutionAndPlaylistTrack(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
 	watch := state.New(store.OpenTest(t), state.Options{})
-	f.srv.d.State = watch
+	f.srv.setState(watch)
 	q, err := f.srv.queues.CreateWith(ownerUser.ID, "client-1", []core.RatingKey{fightClub.Key, alien.Key}, fixedNow, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -210,7 +210,7 @@ func TestPlexTimelineIntegerThresholdForShortContent(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
 	watch := state.New(store.OpenTest(t), state.Options{})
-	f.srv.d.State = watch
+	f.srv.setState(watch)
 	for _, position := range []int{1, 900} {
 		rec := f.get(t, fmt.Sprintf("/:/timeline?ratingKey=%s&state=playing&time=%d&duration=1001", fightClub.Key, position))
 		if rec.Code != 200 {
@@ -227,7 +227,7 @@ func TestPlexTimelineCrossingIsolatedByClientAndValidation(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
 	watch := state.New(store.OpenTest(t), state.Options{})
-	f.srv.d.State = watch
+	f.srv.setState(watch)
 	key := fightClub.Key.String()
 	call := func(query, client string) int {
 		t.Helper()
@@ -268,7 +268,7 @@ func TestLegacyProgressGrammarAndRawPersistence(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
 	watch := state.New(store.OpenTest(t), state.Options{})
-	f.srv.d.State = watch
+	f.srv.setState(watch)
 	k := fightClub.Key.String()
 	for _, tc := range []struct {
 		q      string

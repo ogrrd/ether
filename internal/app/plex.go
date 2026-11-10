@@ -13,11 +13,9 @@ import (
 	"time"
 
 	artworkservice "github.com/braedonsaunders/ether/internal/artwork/service"
-	"github.com/braedonsaunders/ether/internal/catalog"
 	"github.com/braedonsaunders/ether/internal/config"
 	"github.com/braedonsaunders/ether/internal/core"
 	"github.com/braedonsaunders/ether/internal/egress"
-	"github.com/braedonsaunders/ether/internal/experience"
 	"github.com/braedonsaunders/ether/internal/frontend"
 	"github.com/braedonsaunders/ether/internal/frontends/plex"
 	"github.com/braedonsaunders/ether/internal/plexguid"
@@ -56,7 +54,7 @@ func (a *App) buildPlex(ctx context.Context, cfg config.Config) (frontend.PlexDe
 		},
 	}
 
-	var deps plex.Deps
+	var deps frontend.PlexDeps
 	if cfg.Spike.Enabled {
 		deps = a.spikeLibrary.Deps()
 		deps.Auth = a.users
@@ -68,33 +66,13 @@ func (a *App) buildPlex(ctx context.Context, cfg config.Config) (frontend.PlexDe
 		if a.brokerPlayback != nil {
 			playback = a.brokerPlayback
 		}
-		deps = plex.Deps{
-			Catalog:     a.catalog,
-			Collections: a.discoveryPersonal.ReviewCollections(a.collections),
-			VibeSearch:  a.collections,
-			Recommender: a.personalize,
-			State:       a.state,
-			Playlists:   a.playlists,
-			Auth:        a.users,
-			Playback:    playback,
-			Transcoder:  tc,
-			ImageURL:    a.tmdb.ImageURLFunc(),
-			DB:          a.db, // plex_ultrablur
+		deps = frontend.PlexDeps{
+			Auth:       a.users,
+			Playback:   playback,
+			Transcoder: tc,
+			ImageURL:   a.tmdb.ImageURLFunc(),
+			DB:         a.db, // plex_ultrablur
 		}
-	}
-	if !cfg.Spike.Enabled && a.availability != nil {
-		deps.Catalog = &availabilityCatalog{Catalog: a.catalog, availability: a.availability}
-		deps.FilterAvailable = a.availability.FilterDiscovery
-		deps.JudgedOnFacts = a.availability.JudgedOnFacts
-	}
-	if !cfg.Spike.Enabled {
-		deps.Search = a.searchSources()
-	}
-	deps.PrioritizeAvailable = func(ctx context.Context, items []core.Title) []core.Title {
-		if a.availability == nil {
-			return items
-		}
-		return a.availability.Prioritize(ctx, items)
 	}
 	deps.Variants = a.resolver // "Play Version" release picker (cache-only)
 	deps.LiveLogoKey = a.cfg.DerivedKey("ether-live-logo-v1")
@@ -146,21 +124,11 @@ func (a *App) buildPlex(ctx context.Context, cfg config.Config) (frontend.PlexDe
 		metadataService.Close()
 		return frontend.PlexDeps{}, fmt.Errorf("plex watch state: %w", err)
 	}
-	if !cfg.Spike.Enabled && a.episodeorder != nil {
-		// EpisodeOrder is TMDB-backed (build_integrations.go): metadataTitle
-		// prefers it over Catalog, and the real catalog does not know the
-		// spike catalog's KindLocal keys, so wiring it in spike mode makes
-		// every /library/metadata/<KindLocal> 404 while hubs and play
-		// queues (which read Catalog directly) keep working.
-		deps.EpisodeOrder = a.episodeorder
-	}
-	deps.Discovery = a.discoveryFeatures.Frontend()
 	deps.LiveTV = a.livetv.Frontend()
 	deps.Subtitles = plexSubtitles{a}
 	deps.TrackPreferences = a.trackprefs
 	deps.SessionCoordination = a.sessionCoordination
 	deps.SessionStores = sessions.NewPlexSessionStores()
-	deps.Experience = experience.NewPlexExperience()
 	deps.ArtworkStores = artworkservice.NewPlexArtworkStores()
 	deps.Markers = a.markers
 	// The remuxer is built once in buildIntegrations and shared with every
@@ -173,7 +141,6 @@ func (a *App) buildPlex(ctx context.Context, cfg config.Config) (frontend.PlexDe
 	deps.Prerolls = a.prerollProvider()
 	deps.Trickplay = a.trickplay.Borrow()
 	a.wirePlexPolicy(&deps)
-	deps.FavoriteShows = a.favoriteShows
 	deps.Now = parityClock()
 	deps.Config = a.cfg.Read
 	deps.ApplyClientRules = resolver.ApplyClientRulesForMedia
@@ -186,14 +153,7 @@ func (a *App) buildPlex(ctx context.Context, cfg config.Config) (frontend.PlexDe
 		st := a.registrar.Status()
 		return st.PlexPass, st.OwnerFeatures
 	}
-	deps.LibraryTitles = a.libraryTitles
 	deps.Hooks = hooks
-	if a.stats != nil {
-		deps.Dashboard = a.stats.Dashboard()
-	}
-	if a.hostResources != nil {
-		deps.Resources = a.hostResources
-	}
 	if node := a.clusterNode(); node != nil && deps.DB != nil {
 		deps.Cluster = node
 	}
@@ -201,24 +161,6 @@ func (a *App) buildPlex(ctx context.Context, cfg config.Config) (frontend.PlexDe
 		deps.ArtworkImages = a.artwork.Images
 		deps.ArtworkPalettes = a.artwork.Palettes
 		deps.GeneratedPosters = a.artwork.Generated
-	}
-	if !cfg.Spike.Enabled && a.db != nil {
-		db := a.db
-		deps.HomeCache = &plex.HomeCacheSource{
-			Revision: func(ctx context.Context, u *core.User) (experience.HomeRevision, error) {
-				return experience.ReadHomeRevision(ctx, db, u)
-			},
-			NoProviderWait: func(ctx context.Context) context.Context { return catalog.WithReadWaitBudget(ctx, 0) },
-		}
-		if a.catalog != nil {
-			deps.HomeCache.Catalog = a.catalog.WriteGeneration
-		}
-		if a.cfg != nil {
-			deps.HomeCache.Config = a.cfg.Generation
-		}
-		if a.personalize != nil {
-			deps.HomeCache.Layout = a.personalize.LayoutVersion
-		}
 	}
 	return deps, nil
 }

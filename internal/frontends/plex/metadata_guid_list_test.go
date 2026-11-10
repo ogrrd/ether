@@ -27,9 +27,9 @@ func TestMetadataByPlexGUIDList(t *testing.T) {
 	}
 	pg := plexguid.New(db, plexguid.Options{})
 	defer pg.Close()
-	f := newFixture(func(d *Deps) { d.PlexGUID = pg })
+	f := newFixture(func(d *testServerDeps) { d.PlexGUID = pg })
 	defer f.srv.Close()
-	f.srv.d.Catalog = guidCatalog{f.catalog}
+	f.srv.setCatalog(guidCatalog{f.catalog})
 
 	rec := f.get(t, "/library/metadata/"+movie+",plex://movie/000000000000000000000000,"+show, jsonAccept...)
 	body := rec.Body.String()

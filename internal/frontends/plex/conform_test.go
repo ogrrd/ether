@@ -185,7 +185,7 @@ func TestDetailConformsToPMS(t *testing.T) {
 				f.playback.info = burbsInfo
 				related := fightClub
 				related.CollectionID, related.CollectionName = 1, "Fincher"
-				f.srv.d.Recommender.(*fakeRecommender).related = []core.Hub{{ID: "movie.similar", Title: "More Like This", Type: core.TypeMovie, Context: "hub.movie.similar", Items: []core.Title{related}}}
+				f.srv.recommender().(*fakeRecommender).related = []core.Hub{{ID: "movie.similar", Title: "More Like This", Type: core.TypeMovie, Context: "hub.movie.similar", Items: []core.Title{related}}}
 				hdr := []string{"Accept", "application/xml"}
 				if jsonMode {
 					hdr = jsonAccept

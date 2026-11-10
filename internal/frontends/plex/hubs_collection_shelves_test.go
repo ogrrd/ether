@@ -37,10 +37,10 @@ func shelfRows(t *testing.T, body []byte) []shelfRow {
 func TestInfusePromotedRowsAreCollectionShelves(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
-	f.srv.d.Recommender = &fakeRecommender{
+	f.srv.setRecommender(&fakeRecommender{
 		home:    []core.Hub{{ID: "home.trending", Title: "Trending Now", Promoted: true, Items: []core.Title{fightClub, alien, breakingBad}}},
 		section: map[core.MediaType][]core.Hub{core.TypeMovie: {{ID: "movie.toprated", Title: "Top Rated", Type: core.TypeMovie, Promoted: true, Items: []core.Title{alien}}}},
-	}
+	})
 	infuse := append([]string{"X-Plex-Product", "Infuse-Direct", "X-Plex-Device", "Apple TV"}, jsonAccept...)
 	const q = "/hubs/promoted?count=20&excludeContinueWatching=1&contentDirectoryID="
 
@@ -91,7 +91,7 @@ func TestInfusePromotedRowsAreCollectionShelves(t *testing.T) {
 func TestInfuseCollectionShelvesAfterRestart(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
-	f.srv.d.Recommender = &fakeRecommender{home: []core.Hub{{ID: "home.trending", Title: "Trending Now", Promoted: true, Items: []core.Title{fightClub, alien}}}}
+	f.srv.setRecommender(&fakeRecommender{home: []core.Hub{{ID: "home.trending", Title: "Trending Now", Promoted: true, Items: []core.Title{fightClub, alien}}}})
 	path := "/library/collections/" + collectionShelfNumber(model.Hub{HubIdentifier: "home.trending"}) + "/children"
 	hdr := map[string]string{"X-Plex-Product": "Infuse-Direct", "Accept": "application/json"}
 	codes := make(chan string, 6)

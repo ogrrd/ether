@@ -60,7 +60,7 @@ func hookFixture(t *testing.T, on bool) (*fixture, *hookRecommender) {
 			ownerUser.ID: "96% Match · Directed by Mara Ellison · Ends at 10:45 PM",
 		},
 	}
-	f.srv.d.Recommender = rec
+	f.srv.setRecommender(rec)
 	base := f.srv.d.Config
 	f.srv.d.Config = func() config.Config {
 		c := base()
@@ -276,7 +276,7 @@ func TestPostPlayBackfillsFilteredCandidates(t *testing.T) {
 	hidden.Adult = true
 	visible := breakingBad
 	r := &limitedPostplayRecommender{picks: []core.PostPlayPick{{Title: hidden}, {Title: visible}}, items: []core.Title{hidden, visible}}
-	f.srv.d.Recommender = r
+	f.srv.setRecommender(r)
 	pr := &Request{User: &ownerUser}
 	seen := map[core.RatingKey]bool{}
 	selection := f.srv.postPlaySelection(context.Background(), pr, 0, false)

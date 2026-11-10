@@ -34,8 +34,8 @@ func TestSectionHubsOrderAndMixedRows(t *testing.T) {
 	}
 	f.state.set(ownerUser.ID, core.WatchStatus{Key: fightClub.Key, ViewOffset: time.Minute, LastViewedAt: fixedNow})
 	f.state.set(ownerUser.ID, core.WatchStatus{Key: bbE1.Key, ViewOffset: time.Minute, LastViewedAt: fixedNow})
-	f.srv.d.Discovery = (&discovery.Features{Watchlist: wl, Overlays: overlays.New(db, overlays.Options{})}).Frontend()
-	f.srv.d.Recommender = &fakeRecommender{section: map[core.MediaType][]core.Hub{
+	f.srv.setDiscovery((&discovery.Features{Watchlist: wl, Overlays: overlays.New(db, overlays.Options{})}).Frontend())
+	f.srv.setRecommender(&fakeRecommender{section: map[core.MediaType][]core.Hub{
 		core.TypeMovie: {
 			{ID: "movie.cluster.thriller.heist", Title: "Heist Thrillers", Type: core.TypeMovie, Context: "hub.movie.cluster", Items: []core.Title{fightClub}},
 			{ID: "movie.era.1970", Title: "Best of the '70s for You", Type: core.TypeMovie, Context: "hub.movie.era", Items: []core.Title{alien}},
@@ -43,7 +43,7 @@ func TestSectionHubsOrderAndMixedRows(t *testing.T) {
 		core.TypeShow: {
 			{ID: "tv.newseasons", Title: "New Seasons of Your Shows", Type: core.TypeShow, Context: "hub.tv.newseasons", Items: []core.Title{breakingBad}},
 		},
-	}}
+	}})
 	hubsOf := func(path string) []model.Hub {
 		t.Helper()
 		rec := f.request(t, "GET", path, map[string]string{"Accept": "application/json"})

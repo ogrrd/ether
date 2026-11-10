@@ -79,8 +79,8 @@ func (s *Server) rememberProgressiveStop(ctx context.Context, e *transcodeEntry)
 			break
 		}
 	}
-	if !found && s.d.State != nil {
-		if previous, err := s.d.State.Get(ctx, e.userID, e.key); err == nil {
+	if !found && s.state() != nil {
+		if previous, err := s.state().Get(ctx, e.userID, e.key); err == nil {
 			saved.offset, saved.duration = previous.ViewOffset, previous.Duration
 		}
 	}

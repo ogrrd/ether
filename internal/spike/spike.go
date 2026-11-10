@@ -20,6 +20,7 @@ import (
 	"github.com/braedonsaunders/ether/internal/config"
 	"github.com/braedonsaunders/ether/internal/core"
 	"github.com/braedonsaunders/ether/internal/experience"
+	"github.com/braedonsaunders/ether/internal/frontend"
 	"github.com/braedonsaunders/ether/internal/frontends/plex"
 	"github.com/braedonsaunders/ether/internal/resolver"
 	"github.com/braedonsaunders/ether/internal/sessions"
@@ -189,19 +190,25 @@ func (l *Library) Recommender() core.Recommender { return recommender{l} }
 func (l *Library) Auth() core.Auth               { return l.auth }
 func (l *Library) Transcoder() core.Transcoder   { return l.trans }
 
+// Experience returns an experience.Service wired to the spike adapters.
+func (l *Library) Experience() *experience.Service {
+	return experience.NewDirectService(experience.ServiceDeps{
+		Catalog:       l.Catalog(),
+		Collections:   l.Collections(),
+		Recommender:   l.Recommender(),
+		State:         l.State(),
+		Playlists:     l.Playlists(),
+		SearchSources: experience.SearchSources{Catalog: l.Catalog().Search},
+	})
+}
+
 // Deps returns a plex.Deps wired to the spike adapters, a movies-only
 // section and the identity from the config.
 func (l *Library) Deps() plex.Deps {
 	c := l.cfg()
 	return plex.Deps{
 		SessionStores:    sessions.NewPlexSessionStores(),
-		Experience:       experience.NewPlexExperience(),
 		ArtworkStores:    artworkservice.NewPlexArtworkStores(),
-		Catalog:          l.Catalog(),
-		Collections:      l.Collections(),
-		Recommender:      l.Recommender(),
-		State:            l.State(),
-		Playlists:        l.Playlists(),
 		Auth:             l.Auth(),
 		Playback:         l.Playback(),
 		Transcoder:       l.Transcoder(),
@@ -245,7 +252,12 @@ func (l *Library) OpenPlex() (*plex.Server, func(), error) {
 		srv.Close()
 		return nil, nil, err
 	}
-	srv.UsePlaybackBroker(broker)
+	if _, err := (plex.Frontend{Server: srv}).Mount(context.Background(), frontend.Host{Experience: l.Experience(), Sessions: broker}); err != nil {
+		broker.Close(context.Background())
+		events.Close()
+		srv.Close()
+		return nil, nil, err
+	}
 	return srv, func() {
 		broker.Close(context.Background())
 		events.Close()

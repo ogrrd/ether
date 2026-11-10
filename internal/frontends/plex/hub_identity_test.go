@@ -12,11 +12,11 @@ import (
 func TestRecommendationShelvesHaveDistinctFetchPaths(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
-	f.srv.d.Recommender = &fakeRecommender{section: map[core.MediaType][]core.Hub{core.TypeMovie: {
+	f.srv.setRecommender(&fakeRecommender{section: map[core.MediaType][]core.Hub{core.TypeMovie: {
 		{ID: "movie.trending", Title: "Trending", Type: core.TypeMovie, Items: []core.Title{fightClub}},
 		{ID: "movie.popular", Title: "Popular", Type: core.TypeMovie, Items: []core.Title{fightClub}},
 		{ID: "movie.because.1", Title: "Because You Watched", Type: core.TypeMovie, Items: []core.Title{fightClub}},
-	}}}
+	}}})
 	var body struct{ MediaContainer model.MediaContainer }
 	rec := f.request(t, "GET", "/hubs/sections/1", map[string]string{"Accept": "application/json"})
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
@@ -45,7 +45,7 @@ func TestShelfFetchReportsPageSizeOffsetAndTotal(t *testing.T) {
 	third := fightClub
 	third.Key = core.MovieKey(551)
 	items := []core.Title{fightClub, alien, third}
-	f.srv.d.Recommender = &fakeRecommender{section: map[core.MediaType][]core.Hub{core.TypeMovie: {{ID: "movie.popular", Title: "Popular", Type: core.TypeMovie, Items: items}}}}
+	f.srv.setRecommender(&fakeRecommender{section: map[core.MediaType][]core.Hub{core.TypeMovie: {{ID: "movie.popular", Title: "Popular", Type: core.TypeMovie, Items: items}}}})
 	rec := f.request(t, "GET", "/hubs/items/movie.popular?contentDirectoryID=1&X-Plex-Container-Start=1&X-Plex-Container-Size=1", map[string]string{"Accept": "application/json"})
 	var fetched struct{ MediaContainer model.MediaContainer }
 	if err := json.Unmarshal(rec.Body.Bytes(), &fetched); err != nil {

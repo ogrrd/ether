@@ -215,7 +215,7 @@ func decisionPath(startPath string) string {
 
 func TestPMSDecisionArmsAreProcessScoped(t *testing.T) {
 	db := store.OpenTest(t)
-	f := newFixture(func(d *Deps) { d.DB = db })
+	f := newFixture(func(d *testServerDeps) { d.DB = db })
 	defer f.srv.Close()
 	pr := &Request{User: &ownerUser, ClientID: "client", SessionID: "play"}
 	f.srv.armDecision(pr, fightClub.Key)

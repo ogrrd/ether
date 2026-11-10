@@ -99,10 +99,11 @@ func newDownloadFixture(t *testing.T, downloadsOn bool) *downloadFixture {
 		}
 		return c
 	}
-	f.srv = NewServer(testDeps(Deps{
-		Catalog:   cat,
-		State:     newFakeState(),
-		Auth:      f.auth,
+	f.srv = newTestServer(testServerDeps{
+		Catalog: cat,
+		State:   newFakeState(),
+		Deps: Deps{
+			Auth:      f.auth,
 		Playback:  f.playback,
 		Downloads: f.remux,
 		Config:    cfg,
@@ -112,8 +113,9 @@ func newDownloadFixture(t *testing.T, downloadsOn bool) *downloadFixture {
 			defer f.mu.Unlock()
 			return f.now
 		},
-		DisableEnrichment: true,
-	}))
+			DisableEnrichment: true,
+		},
+	})
 	t.Cleanup(func() { f.srv.Close() })
 	return f
 }
@@ -517,7 +519,7 @@ func TestDownloadQueueRejectsEpisodeOfBlockedShow(t *testing.T) {
 	f.srv.d.AccessPolicy = blockAllKeyword("blocked")
 	show := breakingBad
 	show.Keywords = []string{"blocked"}
-	f.srv.d.Catalog.(*fakeCatalog).titles[show.Key] = show
+	f.srv.catalog().(*fakeCatalog).titles[show.Key] = show
 	qid := f.queue(t)
 	rec := f.do(t, http.MethodPost, "/downloadQueue/"+itoa(qid)+"/add?keys="+bbE1.Key.String(), ownerToken, nil)
 	if rec.Code != http.StatusNotFound {

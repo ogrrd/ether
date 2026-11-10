@@ -121,14 +121,14 @@ func (s *Server) indexPart(r *http.Request) (frontend.RatingKey, string, bool) {
 	pr := FromContext(r.Context())
 	id, err := strconv.ParseInt(chi.URLParam(r, "part"), 10, 64)
 	if err != nil || pr.User == nil ||
-		s.d.Playback == nil || s.d.Catalog == nil {
+		s.d.Playback == nil || s.catalog() == nil {
 		return 0, "", false
 	}
 	key, wantedReleaseID, found := s.partTitle(id)
 	if !found {
 		return 0, "", false
 	}
-	title, err := s.d.Catalog.Get(r.Context(), key)
+	title, err := s.catalog().Get(r.Context(), key)
 	if err != nil || !s.visibleTitle(r.Context(), pr.User, title) {
 		return 0, "", false
 	}

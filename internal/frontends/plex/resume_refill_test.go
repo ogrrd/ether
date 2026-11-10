@@ -110,7 +110,7 @@ func newEtheLab(t *testing.T, resumed bool, remembered string, n int) *etheLab {
 		x.idx.releases = append(x.idx.releases, core.Release{ID: fmt.Sprintf("offline-%d", i), GUID: fmt.Sprintf("offline-%d", i), Indexer: "offline", Name: name, Size: int64(1500+i*100) << 20, PubDate: fixedNow.Add(-24 * time.Hour), NZBURL: "offline", Info: releaseparse.Parse(name)})
 	}
 	x.engine = &etheLabEngine{finished: make(chan context.Context, 8)}
-	x.f = newFixture(func(d *Deps) {
+	x.f = newFixture(func(d *testServerDeps) {
 		d.Config = func() config.Config { return x.cfg }
 		d.DisableEnrichment = true
 		d.Hooks = Hooks{}
@@ -141,7 +141,7 @@ func newEtheLab(t *testing.T, resumed bool, remembered string, n int) *etheLab {
 		if err != nil {
 			t.Fatal(err)
 		}
-		x.f = newFixture(func(d *Deps) {
+		x.f = newFixture(func(d *testServerDeps) {
 			d.Config = func() config.Config { return x.cfg }
 			d.DisableEnrichment = true
 			d.Hooks = Hooks{}

@@ -33,8 +33,8 @@ func (s *Server) trackScope(ctx context.Context, key frontend.RatingKey) fronten
 }
 
 func (s *Server) trackPreferences() frontend.TrackPreferenceSelector {
-	return s.d.Experience.NewTrackPreferenceSelector(frontend.TrackPreferenceSelectorOptions{Source: s.d.TrackPreferences, GetTitle: func(ctx context.Context, key frontend.RatingKey) (*frontend.Title, error) {
-		if s.d.Catalog == nil {
+	return s.exp().NewTrackPreferenceSelector(frontend.TrackPreferenceSelectorOptions{Source: s.d.TrackPreferences, GetTitle: func(ctx context.Context, key frontend.RatingKey) (*frontend.Title, error) {
+		if s.catalog() == nil {
 			return nil, frontend.ErrNotAvailable
 		}
 		return &frontend.Title{Key: key, Language: s.showLanguage(ctx, key)}, nil
@@ -144,7 +144,7 @@ func (s *Server) addProbedStreamFeatures(ctx context.Context, key frontend.Ratin
 	if len(m.Chapter) > 0 {
 		m.ChapterSource = "media"
 	}
-	ranges, err := s.d.Experience.PlaybackMarkerRanges(ctx, s.d.Markers, key, info)
+	ranges, err := s.exp().PlaybackMarkerRanges(ctx, s.d.Markers, key, info)
 	if err != nil {
 		s.log.Debug("marker provider unavailable", "error", err)
 	}
@@ -179,7 +179,7 @@ func showLanguageMemoKey(show frontend.RatingKey) string {
 // track selection falls back to. A read request asks once per show.
 func (s *Server) showLanguage(ctx context.Context, show frontend.RatingKey) string {
 	lang, _ := reqmemo.Do(ctx, showLanguageMemoKey(show), func() (string, error) {
-		if t, err := s.d.Catalog.Get(ctx, show); err == nil && t != nil {
+		if t, err := s.catalog().Get(ctx, show); err == nil && t != nil {
 			return t.Language, nil
 		}
 		return "", nil
@@ -192,10 +192,10 @@ func (s *Server) showLanguage(ctx context.Context, show frontend.RatingKey) stri
 // of episodes from distinct shows otherwise loaded each show on its own
 // (On Deck: hundreds). Shows the batch cannot vouch for are left to Get.
 func (s *Server) preloadShowLanguages(ctx context.Context, pr *Request, ts []frontend.Title, o renderOpts) {
-	if !reqmemo.Active(ctx) || s.d.TrackPreferences == nil || s.d.Catalog == nil || pr == nil || pr.User == nil || !o.media || (!o.detail && !o.detailEpisodes) {
+	if !reqmemo.Active(ctx) || s.d.TrackPreferences == nil || s.catalog() == nil || pr == nil || pr.User == nil || !o.media || (!o.detail && !o.detailEpisodes) {
 		return
 	}
-	resolver, ok := s.d.Catalog.(interface {
+	resolver, ok := s.catalog().(interface {
 		ResolveShowParents(context.Context, []frontend.RatingKey) (map[frontend.RatingKey]frontend.Title, error)
 	})
 	if !ok {

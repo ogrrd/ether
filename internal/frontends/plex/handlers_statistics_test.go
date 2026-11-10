@@ -56,10 +56,10 @@ func TestStatisticsBandwidthShapeAndFilters(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
 	clock := fixedNow
-	f.srv.d.Dashboard = stats.NewDashboard(stats.DashboardOptions{Now: func() time.Time { return clock }, Loc: time.UTC})
-	f.srv.d.Dashboard.RecordBytes(1, "owner", "web", "Chrome", "Chrome", true, 4096)
+	f.srv.setDashboard(stats.NewDashboard(stats.DashboardOptions{Now: func() time.Time { return clock }, Loc: time.UTC}))
+	f.srv.dashboard().RecordBytes(1, "owner", "web", "Chrome", "Chrome", true, 4096)
 	clock = fixedNow.Add(2 * time.Second)
-	f.srv.d.Dashboard.RecordBytes(2, "friend", "tv", "Apple TV", "tvOS", false, 100)
+	f.srv.dashboard().RecordBytes(2, "friend", "tv", "Apple TV", "tvOS", false, 100)
 
 	rec := f.get(t, "/statistics/bandwidth?timespan=6")
 	body := rec.Body.String()
@@ -118,7 +118,7 @@ func TestStatisticsBandwidthShapeAndFilters(t *testing.T) {
 		t.Fatalf("unknown sort: %d", rec.Code)
 	}
 
-	firstAt := f.srv.d.Dashboard.Bandwidth(stats.Query{Timespans: []int{hoststat.SpanSec}}).Rows[0].At
+	firstAt := f.srv.dashboard().Bandwidth(stats.Query{Timespans: []int{hoststat.SpanSec}}).Rows[0].At
 	rec = f.get(t, "/statistics/bandwidth?timespan=6&"+url.QueryEscape("at>=")+"="+strconv.FormatInt(firstAt, 10))
 	if strings.Count(rec.Body.String(), "<StatisticsBandwidth") != 2 {
 		t.Fatalf("ignored at>=: %s", rec.Body.String())
@@ -134,7 +134,7 @@ func TestStatisticsResourcesBuckets(t *testing.T) {
 	defer f.srv.Close()
 	res := hoststat.NewResources(hoststat.Options{Now: func() time.Time { return fixedNow }, Loc: time.UTC})
 	res.Add(hoststat.Sample{At: fixedNow, HostCPU: 12.5, ProcessCPU: 1.5, HostMem: 40, ProcessMem: 2})
-	f.srv.d.Resources = res
+	f.srv.setResources(res)
 	rec := f.get(t, "/statistics/resources?timespan=6")
 	body := rec.Body.String()
 	if rec.Code != http.StatusOK || !strings.Contains(body, `hostCpuUtilization="12.5"`) || !strings.Contains(body, `timespan="6"`) {
@@ -153,9 +153,9 @@ func TestStatisticsResourcesBuckets(t *testing.T) {
 func TestStatisticsMediaAndDevices(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
-	f.srv.d.Dashboard = stats.NewDashboard(stats.DashboardOptions{Now: func() time.Time { return fixedNow }, Loc: time.UTC})
-	f.srv.d.Dashboard.RecordPlay(1, "owner", "web", 1, 3600)
-	f.srv.d.Dashboard.RecordPlay(1, "owner", "web", 1, 1800)
+	f.srv.setDashboard(stats.NewDashboard(stats.DashboardOptions{Now: func() time.Time { return fixedNow }, Loc: time.UTC}))
+	f.srv.dashboard().RecordPlay(1, "owner", "web", 1, 3600)
+	f.srv.dashboard().RecordPlay(1, "owner", "web", 1, 1800)
 	rec := f.get(t, "/statistics/media?timespan=4")
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `metadataType="1"`) || !strings.Contains(rec.Body.String(), `count="2"`) || !strings.Contains(rec.Body.String(), `duration="5400"`) {
 		t.Fatalf("media: %d %s", rec.Code, rec.Body.String())
@@ -220,7 +220,7 @@ func TestStatisticsCountersOnPartAndSegment(t *testing.T) {
 	if rec.Code != http.StatusPartialContent {
 		t.Fatalf("part: %d %s", rec.Code, rec.Body.String())
 	}
-	got := f.srv.d.Dashboard.Bandwidth(stats.Query{Timespans: []int{hoststat.SpanSec}})
+	got := f.srv.dashboard().Bandwidth(stats.Query{Timespans: []int{hoststat.SpanSec}})
 	if got.TotalSize != 1 || got.Rows[0].Bytes != 10 {
 		t.Fatalf("part bytes: %+v", got)
 	}
@@ -231,7 +231,7 @@ func TestStatisticsCountersOnPartAndSegment(t *testing.T) {
 	if rec.Code != http.StatusOK || rec.Body.String() != "segment-0" {
 		t.Fatalf("segment: %d %s", rec.Code, rec.Body.String())
 	}
-	got = f.srv.d.Dashboard.Bandwidth(stats.Query{Timespans: []int{hoststat.SpanSec}})
+	got = f.srv.dashboard().Bandwidth(stats.Query{Timespans: []int{hoststat.SpanSec}})
 	var sum int64
 	for _, row := range got.Rows {
 		sum += row.Bytes

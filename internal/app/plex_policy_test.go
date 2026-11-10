@@ -10,6 +10,8 @@ import (
 	artworkservice "github.com/braedonsaunders/ether/internal/artwork/service"
 	"github.com/braedonsaunders/ether/internal/core"
 	"github.com/braedonsaunders/ether/internal/experience"
+	"github.com/braedonsaunders/ether/internal/frontend"
+	"github.com/braedonsaunders/ether/internal/frontend/frontendtest"
 	"github.com/braedonsaunders/ether/internal/frontends/plex"
 	"github.com/braedonsaunders/ether/internal/safety"
 	"github.com/braedonsaunders/ether/internal/sessions"
@@ -54,9 +56,7 @@ func TestPlexPolicyProductionWiringKeepsOwnerSearch(t *testing.T) {
 	title := core.Title{Key: core.MovieKey(124), Type: core.TypeMovie, Title: "Second Movie", ContentRating: "G"}
 	deps := plex.Deps{
 		SessionStores:     sessions.NewPlexSessionStores(),
-		Experience:        experience.NewPlexExperience(),
 		ArtworkStores:     artworkservice.NewPlexArtworkStores(),
-		Catalog:           policyTestCatalog{titles: []core.Title{hidden, title}},
 		Auth:              policyTestAuth{},
 		DisableEnrichment: true,
 	}
@@ -70,6 +70,12 @@ func TestPlexPolicyProductionWiringKeepsOwnerSearch(t *testing.T) {
 	}
 	srv := plex.NewServer(deps)
 	defer srv.Close()
+	if _, err := (plex.Frontend{Server: srv}).Mount(context.Background(), frontend.Host{
+		Sessions:   &frontendtest.Sessions{},
+		Experience: experience.NewDirectService(experience.ServiceDeps{Catalog: policyTestCatalog{titles: []core.Title{hidden, title}}}),
+	}); err != nil {
+		t.Fatal(err)
+	}
 	for _, tc := range []struct {
 		token         string
 		first, second bool

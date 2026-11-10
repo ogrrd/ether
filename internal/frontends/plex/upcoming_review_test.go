@@ -17,7 +17,7 @@ func TestReviewFutureRevocationAndNoWarm(t *testing.T) {
 	title := core.Title{Key: core.MovieKey(188123), Type: core.TypeMovie, Title: "Future review", Released: fixedNow.Add(48 * time.Hour), PosterPath: "/future.jpg"}
 	f.catalog.titles[title.Key] = title
 	c := &scopedFakeCollections{&fakeCollections{cols: map[core.RatingKey]core.Collection{ck: {Key: ck, Type: core.TypeMovie, Upcoming: true}}, items: map[core.RatingKey][]core.Title{ck: {title}}}}
-	f.srv.d.Collections = c
+	f.srv.setCollections(c)
 	playback := f.srv.d.Playback.(*fakePlayback)
 	warmer := &detailWarmer{Playback: playback}
 	f.srv.d.Playback = warmer

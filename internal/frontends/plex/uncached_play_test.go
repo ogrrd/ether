@@ -290,7 +290,7 @@ func newUncachedEnv(t *testing.T, kind string, cachedOnly, usenet bool) *uncache
 	ix.SetUsenetReady(func() bool { return usenet })
 	rs := resolver.New(ix, nil, nil, cfg, resolver.Options{Logger: quiet})
 	t.Cleanup(func() { rs.Close() })
-	f := newFixture(func(d *Deps) { d.DisableEnrichment = true; d.Hooks = Hooks{} })
+	f := newFixture(func(d *testServerDeps) { d.DisableEnrichment = true; d.Hooks = Hooks{} })
 	tr := &issue94Transcoder{newFakeTranscoder(core.Decision{})}
 	mgr, err := playback.New(playback.Deps{Catalog: f.catalog, Resolver: rs, Engine: issue94Engine{}, Transcoder: tr, SelectProfile: func(c core.ClientCaps, u *core.User, _ string) core.QualityProfile { return rs.ProfileFor(c, u) },
 		FetchNZB: ix.FetchNZB,

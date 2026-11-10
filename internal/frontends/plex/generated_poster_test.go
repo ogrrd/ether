@@ -16,7 +16,7 @@ import (
 // Owner rule: no title anywhere without a poster. A movie TMDB has no
 // poster for gets a thumb URL that serves Ether's generated poster.
 func TestPosterlessTitleServesGeneratedPoster(t *testing.T) {
-	f := newFixture(func(d *Deps) { d.GeneratedPosters = artwork.NewRenderer(nil, "", nil) })
+	f := newFixture(func(d *testServerDeps) { d.GeneratedPosters = artwork.NewRenderer(nil, "", nil) })
 	defer f.srv.Close()
 	bare := core.Title{Key: core.MovieKey(424242), Type: core.TypeMovie, Title: "Quiet Harbour", Year: 1998, Released: time.Date(1998, 5, 1, 0, 0, 0, 0, time.UTC)}
 	f.catalog.titles[bare.Key] = bare

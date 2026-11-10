@@ -41,7 +41,7 @@ func TestSmartPlaylistTVSeriesAndEpisodePredicates(t *testing.T) {
 		}
 	}
 	ps := state.New(db, state.Options{}).Playlists()
-	f := newFixture(func(d *Deps) { d.Catalog = cat; d.Playlists = ps })
+	f := newFixture(func(d *testServerDeps) { d.Catalog = cat; d.Playlists = ps })
 	defer f.srv.Close()
 	create := func(uri string) string {
 		t.Helper()
@@ -113,7 +113,7 @@ func TestSmartPlaylistProjectionBeyondExpansionPage(t *testing.T) {
 		}
 	}
 	ps := state.New(db, state.Options{}).Playlists()
-	f := newFixture(func(d *Deps) { d.Catalog = cat; d.Playlists = ps })
+	f := newFixture(func(d *testServerDeps) { d.Catalog = cat; d.Playlists = ps })
 	defer f.srv.Close()
 	create := func(uri string) string {
 		t.Helper()

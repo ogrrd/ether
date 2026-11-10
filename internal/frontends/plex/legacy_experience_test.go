@@ -23,7 +23,7 @@ func TestPlexOwnerAndRestrictedSearchParity(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.srv.d.AccessPolicy = policy
-	f.srv.d.FilterAvailable = func(context.Context, []core.Title) []core.Title { return nil }
+	f.srv.setFilterAvailable(func(context.Context, []core.Title) []core.Title { return nil })
 	owner := &core.User{ID: 1, IsOwner: true}
 	restricted := &core.User{ID: 2, AllowedLibraries: []core.LibraryID{1}}
 	for _, tc := range []struct {
@@ -49,7 +49,7 @@ func TestPlexOwnerAndRestrictedSearchParity(t *testing.T) {
 func TestPlexRecentOwnerKeepsUnrestrictedCandidates(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
-	f.srv.d.FilterAvailable = func(context.Context, []core.Title) []core.Title { return nil }
+	f.srv.setFilterAvailable(func(context.Context, []core.Title) []core.Title { return nil })
 	sec, ok := f.srv.sectionFor(core.TypeMovie)
 	if !ok {
 		t.Fatal("missing movie section")

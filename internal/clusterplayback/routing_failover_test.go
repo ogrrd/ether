@@ -14,6 +14,7 @@ import (
 	"github.com/braedonsaunders/ether/internal/config"
 	"github.com/braedonsaunders/ether/internal/core"
 	"github.com/braedonsaunders/ether/internal/experience"
+	"github.com/braedonsaunders/ether/internal/frontend"
 	"github.com/braedonsaunders/ether/internal/nodewire"
 	"github.com/braedonsaunders/ether/internal/placement"
 	"github.com/braedonsaunders/ether/internal/playback"
@@ -155,10 +156,13 @@ func TestDeliveryAndControllerLossKeepExecution(t *testing.T) {
 	cfg.Plex.Claimed = true
 	cfg.Server.MachineIdentifier = "offline-machine"
 	cfg.Server.TrustedProxyCIDRs = []string{"10.1.0.0/16"}
-	deps := plex.Deps{SessionStores: sessions.NewPlexSessionStores(), Experience: experience.NewPlexExperience(), ArtworkStores: artworkservice.NewPlexArtworkStores(), Catalog: fixtureCatalog{}, State: composedState{}, Auth: auth, AccessPolicy: policy, Playback: remote, Transcoder: decision, PlexEncoder: broker, DisableEnrichment: true, Config: func() config.Config { return cfg }}
+	exp := experience.NewDirectService(experience.ServiceDeps{Catalog: fixtureCatalog{}, State: composedState{}})
+	deps := plex.Deps{SessionStores: sessions.NewPlexSessionStores(), ArtworkStores: artworkservice.NewPlexArtworkStores(), Auth: auth, AccessPolicy: policy, Playback: remote, Transcoder: decision, PlexEncoder: broker, DisableEnrichment: true, Config: func() config.Config { return cfg }}
 	publicOwner := plex.NewServer(deps)
 	defer publicOwner.Close()
-	publicOwner.UsePlaybackBroker(broker)
+	if _, err = (plex.Frontend{Server: publicOwner}).Mount(ctx, frontend.Host{Sessions: broker, Experience: exp}); err != nil {
+		t.Fatal(err)
+	}
 	if err = owner.BindPlexDelivery(publicOwner); err != nil {
 		t.Fatal(err)
 	}
@@ -184,7 +188,9 @@ func TestDeliveryAndControllerLossKeepExecution(t *testing.T) {
 	deps.PlexEncoder = survivorBroker
 	publicSender := plex.NewServer(deps)
 	defer publicSender.Close()
-	publicSender.UsePlaybackBroker(survivorBroker)
+	if _, err = (plex.Frontend{Server: publicSender}).Mount(ctx, frontend.Host{Sessions: survivorBroker, Experience: exp}); err != nil {
+		t.Fatal(err)
+	}
 	if err = sender.BindPlexDelivery(publicSender); err != nil {
 		t.Fatal(err)
 	}

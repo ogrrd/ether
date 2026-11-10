@@ -40,7 +40,7 @@ func (s *Server) handleHistory(w http.ResponseWriter, r *http.Request) {
 	listHistory := false
 	if q.Has("metadataItemID") {
 		key := frontend.RatingKey(ids["metadataItemID"])
-		if key <= 0 || s.d.Catalog == nil {
+		if key <= 0 || s.catalog() == nil {
 			writeHTTPError(w, http.StatusNotFound)
 			return
 		}
@@ -55,7 +55,7 @@ func (s *Server) handleHistory(w http.ResponseWriter, r *http.Request) {
 			valid = err == nil && pl != nil
 			listHistory = true
 		default:
-			t, err := s.d.Catalog.Get(ctx, key)
+			t, err := s.catalog().Get(ctx, key)
 			valid = err == nil && t != nil && s.visibleTitle(ctx, pr.User, t)
 		}
 		if !valid {
@@ -98,7 +98,7 @@ func (s *Server) handleHistory(w http.ResponseWriter, r *http.Request) {
 	if n, ok := ids["limit"]; ok && n < int64(maxRows) {
 		maxRows = int(max(n, 0))
 	}
-	if listHistory || !wantHistory || maxRows == 0 || s.d.State == nil || pr.User == nil || (!pr.User.IsOwner && q.Has("accountID") && ids["accountID"] != pr.User.PlexID) {
+	if listHistory || !wantHistory || maxRows == 0 || s.state() == nil || pr.User == nil || (!pr.User.IsOwner && q.Has("accountID") && ids["accountID"] != pr.User.PlexID) {
 		s.write(w, r, mc)
 		return
 	}
@@ -120,8 +120,8 @@ func (s *Server) handleHistory(w http.ResponseWriter, r *http.Request) {
 	}
 	// The existing 500-record ceiling bounds all joins and policy checks,
 	// including requests whose section or item filter has few matches.
-	hist, err := s.d.State.History(ctx, pr.User.ID, since, 500)
-	if store, ok := s.d.State.(frontend.HistoryStore); ok {
+	hist, err := s.state().History(ctx, pr.User.ID, since, 500)
+	if store, ok := s.state().(frontend.HistoryStore); ok {
 		userID := accountUser
 		if pr.User.IsOwner && !q.Has("accountID") {
 			userID = 0
@@ -268,7 +268,7 @@ func (s *Server) handleHistoryItem(w http.ResponseWriter, r *http.Request) {
 		writeHTTPError(w, 404)
 		return
 	}
-	store, ok := s.d.State.(frontend.HistoryStore)
+	store, ok := s.state().(frontend.HistoryStore)
 	if !ok || pr.User == nil {
 		writeHTTPError(w, 404)
 		return
@@ -282,7 +282,7 @@ func (s *Server) handleHistoryItem(w http.ResponseWriter, r *http.Request) {
 		writeHTTPError(w, 404)
 		return
 	}
-	t, err := s.d.Catalog.Get(r.Context(), h.Key)
+	t, err := s.catalog().Get(r.Context(), h.Key)
 	if err != nil || t == nil {
 		if !pr.User.IsOwner {
 			writeHTTPError(w, 404)

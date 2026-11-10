@@ -29,7 +29,7 @@ func (s *Server) sharedHome(ctx context.Context, pr *Request, hc frontend.HubCon
 		ctx := homefilter.With(ctx, filter)
 		var hubs []frontend.Hub
 		var err error
-		if s.d.Recommender != nil {
+		if s.recommender() != nil {
 			hubs, err = s.recommendHome(ctx, pr, hc, count)
 		}
 		var discovery []frontend.Hub

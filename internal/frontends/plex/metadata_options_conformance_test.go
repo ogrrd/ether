@@ -14,7 +14,7 @@ import (
 func TestMetadataOptionsValidateBeforeLookup(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
-	f.srv.d.Catalog = nil
+	f.srv.setCatalog(nil)
 	for _, name := range []string{"checkFiles", "skipRefresh", "asyncCheckFiles", "asyncAugmentMetadata", "asyncRefreshLocalMediaAgent", "asyncRefreshAnalysis"} {
 		for _, value := range []string{"", "abc", "2", "true", "-1", "1.5", " 1", "1 "} {
 			path := "/library/metadata/1000000000000550?" + url.Values{name: {value}}.Encode()
@@ -46,7 +46,7 @@ func TestMetadataOptionsPaddedIncludesAndRelatedCount(t *testing.T) {
 	if strings.Contains(season, "<Children") {
 		t.Fatalf("season inlined children: %s", season)
 	}
-	f.srv.d.Recommender.(*fakeRecommender).related = []core.Hub{{ID: "similar", Title: "More Like This", Type: core.TypeMovie, Items: []core.Title{alien}}}
+	f.srv.recommender().(*fakeRecommender).related = []core.Hub{{ID: "similar", Title: "More Like This", Type: core.TypeMovie, Items: []core.Title{alien}}}
 	base := "/library/metadata/" + fightClub.Key.String() + "?includeRelated=01"
 	body := f.get(t, base).Body.String()
 	if !strings.Contains(body, "<Related>") || !strings.Contains(body, alien.Title) {

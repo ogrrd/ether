@@ -160,9 +160,9 @@ func TestUltraBlurComputedLazilyAndPersisted(t *testing.T) {
 	defer db.Close()
 	f := newFixture()
 	f.srv.Close()
-	d := f.srv.d
+	d := f.srv.currentTestDeps()
 	d.DB = db
-	f.srv = NewServer(testDeps(d))
+	f.srv = newTestServer(d)
 
 	first := f.get(t, "/library/metadata/1000000000000550", jsonAccept...)
 	if strings.Contains(first.Body.String(), "UltraBlurColors") {
@@ -191,7 +191,7 @@ func TestUltraBlurComputedLazilyAndPersisted(t *testing.T) {
 	f.srv.Close()
 
 	// Restart: the colours come from plex_ultrablur on the first render.
-	f.srv = NewServer(testDeps(d))
+	f.srv = newTestServer(d)
 	defer f.srv.Close()
 	rec := f.get(t, "/library/sections/1/all", jsonAccept...)
 	if !strings.Contains(rec.Body.String(), `"topLeft":"`+u.TopLeft+`"`) {
@@ -222,9 +222,9 @@ func TestCloseDoesNotWaitForSlowArtwork(t *testing.T) {
 	f := newFixture()
 	f.srv.Close()
 	cdn := &blockingCDN{started: make(chan struct{}, 1)}
-	d := f.srv.d
+	d := f.srv.currentTestDeps()
 	d.HTTPClient = &http.Client{Transport: cdn}
-	f.srv = NewServer(testDeps(d))
+	f.srv = newTestServer(d)
 	f.get(t, "/library/metadata/1000000000000550")
 	select {
 	case <-cdn.started:
@@ -288,12 +288,12 @@ func TestHubItemsEnrichedFromDetail(t *testing.T) {
 	f := newFixture()
 	f.srv.Close()
 	lc := &listCatalog{fakeCatalog: f.catalog, gets: map[core.RatingKey]int{}}
-	d := f.srv.d
+	d := f.srv.currentTestDeps()
 	d.Catalog = lc
 	summary := fightClub
 	summary.Cast, summary.Directors, summary.Writers, summary.Studios, summary.ContentRating, summary.Tagline = nil, nil, nil, nil, "", ""
 	d.Recommender = &fakeRecommender{home: []core.Hub{{ID: "trending", Title: "Trending", Type: core.TypeMovie, Items: []core.Title{summary}}}}
-	f.srv = NewServer(testDeps(d))
+	f.srv = newTestServer(d)
 	defer f.srv.Close()
 
 	rec := f.get(t, "/hubs")
@@ -319,14 +319,14 @@ func TestEnrichFailureKeepsSummaryAndRetriesLater(t *testing.T) {
 	f := newFixture()
 	f.srv.Close()
 	lc := &listCatalog{fakeCatalog: f.catalog, gets: map[core.RatingKey]int{}, fail: true}
-	d := f.srv.d
+	d := f.srv.currentTestDeps()
 	d.Catalog = lc
 	summary := alien
 	d.Recommender = &fakeRecommender{home: []core.Hub{{ID: "x", Title: "X", Type: core.TypeMovie, Items: []core.Title{summary}}}}
 	now := fixedNow
 	var mu sync.Mutex
 	d.Now = func() time.Time { mu.Lock(); defer mu.Unlock(); return now }
-	f.srv = NewServer(testDeps(d))
+	f.srv = newTestServer(d)
 	defer f.srv.Close()
 	for i := 0; i < 3; i++ {
 		if rec := f.get(t, "/hubs"); rec.Code != http.StatusOK {
@@ -424,7 +424,7 @@ func TestSectionPrefsAndEmptyHubSearch(t *testing.T) {
 func TestRelatedHubsOmitSectionAndPromoted(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
-	f.srv.d.Recommender.(*fakeRecommender).related = []core.Hub{{ID: "similar", Title: "More Like This", Type: core.TypeMovie, Promoted: true, Items: []core.Title{alien}}}
+	f.srv.recommender().(*fakeRecommender).related = []core.Hub{{ID: "similar", Title: "More Like This", Type: core.TypeMovie, Promoted: true, Items: []core.Title{alien}}}
 	body := f.get(t, "/library/metadata/1000000000000550?includeRelated=1").Body.String()
 	i := strings.Index(body, "<Related>")
 	if i < 0 {

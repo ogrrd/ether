@@ -13,12 +13,12 @@ func TestHomeHubsDropRecommenderDuplicates(t *testing.T) {
 	f := newFixture()
 	f.srv.Close()
 	f.state.set(ownerUser.ID, core.WatchStatus{Key: fightClub.Key, ViewOffset: 60_000, LastViewedAt: fixedNow})
-	d := f.srv.d
+	d := f.srv.currentTestDeps()
 	d.Recommender = &fakeRecommender{home: []core.Hub{
 		{ID: "home.continue", Title: "Continue Watching", Context: "hub.home.continue", Promoted: true, Items: []core.Title{fightClub}},
 		{ID: "trending.week.movie", Title: "Trending This Week", Type: core.TypeMovie, Context: "hub.movie.trending", Promoted: true, Items: []core.Title{fightClub}},
 	}}
-	f.srv = NewServer(testDeps(d))
+	f.srv = newTestServer(d)
 	defer f.srv.Close()
 
 	rec := f.get(t, "/hubs", "Accept", "application/json")

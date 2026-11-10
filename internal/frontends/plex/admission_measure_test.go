@@ -47,12 +47,12 @@ func TestAdmissionRequestCost(t *testing.T) {
 	if _, err := db.Exec(`UPDATE catalog_titles SET poster='/cost.jpg' WHERE key=?`, core.MovieKey(1)); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.srv.d.Catalog.(*catalog.Catalog).RefreshStoredTitle(context.Background(), core.MovieKey(1)); err != nil {
+	if _, err := f.srv.catalog().(*catalog.Catalog).RefreshStoredTitle(context.Background(), core.MovieKey(1)); err != nil {
 		t.Fatal(err)
 	}
-	counter := &admissionCounter{Catalog: f.srv.d.Catalog.(*catalog.Catalog)}
-	f.srv.d.Catalog = counter
-	rec := f.srv.d.Recommender.(*fakeRecommender)
+	counter := &admissionCounter{Catalog: f.srv.catalog().(*catalog.Catalog)}
+	f.srv.setCatalog(counter)
+	rec := f.srv.recommender().(*fakeRecommender)
 	rec.home = rec.section[core.TypeMovie]
 	key := core.MovieKey(1).String()
 	for _, target := range []struct{ name, path string }{
@@ -92,10 +92,10 @@ func TestAdmissionUnmirroredCost(t *testing.T) {
 		t.Skip("set ETHER_285_MEASURE=1")
 	}
 	f, db, _ := persistenceFixture(t)
-	c := f.srv.d.Catalog.(*catalog.Catalog)
+	c := f.srv.catalog().(*catalog.Catalog)
 	missing := fightClub
 	missing.Key = core.MovieKey(1662858)
-	rec := f.srv.d.Recommender.(*fakeRecommender)
+	rec := f.srv.recommender().(*fakeRecommender)
 	rec.home = []core.Hub{{ID: "collection.unmirrored", Type: core.TypeMovie, Items: []core.Title{missing}}}
 	tx, err := db.BeginTx(context.Background(), nil)
 	if err != nil {

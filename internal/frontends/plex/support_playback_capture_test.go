@@ -77,7 +77,7 @@ func TestSupportPlaybackCaptureIdentityAndAdmission(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			rec := diagnostics.New(diagnostics.Deps{Now: func() time.Time { return fixedNow }, Secrets: func() []string { return []string{ownerToken, friendToken} }})
-			f := newFixture(func(d *Deps) { d.Support = rec })
+			f := newFixture(func(d *testServerDeps) { d.Support = rec })
 			defer f.srv.Close()
 			f.get(t, "/library/metadata/"+fightClub.Key.String(), "X-Plex-Product", "NowSeen", "X-Plex-Platform", "iOS")
 			capture, err := rec.Start("owner", diagnostics.StartIn{DeviceID: rec.Devices()[0].ID})
@@ -139,7 +139,7 @@ func TestSupportPlaybackCaptureIdentityAndAdmission(t *testing.T) {
 
 func TestSupportPlaybackCaptureBeforeLongResponseCompletes(t *testing.T) {
 	rec := diagnostics.New(diagnostics.Deps{Now: func() time.Time { return fixedNow }})
-	f := newFixture(func(d *Deps) { d.Support = rec })
+	f := newFixture(func(d *testServerDeps) { d.Support = rec })
 	defer f.srv.Close()
 	f.get(t, "/identity")
 	// The selected identity needs an authenticated sighting.

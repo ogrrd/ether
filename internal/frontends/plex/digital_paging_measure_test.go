@@ -82,9 +82,9 @@ func TestDigitalLargeCatalogueLatency(t *testing.T) {
 	}
 	defer a.Close()
 	wrapped := measureCatalog{c, a}
-	f.srv.d.Catalog = wrapped
+	f.srv.setCatalog(wrapped)
 	f.srv.d.DB = db
-	f.srv.d.FilterAvailable = a.FilterDiscovery
+	f.srv.setFilterAvailable(a.FilterDiscovery)
 	keys := make([]core.RatingKey, 200)
 	for i := range keys {
 		keys[i] = core.MovieKey(int64(i + 1))
@@ -93,7 +93,7 @@ func TestDigitalLargeCatalogueLatency(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.srv.d.Recommender = &fakeRecommender{section: map[core.MediaType][]core.Hub{core.TypeMovie: {{ID: "movie.measure", Type: core.TypeMovie, Title: "Measure", Items: titles}}}}
+	f.srv.setRecommender(&fakeRecommender{section: map[core.MediaType][]core.Hub{core.TypeMovie: {{ID: "movie.measure", Type: core.TypeMovie, Title: "Measure", Items: titles}}}})
 	measure := func(name string, run func(int)) {
 		start := time.Now()
 		run(0)

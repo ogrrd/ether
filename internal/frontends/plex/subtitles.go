@@ -212,10 +212,10 @@ func subtitleFormat(v string) string {
 // subtitles request the viewer may see.
 func (s *Server) subtitleTitle(r *http.Request) (*frontend.Title, bool) {
 	keys, err := parseKeys(chi.URLParam(r, "key"))
-	if err != nil || len(keys) != 1 || !isPlayableKey(keys[0]) || s.d.Catalog == nil {
+	if err != nil || len(keys) != 1 || !isPlayableKey(keys[0]) || s.catalog() == nil {
 		return nil, false
 	}
-	t, err := s.d.Catalog.Get(r.Context(), keys[0])
+	t, err := s.catalog().Get(r.Context(), keys[0])
 	if err != nil || t == nil || !s.visibleTitle(r.Context(), FromContext(r.Context()).User, t) {
 		return nil, false
 	}
@@ -719,7 +719,7 @@ func (s *Server) handleTranscodeSubtitles(w http.ResponseWriter, r *http.Request
 		s.writeEmpty(w, r)
 		return
 	}
-	title, err := s.d.Catalog.Get(r.Context(), entry.key)
+	title, err := s.catalog().Get(r.Context(), entry.key)
 	if err != nil || !s.visibleTitle(r.Context(), pr.User, title) {
 		writeHTTPError(w, http.StatusNotFound)
 		return

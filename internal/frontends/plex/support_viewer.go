@@ -17,12 +17,12 @@ func (s *Server) SupportViewer(ctx context.Context, user *frontend.Viewer) (fron
 		}
 		out.Sections = append(out.Sections, frontend.DiagnosticViewerSection{ID: sec.ID, Type: string(sec.Type), Title: sec.Title})
 	}
-	if user == nil || s.d.State == nil || s.d.Catalog == nil {
+	if user == nil || s.state() == nil || s.catalog() == nil {
 		return out, nil
 	}
 	pr := &Request{User: user}
 	ctx = withStoredPolicy(ctx)
-	states, err := s.d.State.InProgress(ctx, user.ID, 201)
+	states, err := s.state().InProgress(ctx, user.ID, 201)
 	if err != nil {
 		return out, err
 	}
@@ -52,7 +52,7 @@ func (s *Server) SupportViewer(ctx context.Context, user *frontend.Viewer) (fron
 		switch {
 		case !ok:
 			c.Reason = "not returned by the catalogue: missing or filtered by catalogue or release rules"
-			if source, yes := s.d.Catalog.(interface {
+			if source, yes := s.catalog().(interface {
 				SupportVisibility(context.Context, frontend.RatingKey) (*frontend.Title, string, error)
 			}); yes {
 				title, reason, err := source.SupportVisibility(ctx, st.Key)
@@ -73,7 +73,7 @@ func (s *Server) SupportViewer(ctx context.Context, user *frontend.Viewer) (fron
 		case !s.visibleTitle(ctx, user, &ti):
 			c.Title = ti.Title
 			c.Reason = "not available to this viewer"
-		case s.d.Discovery != nil && s.d.Discovery.Personal != nil && !s.d.Discovery.Personal.ContinueAllowed(ctx, user.ID, &ti):
+		case s.discovery() != nil && s.discovery().Personal != nil && !s.discovery().Personal.ContinueAllowed(ctx, user.ID, &ti):
 			c.Title = ti.Title
 			c.Reason = "Continue Watching dismissal applies or its lookup failed"
 		case s.sameDayUnavailable(ctx, pr, &ti):
@@ -93,7 +93,7 @@ func (s *Server) SupportViewer(ctx context.Context, user *frontend.Viewer) (fron
 	}
 	// Completed history can yield a next episode even when no resume point
 	// remains. Check current state because history can outlive an unscrobble.
-	history, err := s.d.State.History(ctx, user.ID, time.Time{}, 100)
+	history, err := s.state().History(ctx, user.ID, time.Time{}, 100)
 	if err != nil {
 		return out, err
 	}
@@ -107,7 +107,7 @@ func (s *Server) SupportViewer(ctx context.Context, user *frontend.Viewer) (fron
 			}
 		}
 	}
-	completedStates, err := s.d.State.GetMany(ctx, user.ID, completed)
+	completedStates, err := s.state().GetMany(ctx, user.ID, completed)
 	if err != nil {
 		return out, err
 	}

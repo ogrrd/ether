@@ -1252,7 +1252,7 @@ func AssemblePostPlay[P any](ctx context.Context, selection PostPlaySelection, v
 
 // ---------------------------------------------------------------------------
 // Experience host contracts. Selector implementations live in
-// internal/experience; adapters build them through PlexExperience
+// internal/experience; adapters build them through Host.Experience
 // constructors from the option value types below and call the selector
 // interfaces. Generic home/postplay assembly orchestrates only these
 // contracts, so it lives here like the generic session tables.
@@ -1282,16 +1282,31 @@ type DetailRelatedOptions struct {
 	Get        func(context.Context, core.RatingKey) (*core.Title, error)
 }
 
-// PlexTimeline persists one Plex timeline report through the host writer.
-type PlexTimeline interface {
-	Store(ctx context.Context, user int64, key core.RatingKey, offset, duration time.Duration, status, queue string, offline *int) (context.Context, *TimelinePersistenceResult, error)
-}
-
-// PlexTimelineOptions configures a PlexTimeline.
-type PlexTimelineOptions struct {
-	Writer          PlexTimelineWriter
-	Now             func() time.Time
-	RestoreContinue func(context.Context, int64, core.RatingKey) error
+// StoreTimeline persists one timeline report through the host writer and
+// restores continuation only when persistence changed.
+func StoreTimeline(ctx context.Context, writer PlexTimelineWriter, now func() time.Time, restoreContinue func(context.Context, int64, core.RatingKey) error, user int64, key core.RatingKey, offset, duration time.Duration, status, queue string, offline *int) (context.Context, *TimelinePersistenceResult, error) {
+	result, err := writer.PlexTimeline(ctx, user, key, offset, duration, status, queue, offline)
+	if err != nil {
+		return ctx, nil, err
+	}
+	if result.Changed && (result.PlaybackState == "complete" || result.ViewOffset > time.Minute) {
+		if parents, ok := writer.(interface {
+			PlexTouchParents(context.Context, int64, core.RatingKey, time.Time, bool) error
+		}); ok {
+			_ = parents.PlexTouchParents(ctx, user, key, now(), result.Completed)
+		}
+	}
+	if result.Changed {
+		if restore, ok := writer.(interface {
+			RestoreContinue(context.Context, int64, core.RatingKey) error
+		}); ok {
+			_ = restore.RestoreContinue(ctx, user, key)
+		}
+		if restoreContinue != nil {
+			_ = restoreContinue(ctx, user, key)
+		}
+	}
+	return WithTimelineStored(ctx), &result, nil
 }
 
 // EpisodeOrderGrouped is the grouped-episode-order capability selectors use.
@@ -1464,13 +1479,12 @@ type Search interface {
 	Keyword(ctx context.Context, viewer *core.User, query string, types []core.MediaType, limit int) ([]core.Title, error)
 }
 
-// PlexExperience constructs the experience selectors Plex uses and
-// provides its package-level operations. Implemented in
-// internal/experience, wired by the app (and spike).
-type PlexExperience interface {
+// ExperienceServices exposes experience selectors, domain sources, and
+// package-level operations on Host.Experience. Implemented in
+// internal/experience (*Service) and wired on Host.Experience.
+type ExperienceServices interface {
 	NewRecent(RecentOptions) Recent
 	NewDetailRelated(DetailRelatedOptions) DetailRelated
-	NewPlexTimeline(PlexTimelineOptions) PlexTimeline
 	NewEpisodeBatch(EpisodeBatchOptions) EpisodeBatch
 	NewContinueDeck(ContinueDeckOptions) ContinueDeck
 	NewContinue(ContinueOptions) Continue
@@ -1489,11 +1503,30 @@ type PlexExperience interface {
 	DiscoverySearch(source *DiscoveryFeatures) func(context.Context, *core.User, string, int) ([]core.Title, bool)
 	FamiliarFrom(st any) func(context.Context, *core.User, []core.RatingKey) map[core.RatingKey]int
 	ContinueFilter(state core.State, personal func(context.Context, *core.User, []core.Title) []core.Title) func(context.Context, *core.User, []core.Title) []core.Title
-	SameDayUnavailable(ctx context.Context, title *core.Title, now time.Time, filter func(context.Context, []core.Title) []core.Title, source core.AvailabilitySource) bool
+	SameDayUnavailable(ctx context.Context, title *core.Title, now time.Time, filter func(context.Context, []core.Title) []core.Title, source AvailabilitySource) bool
 	SeasonNextEpisode(eps []core.Title, st map[core.RatingKey]core.WatchStatus, now time.Time, unavailable func(*core.Title) bool) *core.Title
 	ShowOnDeck(eps []core.Title, st map[core.RatingKey]core.WatchStatus, unavailable func(*core.Title) bool) *core.Title
 	RequestDatabaseObservation(ctx context.Context) (int64, time.Duration)
 	PlaybackMarkerRanges(ctx context.Context, source MarkerRanges, key core.RatingKey, info core.MediaInfo) ([]MarkerRange, error)
+
+	CatalogSource() core.Catalog
+	CollectionsSource() core.Collections
+	StateSource() core.State
+	PlaylistsSource() core.Playlists
+	RecommenderSource() core.Recommender
+	VibeSearchSource() VibeSearcher
+	SearchSources() SearchSources
+	FavoriteShowsFunc() func(context.Context, *core.User) (map[core.RatingKey]bool, error)
+	FilterAvailableFunc() func(context.Context, []core.Title) []core.Title
+	JudgedOnFactsFunc() func(context.Context) func(core.Title) bool
+	PrioritizeAvailableFunc() func(context.Context, []core.Title) []core.Title
+	EpisodeOrderSource() EpisodeOrder
+	DiscoveryFeatures() *DiscoveryFeatures
+	DashboardSource() Dashboard
+	ResourcesSource() ResourceStatistics
+	LibraryTitles() (movies, shows string)
+	HomeRevision(ctx context.Context, viewer *core.User) (HomeRevision, bool, error)
+	NoProviderWait(ctx context.Context) context.Context
 }
 
 // AssembleHome places the continue row at its ranked position and deduplicates

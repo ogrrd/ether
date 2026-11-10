@@ -1190,7 +1190,7 @@ type fixture struct {
 	broker   *sessions.Broker
 }
 
-func newFixture(opts ...func(*Deps)) *fixture {
+func newFixture(opts ...func(*testServerDeps)) *fixture {
 	cat := &fakeCatalog{
 		titles: map[core.RatingKey]core.Title{},
 		children: map[core.RatingKey][]core.RatingKey{
@@ -1225,37 +1225,39 @@ func newFixture(opts ...func(*Deps)) *fixture {
 			core.TypeMovie: {{ID: "movie.toprated", Title: "Top Rated", Type: core.TypeMovie, Context: "hub.movie.toprated", Items: []core.Title{fightClub}}},
 		},
 	}
-	d := Deps{
+	d := testServerDeps{
 		Catalog:          cat,
 		Collections:      f.cols,
 		Recommender:      rec,
 		State:            f.state,
 		Playlists:        f.pls,
-		Auth:             &fakeAuth{users: map[string]core.User{ownerToken: ownerUser, friendToken: friendUser}},
-		Playback:         f.playback,
-		Transcoder:       f.trans,
-		ApplyClientRules: resolver.ApplyClientRulesForMedia,
-		HTTPClient:       &http.Client{Transport: f.art},
-		Config: func() config.Config {
-			c := config.Config{}
-			c.Server.Port = 32400
-			c.Server.FriendlyName = "Ether Test"
-			c.Server.MachineIdentifier = "0123456789abcdef0123456789abcdef01234567"
-			c.Plex.Claimed = true
-			c.Plex.OwnerUsername = "owner"
-			c.Transcode.RemoteMaxBitrateKbps = 8000
-			return c
+		Deps: Deps{
+			Auth:             &fakeAuth{users: map[string]core.User{ownerToken: ownerUser, friendToken: friendUser}},
+			Playback:         f.playback,
+			Transcoder:       f.trans,
+			ApplyClientRules: resolver.ApplyClientRulesForMedia,
+			HTTPClient:       &http.Client{Transport: f.art},
+			Config: func() config.Config {
+				c := config.Config{}
+				c.Server.Port = 32400
+				c.Server.FriendlyName = "Ether Test"
+				c.Server.MachineIdentifier = "0123456789abcdef0123456789abcdef01234567"
+				c.Plex.Claimed = true
+				c.Plex.OwnerUsername = "owner"
+				c.Transcode.RemoteMaxBitrateKbps = 8000
+				return c
+			},
+			Identity: Identity{Version: "1.43.4.10903-e5521bd8c", Platform: "Linux", PlatformVersion: "6.1"},
+			Hooks: Hooks{OnTimeline: func(u *core.User, k core.RatingKey, off, dur time.Duration, state string) {
+				f.hooks <- fmt.Sprintf("%s %s %d %s", u.Username, k, off.Milliseconds(), state)
+			}},
+			Now: func() time.Time { return fixedNow },
 		},
-		Identity: Identity{Version: "1.43.4.10903-e5521bd8c", Platform: "Linux", PlatformVersion: "6.1"},
-		Hooks: Hooks{OnTimeline: func(u *core.User, k core.RatingKey, off, dur time.Duration, state string) {
-			f.hooks <- fmt.Sprintf("%s %s %d %s", u.Username, k, off.Milliseconds(), state)
-		}},
-		Now: func() time.Time { return fixedNow },
 	}
 	for _, o := range opts {
 		o(&d)
 	}
-	f.srv = NewServer(testDeps(d))
+	f.srv = newTestServer(d)
 	f.attachPlaybackBroker(d)
 	return f
 }
@@ -1428,13 +1430,13 @@ func (fixtureTrickplayLease) Release(bool) {}
 type fixtureProgress struct{ f *fixture }
 
 func (p fixtureProgress) Progress(ctx context.Context, viewer int64, key core.RatingKey, position, duration time.Duration, state string) error {
-	if p.f.srv != nil && p.f.srv.d.State != nil {
-		return p.f.srv.d.State.Progress(ctx, viewer, key, position, duration, state)
+	if p.f.srv != nil && p.f.srv.state() != nil {
+		return p.f.srv.state().Progress(ctx, viewer, key, position, duration, state)
 	}
 	return p.f.state.Progress(ctx, viewer, key, position, duration, state)
 }
 
-func (f *fixture) attachPlaybackBroker(d Deps) {
+func (f *fixture) attachPlaybackBroker(d testServerDeps) {
 	active := func(_ context.Context, id int64) (*core.Viewer, error) {
 		if id <= 0 {
 			return nil, core.ErrUnauthorized
@@ -1445,8 +1447,8 @@ func (f *fixture) attachPlaybackBroker(d Deps) {
 	broker, err := sessions.NewBroker(sessions.BrokerDeps{
 		DB: d.DB, Cluster: d.Cluster,
 		Lookup: func(ctx context.Context, _ *core.Viewer, _ core.Device, key core.RatingKey) (*core.Title, error) {
-			if f.srv != nil && f.srv.d.Catalog != nil {
-				return f.srv.d.Catalog.Get(ctx, key)
+			if f.srv != nil && f.srv.catalog() != nil {
+				return f.srv.catalog().Get(ctx, key)
 			}
 			if d.Catalog != nil {
 				return d.Catalog.Get(ctx, key)
@@ -1498,7 +1500,7 @@ func mountTestBroker(s *Server, now func() time.Time) {
 		return &core.Viewer{ID: id}, nil
 	}
 	events := sessions.NewEventBus(nil, active)
-	progress, _ := s.d.State.(sessions.ProgressWriter)
+	progress, _ := s.state().(sessions.ProgressWriter)
 	if progress == nil {
 		progress = discardProgress{}
 	}
@@ -1507,10 +1509,10 @@ func mountTestBroker(s *Server, now func() time.Time) {
 	}
 	broker, err := sessions.NewBroker(sessions.BrokerDeps{
 		Lookup: func(ctx context.Context, _ *core.Viewer, _ core.Device, key core.RatingKey) (*core.Title, error) {
-			if s.d.Catalog == nil {
+			if s.catalog() == nil {
 				return nil, core.ErrNotFound
 			}
-			return s.d.Catalog.Get(ctx, key)
+			return s.catalog().Get(ctx, key)
 		},
 		Playback: s.d.Playback, Transcoder: s.d.Transcoder, Progress: progress, ActiveViewer: active,
 		CanPlay: func(*core.Viewer, bool, time.Time) bool { return true }, BitrateLimit: func(*core.Viewer) int { return 0 },

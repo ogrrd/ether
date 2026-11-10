@@ -56,7 +56,7 @@ func TestDeepShelfPagingAndRecentlyWatchedAgreement(t *testing.T) {
 	if _, err := db.Exec(`UPDATE state_watch SET view_offset_ns=0,view_count=1 WHERE user_id=? AND rating_key=?`, ownerUser.ID, int64(ep)); err != nil {
 		t.Fatal(err)
 	}
-	f := newFixture(func(d *Deps) { d.Catalog = c; d.State = st })
+	f := newFixture(func(d *testServerDeps) { d.Catalog = c; d.State = st })
 	defer f.srv.Close()
 	// On Deck is bounded at PMS's OnDeckLimit (40): it pages within the
 	// bounded deck and reports the bounded total.
@@ -136,7 +136,7 @@ func TestPendingResumeFirstPageDoesNotWaitForSQLiteWriter(t *testing.T) {
 	}
 	st := watchstate.New(db, watchstate.Options{PendingSQLite: true, Now: func() time.Time { return fixedNow }})
 	defer st.Close(ctx)
-	f := newFixture(func(d *Deps) { d.Catalog = c; d.State = st })
+	f := newFixture(func(d *testServerDeps) { d.Catalog = c; d.State = st })
 	defer f.srv.Close()
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {

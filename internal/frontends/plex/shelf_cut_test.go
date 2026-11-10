@@ -66,7 +66,7 @@ func shelfGenerationPagingInvariant(t *testing.T, collection, evidence bool) {
 	for _, typ := range []core.MediaType{core.TypeMovie, core.TypeShow} {
 		rec.section[typ] = []core.Hub{{ID: "collection.mixed", Key: key, Title: "Mixed", Items: mixed}}
 	}
-	f.srv.d.Recommender = rec
+	f.srv.setRecommender(rec)
 	headers := map[string]string{"Accept": "application/json"}
 	for k, vs := range conformplex.Clients()["web"].Headers {
 		if k != "X-Plex-Token" {
@@ -131,7 +131,7 @@ func shelfGenerationPagingInvariant(t *testing.T, collection, evidence bool) {
 				// New evidence changes discovery eligibility while the old generation
 				// remains complete; section switching can publish the new answer.
 				if evidence {
-					f.srv.d.FilterAvailable = func(_ context.Context, titles []core.Title) []core.Title {
+					f.srv.setFilterAvailable(func(_ context.Context, titles []core.Title) []core.Title {
 						out := []core.Title{}
 						for _, title := range titles {
 							if title.Key != mixed[0].Key {
@@ -139,7 +139,7 @@ func shelfGenerationPagingInvariant(t *testing.T, collection, evidence bool) {
 							}
 						}
 						return out
-					}
+					})
 				}
 				// Change membership and order, then switch sections and publish new screens.
 				for typ, rows := range rec.section {
@@ -239,11 +239,11 @@ func TestShelfGenerationAcrossNodesAndRestart(t *testing.T) {
 					db.Close()
 				}
 			}()
-			opts := func(counter uint64) func(*Deps) {
-				return func(d *Deps) {
+			opts := func(counter uint64) func(*testServerDeps) {
+				return func(d *testServerDeps) {
 					d.DB = db
 					d.DisableEnrichment = true
-					d.HomeCache = &HomeCacheSource{Revision: func(context.Context, *core.User) (experience.HomeRevision, error) {
+					d.HomeCache = &testHomeCache{Revision: func(context.Context, *core.User) (experience.HomeRevision, error) {
 						return experience.HomeRevision{Viewer: "shared-viewer", Policy: 1}, nil
 					}, Config: func() uint64 { return counter }}
 				}
@@ -272,11 +272,11 @@ func TestShelfGenerationAcrossNodesAndRestart(t *testing.T) {
 				}
 				rec.section[typ] = []core.Hub{{ID: "collection.shared", Key: key, Title: "Mixed", Items: mixed}}
 			}
-			a.srv.d.Recommender = rec
+			a.srv.setRecommender(rec)
 			b := newFixture(opts(99))
-			b.srv.d.Catalog = a.catalog
-			b.srv.d.Collections = a.cols
-			b.srv.d.Recommender = rec
+			b.srv.setCatalog(a.catalog)
+			b.srv.setCollections(a.cols)
+			b.srv.setRecommender(rec)
 			closedA, closedB := false, false
 			defer func() {
 				if !closedA {
@@ -356,9 +356,9 @@ func TestShelfGenerationAcrossNodesAndRestart(t *testing.T) {
 			}
 			restarted := newFixture(opts(123))
 			defer restarted.srv.Close()
-			restarted.srv.d.Catalog = catalog
-			restarted.srv.d.Collections = collections
-			restarted.srv.d.Recommender = rec
+			restarted.srv.setCatalog(catalog)
+			restarted.srv.setCollections(collections)
+			restarted.srv.setRecommender(rec)
 			for i, h := range initial {
 				totals[i] = append(totals[i], page(restarted, h, h.Size+50, 140-h.Size-50)...)
 				expected := []string{}
@@ -412,17 +412,17 @@ func TestShelfGenerationAcrossNodesAndRestart(t *testing.T) {
 func TestShelfGenerationWireParity(t *testing.T) {
 	for _, format := range []string{"application/json", "application/xml"} {
 		t.Run(format, func(t *testing.T) {
-			f := newFixture(func(d *Deps) { d.DisableEnrichment = true })
+			f := newFixture(func(d *testServerDeps) { d.DisableEnrichment = true })
 			defer f.srv.Close()
 			key := core.CollectionKey(8091)
 			f.cols.items[key] = []core.Title{fightClub, alien}
 			c := f.cols.cols[key]
 			c.ChildCount = 2
 			f.cols.cols[key] = c
-			f.srv.d.Recommender = &fakeRecommender{section: map[core.MediaType][]core.Hub{core.TypeMovie: {
+			f.srv.setRecommender(&fakeRecommender{section: map[core.MediaType][]core.Hub{core.TypeMovie: {
 				{ID: "movie.parity", Type: core.TypeMovie, Items: []core.Title{fightClub, alien}},
 				{ID: "collection.parity", Key: key, Type: core.TypeMovie, Items: []core.Title{fightClub, alien}},
-			}}}
+			}}})
 			screen := f.get(t, "/hubs/sections/1", "Accept", "application/json")
 			for _, h := range decodeShelfContainer(t, screen.Body.Bytes()).Hub {
 				if h.HubIdentifier != "movie.parity" && h.HubIdentifier != "collection.parity" {

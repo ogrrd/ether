@@ -24,14 +24,14 @@ func (a FrontendArtwork) cfg() frontend.ArtworkSourceConfig {
 		return frontend.ArtworkSourceConfig{}
 	}
 	s := a.Server
-	stored, _ := s.d.Catalog.(frontend.StoredTitleLookup)
+	stored, _ := s.catalog().(frontend.StoredTitleLookup)
 	return frontend.ArtworkSourceConfig{
 		Catalog:       stored,
-		Collections:   s.d.Collections,
-		Playlists:     s.d.Playlists,
+		Collections:   s.collections(),
+		Playlists:     s.playlists(),
 		Visibility:    s.visibility(),
 		LiveTV:        s.d.LiveTV,
-		Discovery:     s.d.Discovery,
+		Discovery:     s.discovery(),
 		Images:        s.images,
 		ImageURL:      s.d.ImageURL,
 		Palettes:      s.ultra,
@@ -97,13 +97,13 @@ func withStoredPolicy(ctx context.Context) context.Context {
 // Hub lists use the mirrored show for the playable check.
 func (s *Server) artworkTitle(ctx context.Context, key frontend.RatingKey) (*frontend.Title, error) {
 	if ctx != nil && ctx.Value(storedPolicyKey{}) != nil {
-		if cached, ok := s.d.Catalog.(interface {
+		if cached, ok := s.catalog().(interface {
 			CachedGet(context.Context, frontend.RatingKey) (*frontend.Title, error)
 		}); ok {
 			return cached.CachedGet(ctx, key)
 		}
 	}
-	return s.d.Catalog.Get(ctx, key)
+	return s.catalog().Get(ctx, key)
 }
 
 var _ frontend.Artwork = FrontendArtwork{}

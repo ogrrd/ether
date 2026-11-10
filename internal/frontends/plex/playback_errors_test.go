@@ -18,7 +18,7 @@ import (
 // hideFromDiscovery makes the availability-discovery filter drop key, as it
 // does for a recent title recorded unavailable.
 func hideFromDiscovery(f *fixture, key core.RatingKey) {
-	f.srv.d.FilterAvailable = func(_ context.Context, ts []core.Title) []core.Title {
+	f.srv.setFilterAvailable(func(_ context.Context, ts []core.Title) []core.Title {
 		var out []core.Title
 		for _, v := range ts {
 			if v.Key != key {
@@ -26,7 +26,7 @@ func hideFromDiscovery(f *fixture, key core.RatingKey) {
 			}
 		}
 		return out
-	}
+	})
 }
 
 // Discovery evidence hides a recent title from browse and search, but a
@@ -72,7 +72,7 @@ func TestDiscoveryHiddenTitleStaysPlayable(t *testing.T) {
 
 // Content policy still blocks playback outright.
 func TestPlayAttemptStillEnforcesPolicy(t *testing.T) {
-	f := newFixture(func(d *Deps) { d.AccessPolicy = keywordPolicy{blocked: "blocked"} })
+	f := newFixture(func(d *testServerDeps) { d.AccessPolicy = keywordPolicy{blocked: "blocked"} })
 	defer f.srv.Close()
 	blocked := fightClub
 	blocked.Keywords = []string{"blocked"}

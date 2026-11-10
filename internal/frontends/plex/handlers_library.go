@@ -598,7 +598,7 @@ func (s *Server) parseBrowse(ctx context.Context, sec Section, t frontend.MediaT
 			parsed := s.parseBrowse(ctx, sec, t, u, url.Values{key: []string{*rule.Value}})
 			if parsed.unwatched != nil || parsed.inProgress != nil || parsed.lastViewedAfter > 0 || parsed.lastViewedBefore > 0 {
 				var id int64
-				if u != nil && s.d.State != nil {
+				if u != nil && s.state() != nil {
 					id = u.ID
 				}
 				return &frontend.FilterGroup{Unwatched: parsed.unwatched, InProgress: parsed.inProgress, LastViewedAfter: parsed.lastViewedAfter, LastViewedBefore: parsed.lastViewedBefore, UserID: id}
@@ -963,7 +963,7 @@ func (s *Server) parseBrowse(ctx context.Context, sec Section, t frontend.MediaT
 	}); ok && u != nil {
 		// The plex.tv share predicate goes into the SQL, so pages fill
 		// and totals count only what this viewer may see.
-		f, br.none = s.d.Experience.MergeShareFilter(f, share.BrowseShareFilter(u, t))
+		f, br.none = s.exp().MergeShareFilter(f, share.BrowseShareFilter(u, t))
 	}
 	br.q.Filter = f
 	return br
@@ -1104,7 +1104,7 @@ func (s *Server) browse(ctx context.Context, pr *Request, br browseRequest) ([]f
 		if share, ok := s.d.AccessPolicy.(interface {
 			BrowseShareFilter(*frontend.User, frontend.MediaType) frontend.Filter
 		}); ok {
-			policy, _ = s.d.Experience.MergeShareFilter(policy, share.BrowseShareFilter(pr.User, frontend.TypeEpisode))
+			policy, _ = s.exp().MergeShareFilter(policy, share.BrowseShareFilter(pr.User, frontend.TypeEpisode))
 		}
 		br.q.Filter.ChildVisibility = &policy
 	}
@@ -1117,7 +1117,7 @@ func (s *Server) browse(ctx context.Context, pr *Request, br browseRequest) ([]f
 	// Apply watch predicates before catalogue pagination and counting.
 	if br.unwatched != nil || br.inProgress != nil || br.lastViewedAfter > 0 || br.lastViewedBefore > 0 {
 		var id int64
-		if pr.User != nil && s.d.State != nil {
+		if pr.User != nil && s.state() != nil {
 			id = pr.User.ID
 		}
 		state := frontend.FilterGroup{UserID: id, Unwatched: br.unwatched, InProgress: br.inProgress, LastViewedAfter: br.lastViewedAfter, LastViewedBefore: br.lastViewedBefore}
@@ -1132,7 +1132,7 @@ func (s *Server) browse(ctx context.Context, pr *Request, br browseRequest) ([]f
 	if br.sortLastViewed {
 		br.q.SortLastViewed = true
 		br.q.Desc = br.lastViewedDesc
-		if pr.User != nil && s.d.State != nil {
+		if pr.User != nil && s.state() != nil {
 			br.q.SortViewerID = pr.User.ID
 		}
 		br.sortLastViewed = false
@@ -1147,7 +1147,7 @@ func (s *Server) browse(ctx context.Context, pr *Request, br browseRequest) ([]f
 		if size == 0 {
 			q.Limit = 1 // learn the total without rendering items
 		}
-		page, err := s.d.Catalog.Browse(ctx, q)
+		page, err := s.catalog().Browse(ctx, q)
 		if err != nil {
 			return nil, 0, offset, err
 		}
@@ -1168,7 +1168,7 @@ func (s *Server) browse(ctx context.Context, pr *Request, br browseRequest) ([]f
 	for scanned < maxScan {
 		q := br.q
 		q.Offset, q.Limit = scanned, chunk
-		page, err := s.d.Catalog.Browse(ctx, q)
+		page, err := s.catalog().Browse(ctx, q)
 		if err != nil {
 			return nil, 0, offset, err
 		}
@@ -1368,7 +1368,7 @@ func (s *Server) sectionList(w http.ResponseWriter, r *http.Request, sec Section
 		return
 	}
 	storedOnly := t == frontend.TypeSeason || t == frontend.TypeEpisode
-	sqlAvailability, _ := s.d.Catalog.(interface{ BrowseAvailabilityInSQL() bool })
+	sqlAvailability, _ := s.catalog().(interface{ BrowseAvailabilityInSQL() bool })
 	mc.Metadata = s.renderTitles(ctx, pr, items, renderOpts{
 		media:             true,
 		inSection:         true,
@@ -1505,7 +1505,7 @@ func (s *Server) inProgressTitles(ctx context.Context, pr *Request, t frontend.M
 // failures.
 func (s *Server) getTitles(ctx context.Context, keys []frontend.RatingKey) []frontend.Title {
 	if ctx != nil && ctx.Value(storedPolicyKey{}) != nil {
-		if cached, ok := s.d.Catalog.(interface {
+		if cached, ok := s.catalog().(interface {
 			CachedGetMany(context.Context, []frontend.RatingKey) (map[frontend.RatingKey]frontend.Title, error)
 		}); ok {
 			got, err := cached.CachedGetMany(ctx, keys)
@@ -1526,7 +1526,7 @@ func (s *Server) getTitles(ctx context.Context, keys []frontend.RatingKey) []fro
 			return out
 		}
 	}
-	if pre, ok := s.d.Catalog.(interface {
+	if pre, ok := s.catalog().(interface {
 		PreloadStored(context.Context, []frontend.RatingKey)
 	}); ok && len(keys) > 4 {
 		// Read the stored titles in batches first, cached exactly as Get
@@ -1544,7 +1544,7 @@ func (s *Server) getTitles(ctx context.Context, keys []frontend.RatingKey) []fro
 		go func() {
 			defer wg.Done()
 			defer func() { <-sem }()
-			if t, err := s.d.Catalog.Get(ctx, k); err == nil && t != nil {
+			if t, err := s.catalog().Get(ctx, k); err == nil && t != nil {
 				res[i] = t
 			}
 		}()
@@ -1584,16 +1584,16 @@ func (s *Server) handleOnDeck(w http.ResponseWriter, r *http.Request) {
 	pr := FromContext(ctx)
 	pendingVisible := false
 	if pr.Start == 0 && pr.User != nil {
-		if pending, ok := s.d.State.(interface{ HasPendingWatch(int64) bool }); ok {
+		if pending, ok := s.state().(interface{ HasPendingWatch(int64) bool }); ok {
 			pendingVisible = pending.HasPendingWatch(pr.User.ID)
 		}
 	}
 	customOrder := false
-	if s.d.EpisodeOrder != nil {
-		custom, err := s.d.EpisodeOrder.Customized(ctx, pr.User)
+	if s.episodeOrder() != nil {
+		custom, err := s.episodeOrder().Customized(ctx, pr.User)
 		customOrder = custom || err != nil
 	}
-	if paged, ok := s.d.Catalog.(interface {
+	if paged, ok := s.catalog().(interface {
 		PlexOnDeckPageSince(context.Context, int64, int, int, frontend.Filter, bool, time.Time) (frontend.WatchPage, error)
 	}); ok && pr.User != nil && !pendingVisible && !customOrder {
 		_, size := pr.pageOf(0)
@@ -1738,10 +1738,10 @@ func (s *Server) sectionRecentlyViewed(w http.ResponseWriter, r *http.Request, s
 	pr := FromContext(ctx)
 	mc := s.sectionContainer(sec)
 	mc.Title2 = "Recently Viewed"
-	if s.d.State != nil && pr.User != nil {
-		recent := s.d.Experience.NewRecent(frontend.RecentOptions{Visibility: s.visibility(), Unrestricted: func(u *frontend.User) bool { return !s.viewerRestricted(u) }})
-		history := s.d.State.History
-		if settings, ok := s.d.State.(interface {
+	if s.state() != nil && pr.User != nil {
+		recent := s.exp().NewRecent(frontend.RecentOptions{Visibility: s.visibility(), Unrestricted: func(u *frontend.User) bool { return !s.viewerRestricted(u) }})
+		history := s.state().History
+		if settings, ok := s.state().(interface {
 			RecentlyViewedSettings(context.Context, int64, time.Time, int) ([]frontend.HistoryEntry, error)
 		}); ok {
 			history = settings.RecentlyViewedSettings
@@ -1790,7 +1790,7 @@ func (s *Server) handleRecentlyAdded(w http.ResponseWriter, r *http.Request) {
 	// release or air date is missing or still in the future.
 	wantType := typeFromParam(rq.Get("type"))
 	wantSection, _ := strconv.Atoi(rq.Get("sectionID"))
-	if paged, ok := s.d.Catalog.(interface {
+	if paged, ok := s.catalog().(interface {
 		PlexRecentPage(context.Context, frontend.BrowseQuery, []frontend.MediaType) (frontend.Page, error)
 	}); ok && r.URL.Path == "/library/recentlyAdded" {
 		var kinds []frontend.MediaType

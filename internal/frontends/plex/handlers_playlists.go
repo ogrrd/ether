@@ -97,7 +97,7 @@ func (s *Server) expandKey(ctx context.Context, pr *Request, k frontend.RatingKe
 			return capKeys(out), nil
 		}
 	}
-	selection := s.d.Experience.NewPlaylistSelection(frontend.PlaylistSelectionOptions{Playlists: s.d.Playlists, Collections: s.d.Collections, Visibility: s.visibility(), Children: func(ctx context.Context, key frontend.RatingKey) ([]frontend.Title, error) {
+	selection := s.exp().NewPlaylistSelection(frontend.PlaylistSelectionOptions{Playlists: s.playlists(), Collections: s.collections(), Visibility: s.visibility(), Children: func(ctx context.Context, key frontend.RatingKey) ([]frontend.Title, error) {
 		return s.metadataChildren(ctx, pr, key)
 	}, Grandchildren: func(ctx context.Context, key frontend.RatingKey) ([]frontend.Title, error) {
 		return s.metadataGrandchildren(ctx, pr, key)
@@ -168,7 +168,7 @@ func (s *Server) smartPlaylistRequest(ctx context.Context, pr *Request, uri stri
 		show := br.q.Filter
 		if br.unwatched != nil || br.inProgress != nil || br.lastViewedAfter > 0 || br.lastViewedBefore > 0 {
 			var uid int64
-			if pr.User != nil && s.d.State != nil {
+			if pr.User != nil && s.state() != nil {
 				uid = pr.User.ID
 			}
 			state := frontend.FilterGroup{UserID: uid, Unwatched: br.unwatched, InProgress: br.inProgress, LastViewedAfter: br.lastViewedAfter, LastViewedBefore: br.lastViewedBefore}
@@ -295,7 +295,7 @@ func (s *Server) resolveURI(ctx context.Context, pr *Request, uri string) ([]fro
 		q, _ := url.ParseQuery(rawQuery)
 		br := s.parseBrowse(ctx, sec, sec.Type, pr.User, q, rawQuery)
 		br.q.Offset, br.q.Limit = 0, maxExpand
-		page, err := s.d.Catalog.Browse(ctx, br.q)
+		page, err := s.catalog().Browse(ctx, br.q)
 		if err != nil {
 			return nil, err
 		}
@@ -325,7 +325,7 @@ func capKeys(ks []frontend.RatingKey) []frontend.RatingKey {
 // Playlists
 
 func (s *Server) playlist(ctx context.Context, u *frontend.User, k frontend.RatingKey) (*frontend.Playlist, error) {
-	return (s.d.Experience.NewPlaylistSelection(frontend.PlaylistSelectionOptions{Playlists: s.d.Playlists})).Get(ctx, u, k)
+	return (s.exp().NewPlaylistSelection(frontend.PlaylistSelectionOptions{Playlists: s.playlists()})).Get(ctx, u, k)
 }
 
 func (s *Server) playlistMetadata(ctx context.Context, pl *frontend.Playlist, omitState ...bool) model.Metadata {
@@ -405,7 +405,7 @@ func (s *Server) handlePlaylists(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) requirePlaylists(w http.ResponseWriter, r *http.Request) bool {
-	if s.d.Playlists == nil || FromContext(r.Context()).User == nil {
+	if s.playlists() == nil || FromContext(r.Context()).User == nil {
 		writeHTTPError(w, http.StatusNotFound)
 		return false
 	}
@@ -437,7 +437,7 @@ func (s *Server) handlePlaylistCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	if q.Get("smart") == "1" {
 		uri, err := s.smartSectionURI(pr.User, q.Get("uri"))
-		store, ok := s.d.Playlists.(frontend.SmartPlaylists)
+		store, ok := s.playlists().(frontend.SmartPlaylists)
 		if err != nil || !ok {
 			writeHTTPError(w, http.StatusBadRequest)
 			return
@@ -475,7 +475,7 @@ func (s *Server) handlePlaylistCreate(w http.ResponseWriter, r *http.Request) {
 	if mismatch {
 		keys = nil
 	}
-	pl, err := s.d.Playlists.Create(ctx, pr.User.ID, title, keys)
+	pl, err := s.playlists().Create(ctx, pr.User.ID, title, keys)
 	if err != nil {
 		s.writeErr(w, r, err)
 		return
@@ -543,7 +543,7 @@ func (s *Server) handlePlaylistEdit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if edit.Title != nil || edit.Summary != nil {
-		store, ok := s.d.Playlists.(frontend.PlaylistEditor)
+		store, ok := s.playlists().(frontend.PlaylistEditor)
 		if !ok {
 			writeHTTPError(w, http.StatusBadRequest)
 			return
@@ -563,7 +563,7 @@ func (s *Server) handlePlaylistDelete(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if err := s.d.Playlists.Delete(r.Context(), FromContext(r.Context()).User.ID, pl.Key); err != nil {
+	if err := s.playlists().Delete(r.Context(), FromContext(r.Context()).User.ID, pl.Key); err != nil {
 		s.writeErr(w, r, err)
 		return
 	}
@@ -597,7 +597,7 @@ func (s *Server) handlePlaylistItems(w http.ResponseWriter, r *http.Request) {
 		}
 		mc := &model.MediaContainer{RatingKey: pl.Key.String(), Title1: pl.Title, PlaylistType: "video", Smart: model.Ptr(true), LeafCount: model.Ptr(total)}
 		storedOnly := len(titles) > 0 && titles[0].Type == frontend.TypeEpisode
-		sqlAvailability, _ := s.d.Catalog.(interface{ BrowseAvailabilityInSQL() bool })
+		sqlAvailability, _ := s.catalog().(interface{ BrowseAvailabilityInSQL() bool })
 		mc.Metadata = s.renderTitles(ctx, pr, titles, renderOpts{media: true, storedOnly: storedOnly, availabilityInSQL: sqlAvailability != nil && sqlAvailability.BrowseAvailabilityInSQL()})
 		if total > 0 {
 			mc.Composite = "/playlists/" + pl.Key.String() + "/composite/" + strconv.FormatInt(unixOrZero(pl.UpdatedAt), 10)
@@ -651,7 +651,7 @@ func (s *Server) handlePlaylistAdd(w http.ResponseWriter, r *http.Request) {
 	}
 	if pl.SmartURI != "" {
 		uri, err := s.smartSectionURI(FromContext(r.Context()).User, r.URL.Query().Get("uri"))
-		store, ok := s.d.Playlists.(frontend.PlaylistEditor)
+		store, ok := s.playlists().(frontend.PlaylistEditor)
 		if err != nil || !ok {
 			writeHTTPError(w, http.StatusBadRequest)
 			return
@@ -671,7 +671,7 @@ func (s *Server) handlePlaylistAdd(w http.ResponseWriter, r *http.Request) {
 	if strings.HasPrefix(uri, "server://"+s.identity().MachineIdentifier+"/") || strings.HasPrefix(uri, "library://") {
 		keys, _ = s.resolveURI(ctx, pr, uri)
 	}
-	if store, ok := s.d.Playlists.(frontend.PlaylistMutator); ok {
+	if store, ok := s.playlists().(frontend.PlaylistMutator); ok {
 		updated, added, err := store.MutatePlaylist(ctx, pr.User.ID, pl.Key, frontend.PlaylistMutation{Operation: "add", Items: keys})
 		if err != nil {
 			s.writeErr(w, r, err)
@@ -693,7 +693,7 @@ func (s *Server) handlePlaylistAdd(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	keys = additions
-	if err := s.d.Playlists.Add(ctx, pr.User.ID, pl.Key, keys); err != nil {
+	if err := s.playlists().Add(ctx, pr.User.ID, pl.Key, keys); err != nil {
 		s.writeErr(w, r, err)
 		return
 	}
@@ -732,7 +732,7 @@ func (s *Server) handlePlaylistRemove(w http.ResponseWriter, r *http.Request) {
 		writeHTTPError(w, http.StatusBadRequest)
 		return
 	}
-	if store, ok := s.d.Playlists.(frontend.PlaylistMutator); ok {
+	if store, ok := s.playlists().(frontend.PlaylistMutator); ok {
 		item, _ := strconv.ParseInt(chi.URLParam(r, "item"), 10, 64)
 		after, _ := strconv.ParseInt(r.URL.Query().Get("after"), 10, 64)
 		updated, _, err := store.MutatePlaylist(r.Context(), FromContext(r.Context()).User.ID, pl.Key, frontend.PlaylistMutation{Operation: "remove", ItemID: item, AfterID: after})
@@ -750,7 +750,7 @@ func (s *Server) handlePlaylistRemove(w http.ResponseWriter, r *http.Request) {
 		writeHTTPError(w, http.StatusNotFound)
 		return
 	}
-	if err := s.d.Playlists.Remove(ctx, uid, pl.Key, idx); err != nil {
+	if err := s.playlists().Remove(ctx, uid, pl.Key, idx); err != nil {
 		s.writeErr(w, r, err)
 		return
 	}
@@ -766,7 +766,7 @@ func (s *Server) handlePlaylistClear(w http.ResponseWriter, r *http.Request) {
 		writeHTTPError(w, http.StatusBadRequest)
 		return
 	}
-	if store, ok := s.d.Playlists.(frontend.PlaylistMutator); ok {
+	if store, ok := s.playlists().(frontend.PlaylistMutator); ok {
 		item, _ := strconv.ParseInt(chi.URLParam(r, "item"), 10, 64)
 		after, _ := strconv.ParseInt(r.URL.Query().Get("after"), 10, 64)
 		updated, _, err := store.MutatePlaylist(r.Context(), FromContext(r.Context()).User.ID, pl.Key, frontend.PlaylistMutation{Operation: "clear", ItemID: item, AfterID: after})
@@ -780,7 +780,7 @@ func (s *Server) handlePlaylistClear(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	uid := FromContext(ctx).User.ID
 	for i := len(pl.Items) - 1; i >= 0; i-- {
-		if err := s.d.Playlists.Remove(ctx, uid, pl.Key, i); err != nil {
+		if err := s.playlists().Remove(ctx, uid, pl.Key, i); err != nil {
 			s.writeErr(w, r, err)
 			return
 		}
@@ -797,7 +797,7 @@ func (s *Server) handlePlaylistMove(w http.ResponseWriter, r *http.Request) {
 		writeHTTPError(w, http.StatusBadRequest)
 		return
 	}
-	if store, ok := s.d.Playlists.(frontend.PlaylistMutator); ok {
+	if store, ok := s.playlists().(frontend.PlaylistMutator); ok {
 		item, _ := strconv.ParseInt(chi.URLParam(r, "item"), 10, 64)
 		after, _ := strconv.ParseInt(r.URL.Query().Get("after"), 10, 64)
 		updated, _, err := store.MutatePlaylist(r.Context(), FromContext(r.Context()).User.ID, pl.Key, frontend.PlaylistMutation{Operation: "move", ItemID: item, AfterID: after})
@@ -837,7 +837,7 @@ func (s *Server) handlePlaylistMove(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if from != to {
-		if err := s.d.Playlists.Move(ctx, uid, pl.Key, from, to); err != nil {
+		if err := s.playlists().Move(ctx, uid, pl.Key, from, to); err != nil {
 			s.writeErr(w, r, err)
 			return
 		}

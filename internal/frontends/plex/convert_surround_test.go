@@ -9,7 +9,7 @@ import (
 )
 
 func TestConvertSurroundAudioPlexAndroidMobile(t *testing.T) {
-	f := newFixture(func(d *Deps) {
+	f := newFixture(func(d *testServerDeps) {
 		baseConfig := d.Config
 		d.Config = func() config.Config {
 			c := baseConfig()
@@ -63,7 +63,7 @@ func TestConvertSurroundAudioPlexAndroidMobile(t *testing.T) {
 }
 
 func TestConvertSurroundAudioDisabledPreservesSurround(t *testing.T) {
-	f := newFixture(func(d *Deps) {
+	f := newFixture(func(d *testServerDeps) {
 		baseConfig := d.Config
 		d.Config = func() config.Config {
 			c := baseConfig()
@@ -141,7 +141,7 @@ func TestAndroidMDEDecisionSurroundAudio(t *testing.T) {
 			if tc.convert {
 				q.Rules = []config.QualityRule{{Protocol: "plex", Product: "Plex for Android", Profile: "4K", ConvertSurroundAudio: true}}
 			}
-			f := newFixture(func(d *Deps) {
+			f := newFixture(func(d *testServerDeps) {
 				base := d.Config
 				d.Config = func() config.Config {
 					c := base()

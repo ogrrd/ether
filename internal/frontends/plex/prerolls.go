@@ -183,8 +183,8 @@ func (s *Server) prerollKey(ctx context.Context, pr *Request, feature frontend.R
 		return 0, ""
 	}
 	resume := false
-	if !cinema && s.d.State != nil {
-		if st, err := s.d.State.Get(ctx, pr.User.ID, feature); err == nil && st.ViewOffset > 0 {
+	if !cinema && s.state() != nil {
+		if st, err := s.state().Get(ctx, pr.User.ID, feature); err == nil && st.ViewOffset > 0 {
 			resume = true
 		}
 	}

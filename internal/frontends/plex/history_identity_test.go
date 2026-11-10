@@ -22,7 +22,7 @@ func TestHistoryIdentityProjectionAndDelete(t *testing.T) {
 	}
 	defer db.Close()
 	state := watchstate.New(db, watchstate.Options{Now: func() time.Time { return fixedNow }})
-	f.srv.d.State = state
+	f.srv.setState(state)
 	ctx := watchstate.WithHistoryTitle(watchstate.WithOrigin(context.Background(), watchstate.Origin{DeviceID: 9}), &fightClub)
 	if err := state.Scrobble(ctx, ownerUser.ID, fightClub.Key); err != nil {
 		t.Fatal(err)
@@ -82,7 +82,7 @@ func TestHistoryTopRoutesAndLifetime(t *testing.T) {
 	}
 	defer db.Close()
 	state := watchstate.New(db, watchstate.Options{Now: func() time.Time { return fixedNow }})
-	f.srv.d.State = state
+	f.srv.setState(state)
 	ctx := watchstate.WithHistoryTitle(context.Background(), &fightClub)
 	if err := state.Scrobble(ctx, ownerUser.ID, fightClub.Key); err != nil {
 		t.Fatal(err)

@@ -1405,7 +1405,7 @@ func (s *Server) renderTitles(ctx context.Context, pr *Request, ts []frontend.Ti
 		return nil
 	}
 	s.warmTitleDetails(ts, o.storedOnly)
-	if d := s.d.Discovery; d != nil {
+	if d := s.discovery(); d != nil {
 		if d.Ratings != nil {
 			ctx = d.Ratings.WithSettingsSnapshot(ctx)
 		}
@@ -1498,7 +1498,7 @@ type watchedEpisodesOfReader interface {
 }
 
 func (s *Server) applyListLeafCountsOpts(ctx context.Context, pr *Request, items []model.Metadata, ts []frontend.Title, storedOnly bool) {
-	if s.d.State == nil || pr.User == nil || len(items) == 0 {
+	if s.state() == nil || pr.User == nil || len(items) == 0 {
 		return
 	}
 	hasShowOrSeason := false
@@ -1513,7 +1513,7 @@ func (s *Server) applyListLeafCountsOpts(ctx context.Context, pr *Request, items
 	}
 	var watched []frontend.RatingKey
 	var err error
-	if reader, ok := s.d.State.(watchedEpisodesOfReader); ok {
+	if reader, ok := s.state().(watchedEpisodesOfReader); ok {
 		// Only the listed shows' history: a page never reads all of it.
 		seen := map[int64]bool{}
 		var shows []int64
@@ -1524,7 +1524,7 @@ func (s *Server) applyListLeafCountsOpts(ctx context.Context, pr *Request, items
 			}
 		}
 		watched, err = reader.WatchedEpisodesOf(ctx, pr.User.ID, shows)
-	} else if reader, ok := s.d.State.(watchedEpisodesReader); ok {
+	} else if reader, ok := s.state().(watchedEpisodesReader); ok {
 		watched, err = reader.WatchedEpisodes(ctx, pr.User.ID)
 	} else {
 		return
@@ -1583,14 +1583,14 @@ func (s *Server) applyListLeafCountsOpts(ctx context.Context, pr *Request, items
 }
 
 func (s *Server) stateFor(ctx context.Context, pr *Request, ts []frontend.Title) map[frontend.RatingKey]frontend.WatchStatus {
-	if s.d.State == nil || pr.User == nil || len(ts) == 0 {
+	if s.state() == nil || pr.User == nil || len(ts) == 0 {
 		return nil
 	}
 	keys := make([]frontend.RatingKey, len(ts))
 	for i := range ts {
 		keys[i] = ts[i].Key
 	}
-	st, err := s.d.State.GetMany(ctx, pr.User.ID, keys)
+	st, err := s.state().GetMany(ctx, pr.User.ID, keys)
 	if err != nil {
 		s.log.Warn("load watch state", "err", err)
 		return nil
@@ -1623,11 +1623,11 @@ func (s *Server) prefetchListEpisodes(ctx context.Context, pr *Request, ts []fro
 }
 
 func (s *Server) prefetchListEpisodesWith(ctx context.Context, pr *Request, ts []frontend.Title, selectionOnly bool) (showEpisodes, map[frontend.RatingKey]frontend.WatchStatus) {
-	batchOpts := frontend.EpisodeBatchOptions{Catalog: s.d.Catalog, State: s.d.State}
-	if s.d.EpisodeOrder != nil {
-		batchOpts.EpisodeOrder = s.d.EpisodeOrder
+	batchOpts := frontend.EpisodeBatchOptions{Catalog: s.catalog(), State: s.state()}
+	if s.episodeOrder() != nil {
+		batchOpts.EpisodeOrder = s.episodeOrder()
 	}
-	batch := s.d.Experience.NewEpisodeBatch(batchOpts)
+	batch := s.exp().NewEpisodeBatch(batchOpts)
 	found, states := batch.Load(ctx, pr.User, ts, selectionOnly)
 	if found == nil {
 		return nil, states
@@ -1642,7 +1642,7 @@ func (s *Server) prefetchListEpisodesWith(ctx context.Context, pr *Request, ts [
 // applyLeafCountsWith is applyLeafCounts with prefetched watch state for the
 // episodes of the shows memo already holds.
 func (s *Server) applyLeafCountsWith(ctx context.Context, pr *Request, items []model.Metadata, ts []frontend.Title, memo showEpisodes, states map[frontend.RatingKey]frontend.WatchStatus) {
-	if s.d.State == nil || pr.User == nil {
+	if s.state() == nil || pr.User == nil {
 		return
 	}
 	byKey := map[string]int{}

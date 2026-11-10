@@ -50,8 +50,8 @@ func TestCollectionGridPagingInvariant(t *testing.T) {
 	}
 	f.cols.items[key] = append(f.cols.items[key], f.cols.items[key][2])
 	source := &collectionGridSource{Collections: f.cols}
-	f.srv.d.Collections = source
-	f.srv.d.FilterAvailable = func(_ context.Context, in []core.Title) []core.Title {
+	f.srv.setCollections(source)
+	f.srv.setFilterAvailable(func(_ context.Context, in []core.Title) []core.Title {
 		out := make([]core.Title, 0, len(in))
 		for _, v := range in {
 			if v.Key.TMDB() < 40010 || v.Key.TMDB() > 40012 {
@@ -59,7 +59,7 @@ func TestCollectionGridPagingInvariant(t *testing.T) {
 			}
 		}
 		return out
-	}
+	})
 	get := func(prefix string, start, size int) model.MediaContainer {
 		t.Helper()
 		response := f.get(t, fmt.Sprintf("%s?X-Plex-Container-Start=%d&X-Plex-Container-Size=%d", prefix, start, size), jsonAccept...)
@@ -88,7 +88,7 @@ func TestCollectionGridPagingInvariant(t *testing.T) {
 			got = append(got, v.RatingKey)
 		}
 		// Discovery changes cannot rewrite an already published browsing cut.
-		f.srv.d.FilterAvailable = func(context.Context, []core.Title) []core.Title { return nil }
+		f.srv.setFilterAvailable(func(context.Context, []core.Title) []core.Title { return nil })
 	}
 	if !reflect.DeepEqual(got, expected) {
 		t.Fatalf("page union=%v want=%v", got, expected)

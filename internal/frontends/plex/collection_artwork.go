@@ -21,7 +21,7 @@ func (s *Server) serveCollectionArtwork(w http.ResponseWriter, r *http.Request, 
 	if key.Kind() != frontend.KindSmart {
 		return false
 	}
-	art, ok := s.d.Collections.(CollectionArtworker)
+	art, ok := s.collections().(CollectionArtworker)
 	if !ok {
 		return false
 	}

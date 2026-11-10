@@ -17,7 +17,7 @@ func TestInfuseDirectPartUsesMinuteResumeThreshold(t *testing.T) {
 		t.Run(fmt.Sprint(tc.offset), func(t *testing.T) {
 			f := newFixture()
 			defer f.srv.Close()
-			f.srv.d.State = state.New(store.OpenTest(t), state.Options{})
+			f.srv.setState(state.New(store.OpenTest(t), state.Options{}))
 			headers := map[string]string{"Accept": "application/json", "X-Plex-Product": "Infuse", "X-Plex-Platform": "tvOS", "X-Plex-Client-Identifier": "infuse-direct"}
 			partHeaders := make(map[string]string, len(headers)+1)
 			for key, value := range headers {

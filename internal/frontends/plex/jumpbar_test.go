@@ -94,7 +94,7 @@ func TestFirstCharacterJumpbarOffsetsMatchTitleSortEveryLetter(t *testing.T) {
 	add("七人の侍", "ja")
 	add("Солярис", "ru")
 
-	f := newFixture(func(d *Deps) { d.Catalog = c })
+	f := newFixture(func(d *testServerDeps) { d.Catalog = c })
 	defer f.srv.Close()
 	decode := func(t *testing.T, rec *httptest.ResponseRecorder) model.MediaContainer {
 		t.Helper()
@@ -307,7 +307,7 @@ func TestFirstCharacterJumpbarRealDataOrderingAndExcludedKeys(t *testing.T) {
 	add("Été 85", "PG-13", false)
 
 	wrapped := &hiddenKeysCatalog{Catalog: c, hidden: hidden}
-	f := newFixture(func(d *Deps) { d.Catalog = wrapped })
+	f := newFixture(func(d *testServerDeps) { d.Catalog = wrapped })
 	defer f.srv.Close()
 
 	decode := func(t *testing.T, rec *httptest.ResponseRecorder) model.MediaContainer {

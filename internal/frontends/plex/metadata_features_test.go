@@ -34,7 +34,7 @@ func TestAlternateOrderPlexTreeAndCanonicalPlayback(t *testing.T) {
 	}
 	defer db.Close()
 	s := episodeorder.New(db, orderedSource{}, f.catalog)
-	f.srv.d.EpisodeOrder = s
+	f.srv.setEpisodeOrder(s)
 	if e = s.Save(context.Background(), 0, breakingBad.Key, episodeorder.Preference{GroupID: "dvd", Specials: "last"}); e != nil {
 		t.Fatal(e)
 	}
@@ -131,11 +131,11 @@ func recommendedRow(t *testing.T, f *fixture, cat core.Catalog, token string, se
 	if setup != nil {
 		setup(s)
 	}
-	f.srv.d.EpisodeOrder = s
-	f.srv.d.Recommender = &fakeRecommender{section: map[core.MediaType][]core.Hub{core.TypeShow: {{
+	f.srv.setEpisodeOrder(s)
+	f.srv.setRecommender(&fakeRecommender{section: map[core.MediaType][]core.Hub{core.TypeShow: {{
 		ID: "tv.recommended", Title: "Recommended", Type: core.TypeShow, Context: "hub.tv.recommended",
 		Items: []core.Title{breakingBad, unorderedShow, bbE1},
-	}}}}
+	}}}})
 	done := make(chan *httptest.ResponseRecorder, 1)
 	go func() {
 		done <- f.request(t, http.MethodGet, "/hubs/sections/2?count=20", map[string]string{"Accept": "application/json", "X-Plex-Token": token})

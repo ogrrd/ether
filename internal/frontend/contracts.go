@@ -474,6 +474,7 @@ type NotInterestedPage struct {
 // Experience applies viewer policy before returning any data. Browse operations
 // must not resolve or open a release. Policy is applied before pagination and limits.
 type Experience interface {
+	ExperienceServices
 	Views(context.Context, *core.Viewer) ([]View, error)
 	Collections(context.Context, *core.Viewer, core.Device, CollectionQuery) (CollectionPage, error)
 	NotInterested(context.Context, *core.Viewer, core.Device, PageQuery) (NotInterestedPage, error)

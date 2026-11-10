@@ -11,7 +11,7 @@ import (
 func TestStateMutationRefusalOrder(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
-	f.srv.d.State = state.New(store.OpenTest(t), state.Options{})
+	f.srv.setState(state.New(store.OpenTest(t), state.Options{}))
 	k := fightClub.Key.String()
 	cases := []struct {
 		path   string
@@ -41,7 +41,7 @@ func TestMetadataEditCannotBypassRatingAPI(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
 	watch := state.New(store.OpenTest(t), state.Options{})
-	f.srv.d.State = watch
+	f.srv.setState(watch)
 	rec := f.request(t, http.MethodPut, "/library/metadata/"+fightClub.Key.String()+"?userRating=8", nil)
 	if rec.Code != http.StatusMethodNotAllowed && rec.Code != http.StatusNotFound {
 		t.Fatalf("unsupported metadata edit: %d", rec.Code)

@@ -38,7 +38,7 @@ func TestOnDeckUsesRecentWatchedAnchorAndSkipsEpisodeZero(t *testing.T) {
 func TestPostplayWatchStateEligibility(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
-	f.srv.d.Recommender = nil
+	f.srv.setRecommender(nil)
 	path := "/hubs/metadata/" + bbE1.Key.String() + "/postplay"
 	read := func() map[string]any { return decodeJSON(t, f.get(t, path, jsonAccept...)) }
 	if mc := read(); mc["size"] != float64(0) {
@@ -109,10 +109,10 @@ func TestContinueRemovalWithoutPersonalServicePreservesResume(t *testing.T) {
 	defer db.Close()
 	f := newFixture()
 	defer f.srv.Close()
-	f.srv.d.Discovery = nil
+	f.srv.setDiscovery(nil)
 	st := watchstate.New(db, watchstate.Options{Now: func() time.Time { return fixedNow }})
 	defer st.Close(ctx)
-	f.srv.d.State = st
+	f.srv.setState(st)
 	if err := st.Progress(ctx, ownerUser.ID, bbE1.Key, 600000*time.Millisecond, time.Hour, "playing"); err != nil {
 		t.Fatal(err)
 	}
@@ -204,7 +204,7 @@ func TestHomeOnDeckParticipatesInHomeLayout(t *testing.T) {
 	rec := &onDeckLayoutRecommender{
 		hubs: []core.Hub{{ID: "home.trending", Title: "Trending", Promoted: true, Items: []core.Title{alien}}},
 	}
-	f.srv.d.Recommender = rec
+	f.srv.setRecommender(rec)
 
 	idsOf := func() []string {
 		mc := decodeJSON(t, f.get(t, "/hubs", jsonAccept...))

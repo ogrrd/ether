@@ -12,19 +12,19 @@ func (s *Server) scheduledEpisodes(ctx context.Context, pr *Request, season fron
 	if !s.cfg().Catalog.ShowUpcomingEpisodes || season.Kind() != frontend.KindSeason || season.Season() <= 0 {
 		return nil
 	}
-	schedule, ok := s.d.Catalog.(frontend.CatalogSchedule)
+	schedule, ok := s.catalog().(frontend.CatalogSchedule)
 	if !ok {
 		return nil
 	}
 	// Alternate groups have their own numbering; do not attach canonical future
 	// episodes to an unrelated group or offer a detail page outside that tree.
-	if s.d.EpisodeOrder != nil {
-		grouped, err := s.d.EpisodeOrder.Grouped(ctx, pr.User, []frontend.RatingKey{frontend.ShowKey(season.TMDB())})
+	if s.episodeOrder() != nil {
+		grouped, err := s.episodeOrder().Grouped(ctx, pr.User, []frontend.RatingKey{frontend.ShowKey(season.TMDB())})
 		if err != nil || grouped[frontend.ShowKey(season.TMDB())] {
 			return nil
 		}
 	}
-	parent, err := s.d.Catalog.Get(ctx, season)
+	parent, err := s.catalog().Get(ctx, season)
 	if err != nil || !s.visibleTitle(ctx, pr.User, parent) {
 		return nil
 	}

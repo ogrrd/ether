@@ -17,10 +17,10 @@ import (
 // postPlayPicks returns the viewer's ranked hook queue after key, or nil
 // when the feature is off/unavailable (callers fall back to Related).
 func (s *Server) postPlayPicks(ctx context.Context, pr *Request, key frontend.RatingKey, count int) []frontend.PostPlayPick {
-	if s.d.Recommender == nil || pr.User == nil || !s.cfg().Personalize.PostPlay {
+	if s.recommender() == nil || pr.User == nil || !s.cfg().Personalize.PostPlay {
 		return nil
 	}
-	pp, ok := s.d.Recommender.(frontend.PostPlayer)
+	pp, ok := s.recommender().(frontend.PostPlayer)
 	if !ok {
 		return nil
 	}
@@ -36,12 +36,12 @@ func (s *Server) postPlaySelection(ctx context.Context, pr *Request, key fronten
 	opts := frontend.PostPlaySelectionOptions{Visibility: s.visibility(), Unrestricted: unrestricted, Picks: func(ctx context.Context, fetch int) []frontend.PostPlayPick {
 		return s.postPlayPicks(ctx, pr, key, fetch)
 	}}
-	if s.d.Recommender != nil {
+	if s.recommender() != nil {
 		opts.Related = func(ctx context.Context, count int) ([]frontend.Hub, error) {
-			return s.d.Recommender.Related(ctx, pr.User, key, count)
+			return s.recommender().Related(ctx, pr.User, key, count)
 		}
 	}
-	return s.d.Experience.NewPostPlaySelection(opts)
+	return s.exp().NewPostPlaySelection(opts)
 }
 
 // postPlayHub renders ranked picks as one hub in post-play shape. The
@@ -69,13 +69,13 @@ func (s *Server) postPlayHub(ctx context.Context, pr *Request, key frontend.Rati
 // instead — the line living-room apps put directly under the title —
 // rather than appearing twice. Original text is kept intact.
 func (s *Server) decorateDetail(ctx context.Context, pr *Request, t *frontend.Title, md *model.Metadata) {
-	if s.d.Recommender == nil || pr.User == nil || t == nil || md == nil {
+	if s.recommender() == nil || pr.User == nil || t == nil || md == nil {
 		return
 	}
 	if !s.cfg().Personalize.MicroReasons {
 		return
 	}
-	mr, ok := s.d.Recommender.(frontend.MicroReasoner)
+	mr, ok := s.recommender().(frontend.MicroReasoner)
 	if !ok {
 		return
 	}
@@ -100,13 +100,13 @@ func (s *Server) decorateDetail(ctx context.Context, pr *Request, t *frontend.Ti
 // recordDetailIntent feeds a single-item detail open to the live
 // session-intent store (#32). Hub/list renders never call this.
 func (s *Server) recordDetailIntent(ctx context.Context, pr *Request, t *frontend.Title) {
-	if s.d.Recommender == nil || pr.User == nil || t == nil {
+	if s.recommender() == nil || pr.User == nil || t == nil {
 		return
 	}
 	if !s.cfg().Personalize.SessionIntent {
 		return
 	}
-	if it, ok := s.d.Recommender.(frontend.IntentTracker); ok {
+	if it, ok := s.recommender().(frontend.IntentTracker); ok {
 		cp := *t
 		it.RecordDetailOpen(ctx, pr.User, &cp)
 	}

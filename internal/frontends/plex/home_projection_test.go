@@ -14,7 +14,7 @@ func TestPlaylistHomeProjectionPreservesHub(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
 	viewer := &core.User{ID: 1, IsOwner: true}
-	if _, err := f.srv.d.Playlists.Create(context.Background(), viewer.ID, "Test", []core.RatingKey{core.MovieKey(1)}); err != nil {
+	if _, err := f.srv.playlists().Create(context.Background(), viewer.ID, "Test", []core.RatingKey{core.MovieKey(1)}); err != nil {
 		t.Fatal(err)
 	}
 	pr := &Request{User: viewer}

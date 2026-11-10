@@ -16,6 +16,7 @@ import (
 	"github.com/braedonsaunders/ether/internal/config"
 	"github.com/braedonsaunders/ether/internal/core"
 	"github.com/braedonsaunders/ether/internal/experience"
+	"github.com/braedonsaunders/ether/internal/frontend"
 	"github.com/braedonsaunders/ether/internal/nodewire"
 	"github.com/braedonsaunders/ether/internal/placement"
 	"github.com/braedonsaunders/ether/internal/playback"
@@ -210,10 +211,13 @@ func TestRealPlexRuntimeDecisionStartSeekAcrossFrontends(t *testing.T) {
 	cfg.Plex.Claimed = true
 	cfg.Server.MachineIdentifier = "offline-machine"
 	cfg.Server.TrustedProxyCIDRs = []string{"10.1.0.0/16"}
-	deps := plex.Deps{SessionStores: sessions.NewPlexSessionStores(), Experience: experience.NewPlexExperience(), ArtworkStores: artworkservice.NewPlexArtworkStores(), DB: db, Cluster: ownerNode, Catalog: fixtureCatalog{}, State: composedState{}, Auth: auth, AccessPolicy: policy, Playback: remote, Transcoder: decision, PlexEncoder: broker, DisableEnrichment: true, Config: func() config.Config { return cfg }}
+	exp := experience.NewDirectService(experience.ServiceDeps{Catalog: fixtureCatalog{}, State: composedState{}})
+	deps := plex.Deps{SessionStores: sessions.NewPlexSessionStores(), ArtworkStores: artworkservice.NewPlexArtworkStores(), DB: db, Cluster: ownerNode, Auth: auth, AccessPolicy: policy, Playback: remote, Transcoder: decision, PlexEncoder: broker, DisableEnrichment: true, Config: func() config.Config { return cfg }}
 	publicOwner := plex.NewServer(deps)
 	defer publicOwner.Close()
-	publicOwner.UsePlaybackBroker(broker)
+	if _, err = (plex.Frontend{Server: publicOwner}).Mount(ctx, frontend.Host{Sessions: broker, Experience: exp}); err != nil {
+		t.Fatal(err)
+	}
 	if err = owner.BindPlexDelivery(publicOwner); err != nil {
 		t.Fatal(err)
 	}
@@ -236,7 +240,9 @@ func TestRealPlexRuntimeDecisionStartSeekAcrossFrontends(t *testing.T) {
 	deps.Cluster = senderNode
 	publicSender := plex.NewServer(deps)
 	defer publicSender.Close()
-	publicSender.UsePlaybackBroker(senderBroker)
+	if _, err = (plex.Frontend{Server: publicSender}).Mount(ctx, frontend.Host{Sessions: senderBroker, Experience: exp}); err != nil {
+		t.Fatal(err)
+	}
 	if err = sender.BindPlexDelivery(publicSender); err != nil {
 		t.Fatal(err)
 	}
@@ -245,6 +251,9 @@ func TestRealPlexRuntimeDecisionStartSeekAcrossFrontends(t *testing.T) {
 	forwardDeps.Playback, forwardDeps.Transcoder, forwardDeps.PlexEncoder = remote, decision, forwardOnlyEncoder{r: owner}
 	publicForward := plex.NewServer(forwardDeps)
 	defer publicForward.Close()
+	if _, err = (plex.Frontend{Server: publicForward}).Mount(ctx, frontend.Host{Sessions: broker, Experience: exp}); err != nil {
+		t.Fatal(err)
+	}
 	startURI := "/video/:/transcode/universal/start.m3u8?path=%2Flibrary%2Fmetadata%2F" + core.MovieKey(1).String() + "&session=real-composed-plex&directPlay=0&directStream=1"
 	start := httptest.NewRequest("GET", "https://public"+startURI, nil)
 	start.RemoteAddr = "192.168.1.9:1234"

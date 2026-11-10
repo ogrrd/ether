@@ -40,7 +40,7 @@ func (s *Server) observeRequest(r *http.Request, sr *statusRecorder, elapsed tim
 		ev.Duration = elapsed
 		ev.Cancelled = r.Context().Err() != nil
 		ev.Query = frontend.SafeDiagnosticQuery(r.URL.Query())
-		ev.DBQueries, ev.DBTime = s.d.Experience.RequestDatabaseObservation(r.Context())
+		ev.DBQueries, ev.DBTime = s.exp().RequestDatabaseObservation(r.Context())
 		if sr.sampling {
 			ev.Response = summarizePlexResponse(sr.sample, sr.truncated, sr.Header().Get("Content-Encoding"))
 		}

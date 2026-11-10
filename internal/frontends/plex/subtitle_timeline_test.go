@@ -15,7 +15,7 @@ func TestSubtitleTimelineAcrossResume(t *testing.T) {
 	for _, container := range []string{"mpegts", "fmp4", "mkv"} {
 		t.Run(container, func(t *testing.T) {
 			subs := newFakeSubtitles()
-			f := newFixture(func(d *Deps) { d.Subtitles = subs })
+			f := newFixture(func(d *testServerDeps) { d.Subtitles = subs })
 			defer f.srv.Close()
 			f.playback.info = probedInfo
 			const srt = "1\n00:00:13,000 --> 00:00:14,000\nFirst\n\n2\n00:00:18,000 --> 00:00:19,000\nSecond\n\n"

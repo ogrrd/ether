@@ -36,7 +36,7 @@ func (c *scheduledCatalog) Get(ctx context.Context, k core.RatingKey) (*core.Tit
 
 func TestScheduledEpisodeHTTPIsMetadataOnlyAndRevocable(t *testing.T) {
 	enabled := false
-	f := newFixture(func(d *Deps) {
+	f := newFixture(func(d *testServerDeps) {
 		old := d.Config
 		d.Config = func() config.Config { c := old(); c.Catalog.ShowUpcomingEpisodes = enabled; return c }
 	})
@@ -47,7 +47,7 @@ func TestScheduledEpisodeHTTPIsMetadataOnlyAndRevocable(t *testing.T) {
 	future.Title = "Future episode"
 	future.Released = fixedNow.Add(48 * time.Hour)
 	future.StillPath = "/future-still.jpg"
-	f.srv.d.Catalog = &scheduledCatalog{f.catalog, future}
+	f.srv.setCatalog(&scheduledCatalog{f.catalog, future})
 	base := "/library/metadata/" + future.Key.String()
 	children := "/library/metadata/" + bbS1.Key.String() + "/children"
 	if r := f.get(t, base); r.Code != 404 {
@@ -124,7 +124,7 @@ func TestScheduledEpisodeHTTPIsMetadataOnlyAndRevocable(t *testing.T) {
 func TestScheduledEpisodeViewerGuardsAndAlternateOrder(t *testing.T) {
 	for _, restriction := range []string{"section", "rating", "adult", "show policy", "alternate order", "unknown date", "wrong season"} {
 		t.Run(restriction, func(t *testing.T) {
-			f := newFixture(func(d *Deps) {
+			f := newFixture(func(d *testServerDeps) {
 				old := d.Config
 				d.Config = func() config.Config { c := old(); c.Catalog.ShowUpcomingEpisodes = true; return c }
 			})
@@ -158,7 +158,7 @@ func TestScheduledEpisodeViewerGuardsAndAlternateOrder(t *testing.T) {
 				}
 				defer db.Close()
 				svc := episodeorder.New(db, orderedSource{}, f.catalog)
-				f.srv.d.EpisodeOrder = svc
+				f.srv.setEpisodeOrder(svc)
 				if err := svc.Save(context.Background(), 0, breakingBad.Key, episodeorder.Preference{GroupID: "dvd", Specials: "last"}); err != nil {
 					t.Fatal(err)
 				}
@@ -167,7 +167,7 @@ func TestScheduledEpisodeViewerGuardsAndAlternateOrder(t *testing.T) {
 			case "wrong season":
 				future.Key = core.EpisodeKey(bbE2.Key.TMDB(), 2, 3)
 			}
-			f.srv.d.Catalog = &scheduledCatalog{f.catalog, future}
+			f.srv.setCatalog(&scheduledCatalog{f.catalog, future})
 			base := "/library/metadata/" + future.Key.String()
 			for _, path := range []string{base, base + "/thumb", "/photo/:/transcode?url=" + url.QueryEscape(base+"/thumb")} {
 				if r := f.get(t, path, "X-Plex-Token", token); r.Code != 404 {

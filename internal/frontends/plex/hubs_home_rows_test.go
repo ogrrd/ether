@@ -80,12 +80,12 @@ func TestPromotedDropsEmptyRestrictedAndDuplicateHubs(t *testing.T) {
 	blocked := fightClub
 	blocked.Adult = true
 	blocked.Title = "Not shown"
-	f.srv.d.Recommender = &fakeRecommender{home: []core.Hub{
+	f.srv.setRecommender(&fakeRecommender{home: []core.Hub{
 		{ID: "home.movies.recent", Title: "Recent movies", Promoted: true, Items: []core.Title{fightClub}},
 		{ID: "home.movies.recent", Title: "Recent movies again", Promoted: true, Items: []core.Title{alien}},
 		{ID: "home.blocked", Title: "Blocked", Promoted: true, Items: []core.Title{blocked}},
 		{ID: "home.continue", Title: "Continue Watching", Promoted: true},
-	}}
+	}})
 
 	for _, path := range []string{"/hubs", "/hubs/promoted"} {
 		rows := hubRows(t, f.get(t, path, "Accept", "application/json", "X-Plex-Product", "Plex for Android", "X-Plex-Platform", "Android").Body.Bytes())
@@ -140,12 +140,12 @@ func TestHomeRowOrderStableAcrossSessionAndCount(t *testing.T) {
 		title.Popularity = 100
 		f.catalog.titles[title.Key] = title
 	}
-	e, err := personalize.New(personalize.Options{DB: discoveryDB(t), Catalog: f.catalog, State: f.srv.d.State, RefreshEvery: -1, FlushEvery: time.Hour})
+	e, err := personalize.New(personalize.Options{DB: discoveryDB(t), Catalog: f.catalog, State: f.srv.state(), RefreshEvery: -1, FlushEvery: time.Hour})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer e.Close()
-	f.srv.d.Recommender = e
+	f.srv.setRecommender(e)
 	if err := e.Rebuild(context.Background(), &ownerUser); err != nil {
 		t.Fatal(err)
 	}
@@ -167,11 +167,11 @@ func TestHomeRowOrderStableAcrossSessionAndCount(t *testing.T) {
 func TestIOSHomeOmitsColdAndArtlessHero(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
-	f.srv.d.Recommender = &fakeRecommender{home: []core.Hub{
+	f.srv.setRecommender(&fakeRecommender{home: []core.Hub{
 		{ID: "home.trending", Title: "Trending Now", Promoted: true, Items: []core.Title{alien}},
 		{ID: "home.because", Title: "Because You Watched", Promoted: true, Items: []core.Title{fightClub}},
 		{ID: "home.shortontime", Title: "Short on Time", Promoted: true, Items: []core.Title{alien}},
-	}}
+	}})
 
 	for _, path := range []string{"/hubs", "/hubs/promoted"} {
 		rows := paintedHomeHubs(t, f.get(t, path, iosHomeHeaders()...).Body.Bytes())
@@ -196,10 +196,10 @@ func TestIOSHomeKeepsReadyHeroAndTrending(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
 	f.state.set(ownerUser.ID, core.WatchStatus{Key: fightClub.Key, ViewOffset: 60_000, LastViewedAt: fixedNow})
-	f.srv.d.Recommender = &fakeRecommender{home: []core.Hub{
+	f.srv.setRecommender(&fakeRecommender{home: []core.Hub{
 		{ID: "home.trending", Title: "Trending Now", Promoted: true, Items: []core.Title{fightClub}},
 		{ID: "home.because", Title: "Because You Watched", Promoted: true, Items: []core.Title{alien}},
-	}}
+	}})
 
 	for _, path := range []string{"/hubs", "/hubs/promoted"} {
 		rows := paintedHomeHubs(t, f.get(t, path, iosHomeHeaders()...).Body.Bytes())
@@ -247,7 +247,7 @@ func TestBrokenCollectionCannotStallOrEmptyHubs(t *testing.T) {
 	e, err := personalize.New(personalize.Options{
 		DB:            discoveryDB(t),
 		Catalog:       f.catalog,
-		State:         f.srv.d.State,
+		State:         f.srv.state(),
 		Collections:   broken,
 		SourceTimeout: 80 * time.Millisecond,
 		RefreshEvery:  -1,
@@ -257,7 +257,7 @@ func TestBrokenCollectionCannotStallOrEmptyHubs(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer e.Close()
-	f.srv.d.Recommender = e
+	f.srv.setRecommender(e)
 	if err := e.Rebuild(context.Background(), &ownerUser); err != nil {
 		t.Fatal(err)
 	}

@@ -23,7 +23,7 @@ func (c *scopedFakeCollections) AllowsPlaceholders(_ context.Context, u *core.Us
 }
 
 func TestUpcomingPagingAppliesPolicyBeforeCounting(t *testing.T) {
-	f := newFixture(func(d *Deps) { d.AccessPolicy = denyTitlePolicy{} })
+	f := newFixture(func(d *testServerDeps) { d.AccessPolicy = denyTitlePolicy{} })
 	defer f.srv.Close()
 	ck := core.SmartKey(88)
 	items := []core.Title{
@@ -31,7 +31,7 @@ func TestUpcomingPagingAppliesPolicyBeforeCounting(t *testing.T) {
 		{Key: core.MovieKey(202), Type: core.TypeMovie, Title: "Blocked", Released: fixedNow.Add(time.Hour)},
 		{Key: core.MovieKey(203), Type: core.TypeMovie, Title: "Last", Released: fixedNow.Add(time.Hour)},
 	}
-	f.srv.d.Collections = &scopedFakeCollections{&fakeCollections{cols: map[core.RatingKey]core.Collection{ck: {Key: ck, Type: core.TypeMovie, Upcoming: true}}, items: map[core.RatingKey][]core.Title{ck: items}}}
+	f.srv.setCollections(&scopedFakeCollections{&fakeCollections{cols: map[core.RatingKey]core.Collection{ck: {Key: ck, Type: core.TypeMovie, Upcoming: true}}, items: map[core.RatingKey][]core.Title{ck: items}}})
 	r := f.get(t, "/library/collections/"+ck.String()+"/children?X-Plex-Container-Start=1&X-Plex-Container-Size=1")
 	if r.Code != http.StatusOK || !strings.Contains(r.Body.String(), `totalSize="2"`) || !strings.Contains(r.Body.String(), `title="Last"`) || strings.Contains(r.Body.String(), "Blocked") {
 		t.Fatalf("page: %d %s", r.Code, r.Body.String())
@@ -64,7 +64,7 @@ func TestUpcomingCollectionScopedDetailsAndViewerPolicy(t *testing.T) {
 	title := core.Title{Key: core.MovieKey(123456), Type: core.TypeMovie, Title: "Future Film", Released: fixedNow.Add(48 * time.Hour), ContentRating: "R", PosterPath: "/future.jpg"}
 	f.catalog.titles[title.Key] = title
 	c := &scopedFakeCollections{&fakeCollections{cols: map[core.RatingKey]core.Collection{k: {Key: k, Title: "Look Ahead", Type: core.TypeMovie, Upcoming: true}}, items: map[core.RatingKey][]core.Title{k: {title}}}}
-	f.srv.d.Collections = c
+	f.srv.setCollections(c)
 	base := "/library/metadata/" + title.Key.String()
 	if r := f.get(t, base); r.Code != http.StatusOK || !strings.Contains(r.Body.String(), "Scheduled release") {
 		t.Fatalf("canonical: %d %s", r.Code, r.Body.String())

@@ -93,7 +93,7 @@ func TestMixedCollectionShelfPagesAll32Movies(t *testing.T) {
 			}},
 		},
 	}
-	f.srv.d.Recommender = rec
+	f.srv.setRecommender(rec)
 
 	headers := map[string]string{"Accept": "application/json"}
 	get := func(path string) model.MediaContainer {
@@ -148,7 +148,7 @@ func TestUpcomingCollectionAndRecentlyAddedPageOverOpenableItems(t *testing.T) {
 	defer f.srv.Close()
 
 	blockedKey := core.MovieKey(51002)
-	f.srv.d.FilterAvailable = func(_ context.Context, titles []core.Title) []core.Title {
+	f.srv.setFilterAvailable(func(_ context.Context, titles []core.Title) []core.Title {
 		out := make([]core.Title, 0, len(titles))
 		for _, item := range titles {
 			if item.Key != blockedKey {
@@ -156,7 +156,7 @@ func TestUpcomingCollectionAndRecentlyAddedPageOverOpenableItems(t *testing.T) {
 			}
 		}
 		return out
-	}
+	})
 
 	m1 := fightClub
 	m1.Key = core.MovieKey(51001)
@@ -185,7 +185,7 @@ func TestUpcomingCollectionAndRecentlyAddedPageOverOpenableItems(t *testing.T) {
 		ChildCount: 4,
 	}
 	f.cols.items[ck] = []core.Title{m1, mBlocked, m2, mFuture}
-	f.srv.d.Collections = placeholderCollectionsFake{f.cols}
+	f.srv.setCollections(placeholderCollectionsFake{f.cols})
 
 	headers := map[string]string{"Accept": "application/json"}
 	get := func(path string) model.MediaContainer {

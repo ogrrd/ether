@@ -36,12 +36,12 @@ func (s *Server) mutationKey(w http.ResponseWriter, r *http.Request, integer boo
 		return 0, false
 	}
 	key := frontend.RatingKey(n)
-	if err != nil || key == 0 || pr.User == nil || s.d.State == nil {
+	if err != nil || key == 0 || pr.User == nil || s.state() == nil {
 		writeHTTPError(w, 404)
 		return 0, false
 	}
-	if key.Kind() == frontend.KindPlaylist && s.d.Playlists != nil {
-		if _, err := s.d.Playlists.Get(r.Context(), pr.User.ID, key); err != nil {
+	if key.Kind() == frontend.KindPlaylist && s.playlists() != nil {
+		if _, err := s.playlists().Get(r.Context(), pr.User.ID, key); err != nil {
 			s.writeErr(w, r, err)
 			return 0, false
 		}
@@ -51,11 +51,11 @@ func (s *Server) mutationKey(w http.ResponseWriter, r *http.Request, integer boo
 			return 0, false
 		}
 	} else {
-		if s.d.Catalog == nil {
+		if s.catalog() == nil {
 			writeHTTPError(w, 404)
 			return 0, false
 		}
-		title, err := s.d.Catalog.Get(r.Context(), key)
+		title, err := s.catalog().Get(r.Context(), key)
 		if err != nil || title == nil || !s.titleVisible(pr.User, title) {
 			writeHTTPError(w, 404)
 			return 0, false
@@ -67,10 +67,10 @@ func (s *Server) mutationKey(w http.ResponseWriter, r *http.Request, integer boo
 // List watch state belongs to the list, never to its members.
 func (s *Server) applyListWatch(ctx context.Context, m *model.Metadata, key frontend.RatingKey) {
 	pr := FromContext(ctx)
-	if pr == nil || pr.User == nil || s.d.State == nil {
+	if pr == nil || pr.User == nil || s.state() == nil {
 		return
 	}
-	st, err := s.d.State.Get(ctx, pr.User.ID, key)
+	st, err := s.state().Get(ctx, pr.User.ID, key)
 	if err != nil {
 		return
 	}

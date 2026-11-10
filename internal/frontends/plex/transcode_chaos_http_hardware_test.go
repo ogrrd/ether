@@ -74,7 +74,7 @@ func TestTranscodeChaosHTTPHardware(t *testing.T) {
 	f.srv.d.Playback = &chaosPlayback{f.playback, source.URL + "/input.mp4"}
 	f.srv.d.Transcoder = m
 	watch := state.New(store.OpenTest(t), state.Options{})
-	f.srv.d.State = watch
+	f.srv.setState(watch)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	// A resume point under a minute is never stored from a timeline (the PMS

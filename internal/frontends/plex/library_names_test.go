@@ -12,7 +12,7 @@ func TestLibrarySectionTitlesFollowLibraryNames(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
 
-	f.srv.d.LibraryTitles = func() (string, string) { return "Ether Films", "Ether Series" }
+	f.srv.setLibraryTitles(func() (string, string) { return "Ether Films", "Ether Series" })
 
 	rec := f.get(t, "/library/sections")
 	body := rec.Body.String()
@@ -37,7 +37,7 @@ func TestLibrarySectionTitlesFollowLibraryNames(t *testing.T) {
 		t.Fatalf("LibrarySections = %+v", secs)
 	}
 	// UUIDs must stay stable across renames (derived from section id, not title).
-	f.srv.d.LibraryTitles = func() (string, string) { return "Other Films", "Ether Series" }
+	f.srv.setLibraryTitles(func() (string, string) { return "Other Films", "Ether Series" })
 	renamed := f.srv.LibrarySections()
 	if renamed[0].UUID != secs[0].UUID || renamed[1].UUID != secs[1].UUID {
 		t.Fatalf("rename changed UUIDs: %+v -> %+v", secs, renamed)

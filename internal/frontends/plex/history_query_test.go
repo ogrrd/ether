@@ -15,10 +15,10 @@ import (
 func TestHistoryQueryGrammarAndScope(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
-	f.srv.d.State = historyState{fakeState: f.state, hist: []core.HistoryEntry{
+	f.srv.setState(historyState{fakeState: f.state, hist: []core.HistoryEntry{
 		{UserID: ownerUser.ID, Key: fightClub.Key, ViewedAt: fixedNow, ViewType: 1},
 		{UserID: ownerUser.ID, Key: bbE1.Key, ViewedAt: fixedNow, ViewType: 1},
-	}}
+	}})
 	for _, tc := range []struct {
 		query          string
 		code           int

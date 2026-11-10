@@ -81,7 +81,7 @@ func (s *Server) handleHistoryTop(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	kind := map[int64]frontend.KeyKind{1: frontend.KindMovie, 2: frontend.KindShow, 3: frontend.KindSeason, 4: frontend.KindEpisode}[n]
-	store, ok := s.d.State.(frontend.HistoryTopStore)
+	store, ok := s.state().(frontend.HistoryTopStore)
 	if !ok || kind == 0 {
 		s.write(w, r, mc)
 		return
@@ -155,7 +155,7 @@ func (s *Server) handleHistoryTopUsers(w http.ResponseWriter, r *http.Request) {
 		writeHTTPError(w, 404)
 		return
 	}
-	title, err := s.d.Catalog.Get(r.Context(), key)
+	title, err := s.catalog().Get(r.Context(), key)
 	if err != nil || title == nil || !s.visibleTitle(r.Context(), pr.User, title) {
 		writeHTTPError(w, 404)
 		return
@@ -170,7 +170,7 @@ func (s *Server) handleHistoryTopUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	mc := &model.MediaContainer{}
-	if store, ok := s.d.State.(frontend.HistoryTopStore); ok {
+	if store, ok := s.state().(frontend.HistoryTopStore); ok {
 		rows, err := store.LifetimeUsers(r.Context(), key, q)
 		if err != nil {
 			s.writeErr(w, r, err)

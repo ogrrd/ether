@@ -12,22 +12,22 @@ func (s *Server) metadataTitle(ctx context.Context, pr *Request, k frontend.Rati
 	if t, ok := shelfMember(ctx, k); ok {
 		return &t, nil
 	}
-	if s.d.EpisodeOrder != nil {
-		return s.d.EpisodeOrder.Get(ctx, pr.User, k)
+	if s.episodeOrder() != nil {
+		return s.episodeOrder().Get(ctx, pr.User, k)
 	}
-	return s.d.Catalog.Get(ctx, k)
+	return s.catalog().Get(ctx, k)
 }
 func (s *Server) metadataChildren(ctx context.Context, pr *Request, k frontend.RatingKey) ([]frontend.Title, error) {
-	if s.d.EpisodeOrder != nil {
-		return s.d.EpisodeOrder.Children(ctx, pr.User, k)
+	if s.episodeOrder() != nil {
+		return s.episodeOrder().Children(ctx, pr.User, k)
 	}
-	return s.d.Catalog.Children(ctx, k)
+	return s.catalog().Children(ctx, k)
 }
 func (s *Server) metadataGrandchildren(ctx context.Context, pr *Request, k frontend.RatingKey) ([]frontend.Title, error) {
-	if s.d.EpisodeOrder != nil {
-		return s.d.EpisodeOrder.Grandchildren(ctx, pr.User, k)
+	if s.episodeOrder() != nil {
+		return s.episodeOrder().Grandchildren(ctx, pr.User, k)
 	}
-	return s.d.Catalog.Grandchildren(ctx, k)
+	return s.catalog().Grandchildren(ctx, k)
 }
 
 // showEpisodes memoises shows' episodes for one response, so a show page
@@ -57,8 +57,8 @@ func (s *Server) episodesOfShow(ctx context.Context, pr *Request, memo showEpiso
 // what metadataChildren returns for that season.
 func (s *Server) presentedSeasons(ctx context.Context, pr *Request, show frontend.RatingKey, eps []frontend.Title) map[int][]frontend.Title {
 	grouped := false
-	if s.d.EpisodeOrder != nil {
-		g, err := s.d.EpisodeOrder.Grouped(ctx, pr.User, []frontend.RatingKey{show})
+	if s.episodeOrder() != nil {
+		g, err := s.episodeOrder().Grouped(ctx, pr.User, []frontend.RatingKey{show})
 		// If preferences cannot be read, ask for each episode's position.
 		grouped = err != nil || g[show]
 	}
@@ -66,7 +66,7 @@ func (s *Server) presentedSeasons(ctx context.Context, pr *Request, show fronten
 	for _, e := range eps {
 		n := e.Season
 		if grouped {
-			if season, _, _, ok := s.d.EpisodeOrder.Position(ctx, pr.User, e.Key); ok {
+			if season, _, _, ok := s.episodeOrder().Position(ctx, pr.User, e.Key); ok {
 				n = season
 			}
 		}
@@ -91,7 +91,7 @@ type episodeOrderView struct {
 // children also caches the layout its episodes' positions come from.
 func (s *Server) episodeOrderList(ctx context.Context, pr *Request, ts []frontend.Title, detail bool) episodeOrderView {
 	var v episodeOrderView
-	if s.d.EpisodeOrder == nil {
+	if s.episodeOrder() == nil {
 		return v
 	}
 	var shows []frontend.RatingKey
@@ -105,7 +105,7 @@ func (s *Server) episodeOrderList(ctx context.Context, pr *Request, ts []fronten
 			shows = append(shows, k)
 		}
 	}
-	grouped, err := s.d.EpisodeOrder.Grouped(ctx, pr.User, shows)
+	grouped, err := s.episodeOrder().Grouped(ctx, pr.User, shows)
 	if err != nil {
 		s.log.Warn("load episode orders", "err", err)
 		return v
@@ -145,7 +145,7 @@ func (s *Server) episodeOrderList(ctx context.Context, pr *Request, ts []fronten
 // GUIDs and the resolver retain canonical identity while Plex sees the chosen
 // group tree and display numbering.
 func (s *Server) applyEpisodeOrder(ctx context.Context, pr *Request, t *frontend.Title, m *model.Metadata, v episodeOrderView) {
-	if s.d.EpisodeOrder == nil {
+	if s.episodeOrder() == nil {
 		return
 	}
 	if t.Type == frontend.TypeShow {
@@ -170,7 +170,7 @@ func (s *Server) applyEpisodeOrder(ctx context.Context, pr *Request, t *frontend
 	if t.Type != frontend.TypeEpisode || v.grouped != nil && !v.grouped[frontend.ShowKey(t.Key.TMDB())] {
 		return
 	}
-	season, index, name, ok := s.d.EpisodeOrder.Position(ctx, pr.User, t.Key)
+	season, index, name, ok := s.episodeOrder().Position(ctx, pr.User, t.Key)
 	if !ok {
 		return
 	}

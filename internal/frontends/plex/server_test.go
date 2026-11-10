@@ -527,10 +527,10 @@ func TestPhotoTranscode(t *testing.T) {
 	defer tmdb.Close()
 	f := newFixture()
 	f.srv.Close()
-	d := f.srv.d
+	d := f.srv.currentTestDeps()
 	d.ImageURL = func(path, size string) string { return tmdb.URL + "/t/p/" + size + path }
 	d.HTTPClient = tmdb.Client()
-	f.srv = NewServer(testDeps(d))
+	f.srv = newTestServer(d)
 	defer f.srv.Close()
 
 	rec := f.get(t, "/photo/:/transcode?width=300&height=450&minSize=1&upscale=1&url="+urlEsc("/library/metadata/1000000000000550/thumb/1759276800"))
@@ -784,7 +784,7 @@ func TestHLSInitializationSegmentServedForNativePlayer(t *testing.T) {
 func TestPagingHugeContainerSize(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
-	f.srv.d.Recommender = &fakeRecommender{section: map[core.MediaType][]core.Hub{core.TypeMovie: {{ID: "movie.popular", Title: "Popular", Type: core.TypeMovie, Items: []core.Title{fightClub, alien}}}}}
+	f.srv.setRecommender(&fakeRecommender{section: map[core.MediaType][]core.Hub{core.TypeMovie: {{ID: "movie.popular", Title: "Popular", Type: core.TypeMovie, Items: []core.Title{fightClub, alien}}}}})
 	f.cols.cols[core.CollectionKey(77)] = core.Collection{Key: core.CollectionKey(77), Title: "Two", Kind: "franchise", Type: core.TypeMovie, ChildCount: 2}
 	f.cols.items[core.CollectionKey(77)] = []core.Title{fightClub, alien}
 	page := "X-Plex-Container-Start=1&X-Plex-Container-Size=2147483647"

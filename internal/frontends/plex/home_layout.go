@@ -62,7 +62,7 @@ func (s *Server) prepareHomeContinueAndOnDeck(ctx context.Context, pr *Request, 
 	}
 	cwShown := selected == nil || selected["home.continue"]
 	if cwShown {
-		if layout, ok := s.d.Recommender.(interface {
+		if layout, ok := s.recommender().(interface {
 			HomeRowEnabled(context.Context, *frontend.User, frontend.HubContext, string) bool
 		}); ok && !layout.HomeRowEnabled(ctx, pr.User, hc, "home.continue") {
 			cwShown = false
@@ -99,12 +99,12 @@ func (s *Server) arrangeHomeRows(ctx context.Context, pr *Request, hc frontend.H
 		}
 		return rows
 	}
-	if _, ok := s.d.Recommender.(frontend.NeutralHomeLayoutSource); !ok {
-		if _, layout := s.d.Recommender.(frontend.HomeLayoutSource); !layout {
+	if _, ok := s.recommender().(frontend.NeutralHomeLayoutSource); !ok {
+		if _, layout := s.recommender().(frontend.HomeLayoutSource); !layout {
 			return rows
 		}
 	}
-	indices, err := s.d.Experience.ArrangeHome(ctx, s.d.Recommender, pr.User, hc, section, hubs, neutral)
+	indices, err := s.exp().ArrangeHome(ctx, s.recommender(), pr.User, hc, section, hubs, neutral)
 	if err != nil {
 		if s.log != nil {
 			s.log.Warn("Home layout unavailable", "error", err)

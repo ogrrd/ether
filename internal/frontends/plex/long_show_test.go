@@ -138,7 +138,7 @@ func newLongShow(t *testing.T, seasons int) *longShow {
 		t.Fatal(err)
 	}
 	ls.cat = &countingCatalog{Catalog: c}
-	ls.f = newFixture(func(d *Deps) { d.Catalog = ls.cat })
+	ls.f = newFixture(func(d *testServerDeps) { d.Catalog = ls.cat })
 	t.Cleanup(func() { ls.f.srv.Close() })
 	return ls
 }
@@ -195,7 +195,7 @@ func (ls *longShow) useEpisodeOrder(t *testing.T, p *episodeorder.Preference) {
 			t.Fatal(err)
 		}
 	}
-	ls.f.srv.d.EpisodeOrder = svc
+	ls.f.srv.setEpisodeOrder(svc)
 }
 
 func (ls *longShow) watch(keys ...core.RatingKey) {

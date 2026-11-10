@@ -15,13 +15,13 @@ import (
 func TestHomeDirectoryPartition(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
-	f.srv.d.Recommender = &fakeRecommender{home: []core.Hub{
+	f.srv.setRecommender(&fakeRecommender{home: []core.Hub{
 		{ID: "home.trending", Title: "Trending", Style: "hero", Promoted: true, Items: []core.Title{fightClub}},
 		{ID: "home.top10", Title: "Top", Promoted: true, Items: []core.Title{alien}},
 	}, section: map[core.MediaType][]core.Hub{
 		core.TypeMovie: {{ID: "movie.popular", Title: "Movies", Type: core.TypeMovie, Items: []core.Title{fightClub}}},
 		core.TypeShow:  {{ID: "tv.popular", Title: "TV", Type: core.TypeShow, Items: []core.Title{breakingBad}}},
-	}}
+	}})
 	if _, err := f.pls.Create(context.Background(), ownerUser.ID, "List", []core.RatingKey{fightClub.Key}); err != nil {
 		t.Fatal(err)
 	}
@@ -125,10 +125,10 @@ func (*hiddenHomeRows) FinalizeNeutralHome(_ context.Context, _ *core.User, _ co
 func TestHomeDirectoryRespectsHiddenRows(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
-	f.srv.d.Recommender = &hiddenHomeRows{&fakeRecommender{home: []core.Hub{
+	f.srv.setRecommender(&hiddenHomeRows{&fakeRecommender{home: []core.Hub{
 		{ID: "home.trending", Title: "Trending", Promoted: true, Items: []core.Title{fightClub}},
 		{ID: "home.top10", Title: "Top", Promoted: true, Items: []core.Title{alien}},
-	}}}
+	}}})
 	f.state.set(ownerUser.ID, ws(fightClub.Key, 60000, 0))
 	for _, dir := range []string{"1", "2", "playlists"} {
 		ids := hubIDs(t, f.get(t, "/hubs/promoted?contentDirectoryID="+dir+"&pinnedContentDirectoryID=1,2,playlists", jsonAccept...).Body.Bytes())

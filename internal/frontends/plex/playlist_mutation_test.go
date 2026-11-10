@@ -17,7 +17,7 @@ import (
 func TestPlaylistPersistedMemberIdentity(t *testing.T) {
 	db := store.OpenTest(t)
 	playlists := state.New(db, state.Options{}).Playlists()
-	f := newFixture(func(d *Deps) { d.Playlists = playlists })
+	f := newFixture(func(d *testServerDeps) { d.Playlists = playlists })
 	defer f.srv.Close()
 	ctx := context.Background()
 	p, err := playlists.Create(ctx, ownerUser.ID, "First", []core.RatingKey{fightClub.Key, alien.Key, fightClub.Key})

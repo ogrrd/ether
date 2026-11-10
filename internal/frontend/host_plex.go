@@ -46,24 +46,6 @@ type PlexSection struct {
 	Language string
 }
 
-// PlexHomeCacheSource supplies the revision inputs of cached Plex Home screens.
-// Revision must be cheap and shared across cluster nodes (the database);
-// Layout and Catalog are local generations.
-type PlexHomeCacheSource struct {
-	Revision func(context.Context, *User) (HomeRevision, error)
-	// Layout changes when the owner saves the Home layout (hard).
-	Layout func() uint64
-	// Config changes when the owner's settings are replaced (hard).
-	Config func() uint64
-	// Catalog changes on catalogue writes (refreshes behind the response).
-	Catalog func() uint64
-	// NoProviderWait marks a Home build's context so catalogue reads never
-	// wait on TMDB: a title or season the mirror lacks is fetched and stored
-	// behind the build, and the catalogue write it makes refreshes the
-	// screen. A Home request therefore never writes or waits on a provider.
-	NoProviderWait func(context.Context) context.Context
-}
-
 // PlexEncoder is an opt-in trusted host seam implemented by the shared broker.
 // Starts occur only after existing Plex authentication, owner gates, preparation
 // and admission. The broker must revalidate the exact source revision and retain
@@ -116,8 +98,7 @@ type PlexSubtitleUpload interface {
 	UploadSubtitle(ctx context.Context, t *Title, u *User, filename, format, language string, body []byte) (StreamInfo, error)
 }
 
-// PlexDeps are the Plex server's dependencies. Catalog, State, Auth and Playback
-// are required; the rest degrade gracefully when nil.
+// PlexDeps are the Plex server's dependencies.
 type PlexDeps struct {
 	// PlexEncoder optionally dispatches authenticated universal playback through
 	// the shared broker; nil preserves the existing local encoder path.
@@ -133,41 +114,17 @@ type PlexDeps struct {
 	// provides the session helpers it calls. Required: NewServer panics
 	// without it. The app wires sessions.NewPlexSessionStores().
 	SessionStores PlexSessionStores
-	// Experience constructs the experience selectors this server uses and
-	// provides its operations, including statistics defaults. Required:
-	// NewServer panics without it. The app wires experience.NewPlexExperience().
-	Experience PlexExperience
 	// GeneratedPosters draws Ether's poster for a movie or show with no
 	// artwork; nil leaves such titles without a thumb.
 	GeneratedPosters    any
 	SessionCoordination Coordination
-	// LibraryTitles returns the Movies / TV Shows library names from the
-	// libraries service (libraries 1/2); nil uses "Movies" / "TV Shows".
-	LibraryTitles   func() (movies, shows string)
-	FavoriteShows   func(context.Context, *User) (map[RatingKey]bool, error)
-	FilterAvailable func(context.Context, []Title) []Title
-	// JudgedOnFacts reports, for a request, the titles FilterAvailable judges
-	// on their full facts (availability.Service.JudgedOnFacts).
-	JudgedOnFacts       func(context.Context) func(Title) bool
-	PrioritizeAvailable func(context.Context, []Title) []Title
-	EpisodeOrder        EpisodeOrder
 	PlexGUID            LibraryGUIDs
 	PlexMeta            LibraryMetadata
-	Discovery           *DiscoveryFeatures
-	// Search is the app's shared search (every frontend's); zero builds it
-	// from this server's own dependencies.
-	Search       SearchSources
-	LiveTV       LiveTVHost
-	AccessPolicy AccessPolicy
-	Catalog      Catalog
-	Collections  Collections
-	VibeSearch   VibeSearcher
-	Recommender  Recommender
-	State        State
-	Playlists    Playlists
-	Auth         Auth
-	Playback     Playback
-	Transcoder   Transcoder
+	LiveTV              LiveTVHost
+	AccessPolicy        AccessPolicy
+	Auth                Auth
+	Playback            Playback
+	Transcoder          Transcoder
 	// Variants lists distinct release versions for "Play Version" detail
 	// pages (optional: without it, detail pages stay single-Media).
 	Variants VariantResolver
@@ -236,17 +193,8 @@ type PlexDeps struct {
 	// RepoFileURL is a public, immutable URL for a file committed to Ether's
 	// repository at the source this build came from, or "" when unknown.
 	RepoFileURL func(path string) string
-	// Dashboard is this node's in-memory Plex Web Dashboard store. Nil is
-	// replaced with a process-local store at NewServer. Statistics are not
-	// clustered; a client reads the node it connected to.
-	Dashboard Dashboard
-	// Resources is this node's host sample ring for /statistics/resources.
-	Resources ResourceStatistics
 	// Support records neutral request and playback facts. Nil leaves playback unchanged.
 	Support DiagnosticRecorder
-	// HomeCache serves Plex Home from memory (home_cache.go); nil builds
-	// every Home request.
-	HomeCache *PlexHomeCacheSource
 	// TracePlayback logs HLS/transcode requests when ETHER_TRACE_PLAYBACK=1.
 	// It does not change responses.
 	TracePlayback bool

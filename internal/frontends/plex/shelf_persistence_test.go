@@ -74,7 +74,7 @@ func persistenceFixture(t *testing.T) (*fixture, *sql.DB, *atomic.Int64) {
 		}
 		rec.section[core.TypeMovie] = append(rec.section[core.TypeMovie], core.Hub{ID: fmt.Sprintf("collection.persistence.%d", row), Title: "Owner list", Type: core.TypeMovie, Items: titles})
 	}
-	f := newFixture(func(d *Deps) {
+	f := newFixture(func(d *testServerDeps) {
 		d.DB = db
 		d.Catalog = c
 		d.Recommender = rec
@@ -203,10 +203,10 @@ func TestShelfPersistenceBatching(t *testing.T) {
 	if continuation == "" {
 		t.Fatal("missing unpublished row")
 	}
-	b := newFixture(func(d *Deps) {
+	b := newFixture(func(d *testServerDeps) {
 		d.DB = db
-		d.Catalog = f.srv.d.Catalog
-		d.Recommender = f.srv.d.Recommender
+		d.Catalog = f.srv.catalog()
+		d.Recommender = f.srv.recommender()
 		d.DisableEnrichment = true
 		d.Now = f.srv.d.Now
 	})

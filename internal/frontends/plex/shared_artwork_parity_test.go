@@ -22,11 +22,11 @@ func TestSharedArtworkDiscoveryIdentityAndBytesMatchPlex(t *testing.T) {
 	if err := ov.SaveSettings(ctx, overlays.Settings{Enabled: true, Localize: true}); err != nil {
 		t.Fatal(err)
 	}
-	f.srv.d.Discovery = (&discovery.Features{Overlays: ov, Localize: func(_ context.Context, title *core.Title, lang string) (*core.Title, error) {
+	f.srv.setDiscovery((&discovery.Features{Overlays: ov, Localize: func(_ context.Context, title *core.Title, lang string) (*core.Title, error) {
 		cp := *title
 		cp.PosterPath = "/" + lang + "-poster.jpg"
 		return &cp, nil
-	}}).Frontend()
+	}}).Frontend())
 	req := frontend.ArtworkRequest{Viewer: &ownerUser, Item: fightClub.Key, Device: core.Device{Language: "fr"}}
 	source := (FrontendArtwork{Server: f.srv}).source()
 	images, _, err := source.List(ctx, req)

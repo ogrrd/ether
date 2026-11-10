@@ -159,7 +159,7 @@ var (
 func newSubtitleFixture(t *testing.T) (*fixture, *fakeSubtitles) {
 	t.Helper()
 	subs := newFakeSubtitles()
-	f := newFixture(func(d *Deps) { d.Subtitles = subs })
+	f := newFixture(func(d *testServerDeps) { d.Subtitles = subs })
 	t.Cleanup(func() { f.srv.Close() })
 	f.playback.info = estimateInfo
 	subs.cache(fightClub.Key, sidecar("en", "ether-subtitle:cached-en"))

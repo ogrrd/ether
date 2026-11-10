@@ -24,9 +24,6 @@ type Playback = core.Playback
 type PlaybackPrepareWithin = core.PlaybackPrepareWithin
 type Playlists = core.Playlists
 
-// PrerollService is the core pre-roll selection port. It is distinct from
-// the frontend Prerolls intro port above, which serves ready intros.
-type PrerollService = core.Prerolls
 type Recommender = core.Recommender
 type State = core.State
 type Transcoder = core.Transcoder

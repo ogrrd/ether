@@ -86,6 +86,8 @@ type Server struct {
 	trackPrefs        frontend.PlaybackTrackPreferences
 	markers           frontend.MarkerRanges
 	trickplay         frontend.TrickplayProvider
+	extras            any
+	prerolls          any
 	variantIDs        *variantIDRegistry
 	playIDs           *playIdentities
 	versionFlows      *versionFlowStore

@@ -67,7 +67,7 @@ func TestPrerollAbsentLeavesPlayQueuesByteIdentical(t *testing.T) {
 	}
 	run := func(p core.Prerolls) [][]byte {
 		f, _, _ := extrasFixture(t)
-		f.srv.d.Prerolls = p
+		f.srv.UsePrerolls(p)
 		// Artwork colours fill in the background on first sight; they are
 		// unrelated to pre-rolls, so keep them out of the comparison.
 		f.srv.ultra = nil
@@ -108,7 +108,7 @@ func TestPrerollPlayQueueAndDirectPlay(t *testing.T) {
 		Width: 1920, Height: 1080, BitrateKbps: 6000, Size: int64(len(payload)), Order: core.PrerollBeforeTrailers, UpdatedAt: time.Unix(1700000000, 0)}
 	f, _, wp := extrasFixture(t)
 	pre := &fakePrerolls{clip: &clip}
-	f.srv.d.Prerolls = pre
+	f.srv.UsePrerolls(pre)
 	uri := "server://0123456789abcdef0123456789abcdef01234567/com.plexapp.plugins.library/library/metadata/" + fightClub.Key.String()
 	queue := func(target string) []string {
 		t.Helper()

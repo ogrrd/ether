@@ -167,8 +167,6 @@ func (a *App) buildPlex(ctx context.Context, cfg config.Config) (frontend.PlexDe
 	if a.support != nil {
 		deps.Support = a.support
 	}
-	deps.Extras = newPlexExtras(a.extras)
-	deps.Prerolls = a.prerollProvider()
 	a.wirePlexPolicy(&deps)
 	deps.FavoriteShows = a.favoriteShows
 	deps.Now = parityClock()

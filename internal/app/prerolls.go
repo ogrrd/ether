@@ -44,14 +44,6 @@ func (a *App) buildPrerolls() error {
 	return nil
 }
 
-// prerollProvider is the pre-roll service as core.Prerolls, nil when off.
-func (a *App) prerollProvider() core.Prerolls {
-	if a.prerolls == nil {
-		return nil
-	}
-	return a.prerolls
-}
-
 // prerollAdmin is the pre-roll owner API dependency, nil when off.
 func (a *App) prerollAdmin() admin.Prerolls {
 	if a.prerolls == nil {
@@ -120,4 +112,35 @@ func (s prerollSurface) Open(ctx context.Context, key core.RatingKey) (io.ReadSe
 
 func (s prerollSurface) Started(ctx context.Context, viewer *core.Viewer, device core.Device, key core.RatingKey) {
 	s.svc.Started(ctx, core.PrerollPlay{Viewer: viewer, Key: key, Client: device.Product})
+}
+
+func (s prerollSurface) Active(ctx context.Context) bool {
+	return s.svc != nil && s.svc.Active(ctx)
+}
+
+func (s prerollSurface) Pick(ctx context.Context, req core.PrerollRequest) (core.PrerollClip, bool) {
+	if s.svc == nil {
+		return core.PrerollClip{}, false
+	}
+	return s.svc.Pick(ctx, req)
+}
+
+func (s prerollSurface) Clip(ctx context.Context, key core.RatingKey) (core.PrerollClip, bool) {
+	if s.svc == nil {
+		return core.PrerollClip{}, false
+	}
+	return s.svc.Clip(ctx, key)
+}
+
+func (s prerollSurface) Thumb(ctx context.Context, key core.RatingKey) (string, bool) {
+	if s.svc == nil {
+		return "", false
+	}
+	return s.svc.Thumb(ctx, key)
+}
+
+func (s prerollSurface) RecordPlay(ctx context.Context, play core.PrerollPlay) {
+	if s.svc != nil {
+		s.svc.Started(ctx, play)
+	}
 }

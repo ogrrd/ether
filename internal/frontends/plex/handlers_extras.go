@@ -25,8 +25,53 @@ import (
 // While a trailer plays, the feature behind it is prewarmed so it starts
 // instantly when the trailer ends.
 
-// ExtrasProvider is the extras service surface the front end needs.
-type ExtrasProvider = frontend.ExtrasProvider
+func (s *Server) extrasSource() frontend.ExtrasSource {
+	src, _ := s.extras.(frontend.ExtrasSource)
+	return src
+}
+
+func (s *Server) extrasEnabled() bool {
+	src := s.extrasSource()
+	return src != nil && src.Enabled()
+}
+
+func (s *Server) extrasList(ctx context.Context, parent *frontend.Title, lang string) ([]frontend.ExtraClip, error) {
+	src := s.extrasSource()
+	if src == nil {
+		return nil, nil
+	}
+	return src.List(ctx, parent, lang)
+}
+
+func (s *Server) extrasLookup(key frontend.RatingKey) (frontend.ExtraClip, bool) {
+	if c, ok := s.extras.(interface {
+		Clip(frontend.RatingKey) (frontend.ExtraClip, bool)
+	}); ok {
+		return c.Clip(key)
+	}
+	if l, ok := s.extras.(interface {
+		Lookup(frontend.RatingKey) (frontend.ExtraClip, bool)
+	}); ok {
+		return l.Lookup(key)
+	}
+	return frontend.ExtraClip{}, false
+}
+
+func (s *Server) extrasResolve(ctx context.Context, e frontend.ExtraClip) (frontend.ResolvedExtra, error) {
+	if r, ok := s.extras.(interface {
+		Resolve(context.Context, frontend.ExtraClip) (frontend.ResolvedExtra, error)
+	}); ok {
+		return r.Resolve(ctx, e)
+	}
+	return frontend.ResolvedExtra{}, frontend.ErrNotFound
+}
+
+func (s *Server) extrasPrewarmBytes() (int64, bool) {
+	if p, ok := s.extras.(interface{ PrewarmBytes() int64 }); ok {
+		return p.PrewarmBytes(), true
+	}
+	return 0, false
+}
 
 // extraSession is one resolved extra playback (decision + transcode).
 type extraSession struct {
@@ -126,7 +171,7 @@ func (s *Server) extrasFor(ctx context.Context, pr *Request, parent *frontend.Ti
 			want[n] = true
 		}
 	}
-	list, err := s.d.Experience.DetailExtras(ctx, s.d.Extras, parent, s.viewerLanguage(pr), want)
+	list, err := s.d.Experience.DetailExtras(ctx, s.extrasSource(), parent, s.viewerLanguage(pr), want)
 	if err != nil {
 		s.log.Debug("extras list", "key", parent.Key, "err", err)
 		return nil
@@ -207,10 +252,10 @@ func (s *Server) extraMetadataByKey(ctx context.Context, pr *Request, key fronte
 		}
 		return s.prerollMetadata(e, clip, true), true
 	}
-	if s.d.Extras == nil {
+	if s.extras == nil {
 		return model.Metadata{}, false
 	}
-	e, ok := s.d.Extras.Lookup(key)
+	e, ok := s.extrasLookup(key)
 	if !ok {
 		return model.Metadata{}, false
 	}
@@ -303,11 +348,11 @@ func (s *Server) handleExtraPlayback(w http.ResponseWriter, r *http.Request) boo
 	}
 	ctx := r.Context()
 	pr := FromContext(ctx)
-	if s.d.Extras == nil || !s.d.Extras.Enabled() || pr.User == nil {
+	if !s.extrasEnabled() || pr.User == nil {
 		writeHTTPError(w, http.StatusNotFound)
 		return true
 	}
-	e, ok := s.d.Extras.Lookup(key)
+	e, ok := s.extrasLookup(key)
 	if !ok {
 		writeHTTPError(w, http.StatusNotFound)
 		return true
@@ -404,16 +449,13 @@ func (s *Server) prepareExtra(ctx context.Context, pr *Request, p *playRequest, 
 // converted local MP4.
 func (s *Server) resolveExtra(ctx context.Context, e frontend.ExtraClip) (frontend.ResolvedExtra, error) {
 	if e.Source == prerollSource {
-		if s.d.Prerolls == nil {
-			return frontend.ResolvedExtra{}, frontend.ErrNotFound
-		}
-		clip, ok := s.d.Prerolls.Clip(ctx, e.Key)
+		clip, ok := s.prerollsClip(ctx, e.Key)
 		if !ok {
 			return frontend.ResolvedExtra{}, frontend.ErrNotFound
 		}
 		return frontend.ResolvedExtra{URL: clip.Path, Container: "mp4"}, nil
 	}
-	return s.d.Extras.Resolve(ctx, e)
+	return s.extrasResolve(ctx, e)
 }
 
 func (s *Server) extraSessionFor(ctx context.Context, pr *Request, p *playRequest, e frontend.ExtraClip) (*extraSession, error) {
@@ -584,11 +626,11 @@ func (s *Server) handleExtraPart(w http.ResponseWriter, r *http.Request) bool {
 	}
 	ctx := r.Context()
 	pr := FromContext(ctx)
-	if s.d.Extras == nil || !s.d.Extras.Enabled() || pr.User == nil {
+	if !s.extrasEnabled() || pr.User == nil {
 		writeHTTPError(w, http.StatusNotFound)
 		return true
 	}
-	e, ok := s.d.Extras.Lookup(key)
+	e, ok := s.extrasLookup(key)
 	if !ok {
 		writeHTTPError(w, http.StatusNotFound)
 		return true
@@ -603,7 +645,7 @@ func (s *Server) handleExtraPart(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	s.prewarmFeature(ctx, pr, s.featureForExtra(pr, e), s.clientCaps(pr))
-	resolved, err := s.d.Extras.Resolve(ctx, e)
+	resolved, err := s.extrasResolve(ctx, e)
 	if err != nil {
 		s.log.Info("extra part resolve failed", "key", e.Key, "err", err)
 		writeHTTPError(w, http.StatusNotFound)
@@ -680,8 +722,8 @@ func (s *Server) prewarmFeature(ctx context.Context, pr *Request, feature fronte
 		return
 	}
 	bytes := s.cfg().Extras.PrewarmBytesOr()
-	if s.d.Extras != nil {
-		bytes = s.d.Extras.PrewarmBytes()
+	if b, ok := s.extrasPrewarmBytes(); ok {
+		bytes = b
 	}
 	scheduled := pw.Prewarm(context.WithoutCancel(ctx), pr.User, feature, caps, frontend.PrewarmOptions{
 		Reason: frontend.PrewarmTrailer, PrefetchBytes: bytes, DuringPlayback: true,
@@ -692,7 +734,7 @@ func (s *Server) prewarmFeature(ctx context.Context, pr *Request, feature fronte
 // cinemaTrailerKeys picks up to n trailers of other, unwatched movies
 // for this viewer (PMS Cinema Trailers semantics), in candidate order.
 func (s *Server) cinemaTrailerKeys(ctx context.Context, pr *Request, feature frontend.RatingKey, n int) []frontend.RatingKey {
-	if n <= 0 || s.d.Extras == nil || !s.d.Extras.Enabled() || s.d.Catalog == nil {
+	if n <= 0 || !s.extrasEnabled() || s.d.Catalog == nil {
 		return nil
 	}
 	if n > frontend.MaxExtras {
@@ -725,7 +767,7 @@ func (s *Server) cinemaTrailerKeys(ctx context.Context, pr *Request, feature fro
 			continue
 		}
 		checked++
-		list, err := s.d.Extras.List(ctx, &c, lang)
+		list, err := s.extrasList(ctx, &c, lang)
 		if err != nil {
 			continue
 		}

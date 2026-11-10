@@ -43,6 +43,97 @@ func frontendExtra(clip extras.Extra) frontend.Extra {
 	return frontend.Extra{Key: clip.Key, ParentKey: clip.ParentKey, Title: clip.Title, Kind: clip.Subtype, Source: clip.Site, SourceID: clip.SiteKey, Language: clip.Language, Official: clip.Official, PublishedAt: clip.PublishedAt, Duration: clip.Duration, Height: clip.Size}
 }
 
+func toExtraClip(e extras.Extra) frontend.ExtraClip {
+	return frontend.ExtraClip{
+		Key:         e.Key,
+		ParentKey:   e.ParentKey,
+		ParentTitle: e.ParentTitle,
+		Title:       e.Title,
+		Subtype:     e.Subtype,
+		ExtraType:   e.ExtraType,
+		Site:        e.Site,
+		SiteKey:     e.SiteKey,
+		Language:    e.Language,
+		Official:    e.Official,
+		PublishedAt: e.PublishedAt,
+		Size:        e.Size,
+		Duration:    e.Duration,
+		Source:      e.Source,
+	}
+}
+
+func (s extraSurface) Enabled() bool {
+	return s.extras != nil && s.extras.Enabled()
+}
+
+func (s extraSurface) List(ctx context.Context, parent *core.Title, lang string) ([]frontend.ExtraClip, error) {
+	if s.extras == nil {
+		return nil, nil
+	}
+	list, err := s.extras.List(ctx, parent, lang)
+	if err != nil || len(list) == 0 {
+		return nil, err
+	}
+	out := make([]frontend.ExtraClip, len(list))
+	for i, clip := range list {
+		out[i] = toExtraClip(clip)
+	}
+	return out, nil
+}
+
+func (s extraSurface) Clip(key core.RatingKey) (frontend.ExtraClip, bool) {
+	if s.extras == nil {
+		return frontend.ExtraClip{}, false
+	}
+	clip, ok := s.extras.Lookup(key)
+	if !ok {
+		return frontend.ExtraClip{}, false
+	}
+	return toExtraClip(clip), true
+}
+
+func (s extraSurface) Resolve(ctx context.Context, e frontend.ExtraClip) (frontend.ResolvedExtra, error) {
+	if s.extras == nil {
+		return frontend.ResolvedExtra{}, core.ErrNotFound
+	}
+	clip, ok := s.extras.Lookup(e.Key)
+	if !ok {
+		clip = extras.Extra{
+			Key:         e.Key,
+			ParentKey:   e.ParentKey,
+			ParentTitle: e.ParentTitle,
+			Title:       e.Title,
+			Subtype:     e.Subtype,
+			ExtraType:   e.ExtraType,
+			Site:        e.Site,
+			SiteKey:     e.SiteKey,
+			Language:    e.Language,
+			Official:    e.Official,
+			PublishedAt: e.PublishedAt,
+			Size:        e.Size,
+			Duration:    e.Duration,
+			Source:      e.Source,
+		}
+	}
+	resolved, err := s.extras.Resolve(ctx, clip)
+	if err != nil {
+		return frontend.ResolvedExtra{}, err
+	}
+	return frontend.ResolvedExtra{
+		URL:       resolved.URL,
+		Headers:   resolved.Headers,
+		Expires:   resolved.Expires,
+		Container: resolved.Container,
+	}, nil
+}
+
+func (s extraSurface) PrewarmBytes() int64 {
+	if s.extras == nil {
+		return 0
+	}
+	return s.extras.PrewarmBytes()
+}
+
 // cinemaSurface serves the same preroll selection Plex prepends to a movie,
 // using viewer-authorized similar and library rows. A title the viewer cannot
 // open is omitted, so a restricted viewer never receives its trailer.

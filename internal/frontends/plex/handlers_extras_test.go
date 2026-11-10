@@ -99,7 +99,7 @@ func extrasFixture(t *testing.T) (*fixture, *fakeExtrasProvider, *warmingPlaybac
 	ex := newFakeExtras(fightClubTrailer, fightClubFeaturette, alienTrailer)
 	ex.resolved = frontend.ResolvedExtra{URL: "https://cdn.example/trailer.mp4", Container: "mp4"}
 	wp := &warmingPlayback{fakePlayback: f.playback}
-	f.srv.d.Extras = ex
+	f.srv.UseExtras(ex)
 	f.srv.d.Playback = wp
 	return f, ex, wp
 }

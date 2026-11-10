@@ -1,7 +1,6 @@
 package frontend
 
 import (
-	"context"
 	"time"
 
 	"github.com/braedonsaunders/ether/internal/core"
@@ -45,11 +44,3 @@ type ResolvedExtra struct {
 // Input returns the ffmpeg input.
 func (r ResolvedExtra) Input() string { return r.URL }
 
-// ExtrasProvider is the extras service surface a front end needs.
-type ExtrasProvider interface {
-	Enabled() bool
-	List(ctx context.Context, parent *core.Title, lang string) ([]ExtraClip, error)
-	Lookup(key core.RatingKey) (ExtraClip, bool)
-	Resolve(ctx context.Context, e ExtraClip) (ResolvedExtra, error)
-	PrewarmBytes() int64
-}

@@ -16,6 +16,12 @@ func (s *Server) UseHost(host frontend.Host) {
 	if tp, ok := host.TrackPreferences.(frontend.PlaybackTrackPreferences); ok && tp != nil {
 		s.trackPrefs = tp
 	}
+	if host.ExtraStreams != nil {
+		s.extras = host.ExtraStreams
+	}
+	if host.Prerolls != nil {
+		s.prerolls = host.Prerolls
+	}
 }
 
 // UseTrackPreferences attaches the viewer track-preference service.
@@ -36,6 +42,20 @@ func (s *Server) UseMarkers(m frontend.MarkerRanges) {
 func (s *Server) UseTrickplay(tp frontend.TrickplayProvider) {
 	if s != nil {
 		s.trickplay = tp
+	}
+}
+
+// UseExtras attaches an extras provider override.
+func (s *Server) UseExtras(ex any) {
+	if s != nil {
+		s.extras = ex
+	}
+}
+
+// UsePrerolls attaches a pre-rolls provider override.
+func (s *Server) UsePrerolls(p any) {
+	if s != nil {
+		s.prerolls = p
 	}
 }
 

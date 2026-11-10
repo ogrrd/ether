@@ -34,14 +34,14 @@ import (
 // SubtitleCatalog is optionally implemented by Deps.Subtitles: the sidecars
 // already cached for a title and viewer, without network access, skipping
 // streams embedded already lists (by ExternalURL) or covers (by language).
-type SubtitleCatalog = frontend.PlexSubtitleCatalog
+type SubtitleCatalog = frontend.SubtitleSidecars
 
 // SubtitleOffer is one subtitle search result.
-type SubtitleOffer = frontend.PlexSubtitleOffer
+type SubtitleOffer = frontend.SidecarOffer
 
 // SubtitleSearch is optionally implemented by Deps.Subtitles: Plex's
 // on-demand subtitle search and pick.
-type SubtitleSearch = frontend.PlexSubtitleSearch
+type SubtitleSearch = frontend.SubtitleSearch
 
 // infoWithSelectedSidecar keeps a chosen external subtitle on a metadata
 // stream list. Cached sidecars omit a language the file already embeds, so
@@ -167,7 +167,7 @@ func (s *Server) burnOnlyShownSubtitle(pr *Request, p *playRequest, info fronten
 
 // resolvePlaySelection is resolveSelection for a play request.
 func resolvePlaySelection(p *playRequest, info frontend.MediaInfo) {
-	out, err := frontend.TranslatePlexTrackIdentity(frontend.PlexIssuedIdentity{
+	out, err := frontend.TranslatePlexTrackIdentity(frontend.IssuedTrackIdentity{
 		Audio: p.audioStream, AudioPosition: p.audioSel, AudioSet: p.audioSel >= 0,
 		Subtitle: p.subStream, SubtitlePosition: p.subSel, SubtitleSet: p.subSet,
 	}, info)
@@ -558,7 +558,7 @@ func (s *Server) finishSubtitleActivity(uuid string, userID int64) {
 
 // SubtitleUpload is optionally implemented by Deps.Subtitles: Plex Web's
 // "Upload Subtitles" (POST /library/metadata/{key}/subtitles).
-type SubtitleUpload = frontend.PlexSubtitleUpload
+type SubtitleUpload = frontend.SubtitleUpload
 
 const maxUploadBytes = 16 << 20
 

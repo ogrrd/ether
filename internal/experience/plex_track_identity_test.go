@@ -14,7 +14,7 @@ import (
 // control flow. Audio set-ness is the nonnegative position, and a nil
 // identity is left untouched, including invalid positions. Subtitle omission
 // forces position -1 after resolution.
-func referencePlexPlaySelection(issued PlexIssuedIdentity, info core.MediaInfo) TrackSelection {
+func referencePlexPlaySelection(issued IssuedTrackIdentity, info core.MediaInfo) TrackSelection {
 	audio, audioSet := issued.AudioPosition, issued.AudioPosition >= 0
 	sub, subSet := issued.SubtitlePosition, issued.SubtitleSet
 	if audioSet && issued.Audio != nil {
@@ -49,8 +49,8 @@ func englishAudio() core.StreamInfo {
 	return core.StreamInfo{Type: "audio", Language: "eng", Codec: "ac3", Channels: 6, Title: "Main"}
 }
 
-func issuedAudio(stream *core.StreamInfo, pos int, subPos int, subSet bool, sub *core.StreamInfo) PlexIssuedIdentity {
-	return PlexIssuedIdentity{
+func issuedAudio(stream *core.StreamInfo, pos int, subPos int, subSet bool, sub *core.StreamInfo) IssuedTrackIdentity {
+	return IssuedTrackIdentity{
 		Audio: stream, AudioPosition: pos, AudioSet: pos >= 0,
 		Subtitle: sub, SubtitlePosition: subPos, SubtitleSet: subSet,
 	}
@@ -62,7 +62,7 @@ func TestTranslatePlexTrackIdentityMatchesPlaySelection(t *testing.T) {
 	sidecar := core.StreamInfo{Type: "subtitle", Language: "fr", External: true, ExternalURL: "sidecar://en"}
 	cases := []struct {
 		name   string
-		issued PlexIssuedIdentity
+		issued IssuedTrackIdentity
 		want   TrackSelection
 	}{
 		{
@@ -247,12 +247,12 @@ func TestTranslatePlexTrackIdentityLegacyPreferencesAndUnsupported(t *testing.T)
 		t.Fatalf("preference fallback = %+v %v", selected, err)
 	}
 
-	_, err = TranslatePlexTrackIdentity(PlexIssuedIdentity{AudioPosition: -1, AudioSet: true, SubtitlePosition: -1}, info)
+	_, err = TranslatePlexTrackIdentity(IssuedTrackIdentity{AudioPosition: -1, AudioSet: true, SubtitlePosition: -1}, info)
 	var unsupported UnsupportedPlexTrackIdentityError
 	if !errors.As(err, &unsupported) || !errors.Is(err, UnsupportedPlexTrackIdentityError{}) {
 		t.Fatalf("disagreed audio set = %v", err)
 	}
-	got, err := TranslatePlexTrackIdentity(PlexIssuedIdentity{}, info)
+	got, err := TranslatePlexTrackIdentity(IssuedTrackIdentity{}, info)
 	if !errors.Is(err, unsupported) || got != (TrackSelection{}) {
 		t.Fatalf("zero value = %+v %v", got, err)
 	}

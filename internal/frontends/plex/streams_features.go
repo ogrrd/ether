@@ -103,7 +103,7 @@ func (s *Server) rememberStreamRequest(r *http.Request, user *frontend.Viewer, k
 		if kind == "subtitle" && id == 0 {
 		} else {
 			pr := FromContext(r.Context())
-			binding, rerr := s.resolveIssuedStream(frontend.WithPlexServe(r.Context(), pr.Remote, ""), user, pr.ClientID, id)
+			binding, rerr := s.resolveIssuedStream(frontend.WithStreamServe(r.Context(), pr.Remote, ""), user, pr.ClientID, id)
 			if rerr != nil {
 				if !streamMiss(rerr) {
 					return
@@ -169,7 +169,7 @@ func (s *Server) addProbedStreamFeatures(ctx context.Context, key frontend.Ratin
 }
 
 // SubtitleSource resolves cached OpenSubtitles and synchronized sidecars.
-type SubtitleSource = frontend.PlexSubtitleSource
+type SubtitleSource = frontend.SubtitleSource
 
 func showLanguageMemoKey(show frontend.RatingKey) string {
 	return "plex:show-language:" + strconv.FormatInt(int64(show), 10)

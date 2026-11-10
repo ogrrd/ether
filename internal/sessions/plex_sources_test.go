@@ -32,7 +32,7 @@ func (p *sourceAdmissionProbe) PrepareVariant(ctx context.Context, u *core.User,
 }
 func TestPlexSourcesPreserveBoundedAdmission(t *testing.T) {
 	p := &sourceAdmissionProbe{waitErr: context.Canceled}
-	source := PlexSources{Playback: p}
+	source := PartSources{Playback: p}
 	viewer := &core.User{ID: 7}
 	caps := core.ClientCaps{ClientID: "device"}
 	if _, err := source.Prepare(context.Background(), viewer, core.MovieKey(1), caps, "picked", time.Second); !errors.Is(err, context.Canceled) || p.admitted != 0 {

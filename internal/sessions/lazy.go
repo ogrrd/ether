@@ -78,7 +78,7 @@ func (s *lazyStreams) Issue(ctx context.Context, credential string, req frontend
 // that Prepare joins or takes the warm resolution instead of resolving after
 // the pick. It rechecks the grant, policy and title like Issue.
 func (s *lazyStreams) Warm(ctx context.Context, credential string, req frontend.PlanRequest) {
-	if req.Protocol != s.protocol || req.Device.ID == "" || req.Viewer == nil || req.Item == 0 || req.Channel != "" || req.Intent.Plex != nil {
+	if req.Protocol != s.protocol || req.Device.ID == "" || req.Viewer == nil || req.Item == 0 || req.Channel != "" || req.Intent.Hints != nil {
 		return
 	}
 	warm, ok := s.broker.deps.Playback.(core.Prewarmer)
@@ -125,7 +125,7 @@ func (s *lazyStreams) IssueLineup(ctx context.Context, credential string, req fr
 }
 
 func (s *lazyStreams) issueOutput(ctx context.Context, credential string, req frontend.PlanRequest, stable bool, output *frontend.StreamRequest, lineup, activeReuse bool) (string, error) {
-	if req.Protocol != s.protocol || req.Device.ID == "" || req.Viewer == nil || req.Intent.Plex != nil || (!lineup && (req.Item == 0) == (req.Channel == "")) || (stable && req.Channel != "") {
+	if req.Protocol != s.protocol || req.Device.ID == "" || req.Viewer == nil || req.Intent.Hints != nil || (!lineup && (req.Item == 0) == (req.Channel == "")) || (stable && req.Channel != "") {
 		return "", core.ErrUnauthorized
 	}
 	ref, viewer, err := s.grants.GrantReference(ctx, string(s.protocol), credential)

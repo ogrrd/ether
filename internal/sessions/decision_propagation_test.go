@@ -119,8 +119,8 @@ func TestNotePlexEncoderRecordsDecisionOnPlayback(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plexCtx := WithPlexAdmission(ctx, func(context.Context) (PlexAdmission, error) {
-		return PlexAdmission{Source: ps, Media: ps.Info, Caps: core.ClientCaps{ClientID: "plex-tv"}, Options: core.DecideOptions{DirectPlay: true, DirectStream: true}}, nil
+	plexCtx := WithPlanAdmission(ctx, func(context.Context) (PlanAdmission, error) {
+		return PlanAdmission{Source: ps, Media: ps.Info, Caps: core.ClientCaps{ClientID: "plex-tv"}, Options: core.DecideOptions{DirectPlay: true, DirectStream: true}}, nil
 	})
 	dev := core.Device{ID: "plex-tv"}
 	plan, err := broker.Plan(plexCtx, frontend.PlanRequest{Viewer: viewer, Device: dev, Protocol: "plex", Item: core.MovieKey(1), Caps: core.ClientCaps{ClientID: "plex-tv"}, Intent: frontend.PlayIntent{ClientSessionID: "plex-1", Options: core.DecideOptions{DirectPlay: true, DirectStream: true}}})
@@ -134,20 +134,20 @@ func TestNotePlexEncoderRecordsDecisionOnPlayback(t *testing.T) {
 	q := core.HLSRequest{SessionID: "plex-1", ReleaseID: ps.SourceReleaseID(), Info: ps.Info, Decision: want}
 	wrong := q
 	wrong.ReleaseID = "different-source"
-	if _, err = broker.StartPlexHLS(ctx, viewer, ps.ID, "plex-1", wrong); !errors.Is(err, core.ErrNotAvailable) {
+	if _, err = broker.StartSegmentedHLS(ctx, viewer, ps.ID, "plex-1", wrong); !errors.Is(err, core.ErrNotAvailable) {
 		t.Fatalf("wrong source started: %v", err)
 	}
-	if _, err = broker.StartPlexHLS(ctx, &core.Viewer{ID: 3}, ps.ID, "plex-1", q); !errors.Is(err, core.ErrUnauthorized) {
+	if _, err = broker.StartSegmentedHLS(ctx, &core.Viewer{ID: 3}, ps.ID, "plex-1", q); !errors.Is(err, core.ErrUnauthorized) {
 		t.Fatalf("wrong viewer started: %v", err)
 	}
-	if _, err = broker.StartPlexHLS(ctx, viewer, ps.ID, "different-session", q); !errors.Is(err, core.ErrUnauthorized) {
+	if _, err = broker.StartSegmentedHLS(ctx, viewer, ps.ID, "different-session", q); !errors.Is(err, core.ErrUnauthorized) {
 		t.Fatalf("wrong public session started: %v", err)
 	}
-	hs, err := broker.StartPlexHLS(ctx, viewer, ps.ID, "plex-1", q)
+	hs, err := broker.StartSegmentedHLS(ctx, viewer, ps.ID, "plex-1", q)
 	if err != nil || hs == nil {
 		t.Fatalf("local Plex encoder: %v", err)
 	}
-	if got, owned := broker.PlexHLSSession("plex-1"); !owned || got != hs {
+	if got, owned := broker.SegmentedHLSSession("plex-1"); !owned || got != hs {
 		t.Fatal("local Plex encoder ownership was not retained")
 	}
 	broker.NotePlexEncoder("plex-1", frontend.StreamHLS, want, 0)
@@ -158,13 +158,13 @@ func TestNotePlexEncoderRecordsDecisionOnPlayback(t *testing.T) {
 	if dec.Kind != want.Kind || dec.VideoCopy != want.VideoCopy || dec.AudioCopy != want.AudioCopy {
 		t.Fatalf("recorded decision = %+v, want %+v", dec, want)
 	}
-	if !broker.StopPlexHLS("plex-1") {
+	if !broker.StopSegmentedHLS("plex-1") {
 		t.Fatal("local Plex retirement fell back to the adapter")
 	}
-	if _, exists := broker.PlexHLSSession("plex-1"); exists {
+	if _, exists := broker.SegmentedHLSSession("plex-1"); exists {
 		t.Fatal("local Plex encoder survived retirement")
 	}
-	if !broker.StopPlexHLS("plex-1") {
+	if !broker.StopSegmentedHLS("plex-1") {
 		t.Fatal("repeated retirement lost broker ownership")
 	}
 }
@@ -189,8 +189,8 @@ func TestPlexPartAdmissionClampsPolicy(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			ctx = WithPlexAdmission(ctx, func(context.Context) (PlexAdmission, error) {
-				return PlexAdmission{Source: ps, Caps: caps, Options: core.DecideOptions{DirectPlay: true, DirectStream: true}}, nil
+			ctx = WithPlanAdmission(ctx, func(context.Context) (PlanAdmission, error) {
+				return PlanAdmission{Source: ps, Caps: caps, Options: core.DecideOptions{DirectPlay: true, DirectStream: true}}, nil
 			})
 			req := frontend.PlanRequest{Viewer: viewer, Device: core.Device{ID: "plezy"}, Protocol: "plex", Item: ps.Key, Caps: caps, Intent: frontend.PlayIntent{ClientSessionID: "plezy-session"}}
 			plan, err := b.Plan(ctx, req)

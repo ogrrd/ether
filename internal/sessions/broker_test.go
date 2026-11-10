@@ -595,8 +595,8 @@ func TestReportNotifiesTimelineOnceForPlexAndJellyfin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plexCtx := WithPlexAdmission(ctx, func(context.Context) (PlexAdmission, error) {
-		return PlexAdmission{Source: ps, Media: ps.Info, Caps: core.ClientCaps{ClientID: "plex-tv"}, Options: core.DecideOptions{DirectPlay: true, DirectStream: true}}, nil
+	plexCtx := WithPlanAdmission(ctx, func(context.Context) (PlanAdmission, error) {
+		return PlanAdmission{Source: ps, Media: ps.Info, Caps: core.ClientCaps{ClientID: "plex-tv"}, Options: core.DecideOptions{DirectPlay: true, DirectStream: true}}, nil
 	})
 	dev := core.Device{ID: "plex-tv"}
 	plan, err := b.Plan(plexCtx, frontend.PlanRequest{Viewer: viewer, Device: dev, Protocol: "plex", Item: core.MovieKey(1), Caps: core.ClientCaps{ClientID: "plex-tv"}, Intent: frontend.PlayIntent{ClientSessionID: "plex-1", Options: core.DecideOptions{DirectPlay: true, DirectStream: true}}})

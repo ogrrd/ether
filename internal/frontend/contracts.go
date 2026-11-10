@@ -541,12 +541,12 @@ type PlayIntent struct {
 	// a later detail page can warm the title with exactly what Play sends
 	// (DetailWarmer); generic caps are never remembered.
 	DeclaredCaps bool
-	Plex         *PlexHints
+	Hints        *PlayHints
 }
 
-// PlexHints carries Plex-specific selections that cannot be represented by
+// PlayHints carries Plex-specific selections that cannot be represented by
 // neutral stream indexes. Only the Plex adapter should populate it.
-type PlexHints struct {
+type PlayHints struct {
 	ManualSubtitle    bool // explicit request or stored manual choice, before preferences
 	Collection        string
 	MediaIndex        int

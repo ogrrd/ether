@@ -199,8 +199,8 @@ func TestOwnerActivityIncludesAndStopsLegacyAndBrokerSessions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	admitted := sessions.PlexAdmission{Source: plexSource, Media: plexSource.Info, Options: core.DecideOptions{DirectPlay: true, DirectStream: true}}
-	plexCtx := sessions.WithPlexAdmission(ctx, func(context.Context) (sessions.PlexAdmission, error) {
+	admitted := sessions.PlanAdmission{Source: plexSource, Media: plexSource.Info, Options: core.DecideOptions{DirectPlay: true, DirectStream: true}}
+	plexCtx := sessions.WithPlanAdmission(ctx, func(context.Context) (sessions.PlanAdmission, error) {
 		return admitted, nil
 	})
 	plexViewer := &core.Viewer{ID: 2}
@@ -225,7 +225,7 @@ func TestOwnerActivityIncludesAndStopsLegacyAndBrokerSessions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plexServer := plex.NewServer(plex.Deps{SessionStores: sessions.NewPlexSessionStores(), Experience: experience.NewPlexExperience(), Playback: p, DisableEnrichment: true})
+	plexServer := plex.NewServer(plex.Deps{SessionStores: sessions.NewSessionStores(), Experience: experience.NewSelectors(), Playback: p, DisableEnrichment: true})
 	defer plexServer.Close()
 	a := &App{plexServer: plexServer, frontends: &frontendRuntime{broker: broker}}
 	activity := (ownerPlayback{Playback: p, app: a}).Sessions()

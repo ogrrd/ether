@@ -155,8 +155,8 @@ func TestClusterOwnerStopReachesServingNode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	admitted := sessions.PlexAdmission{Source: ps, Media: ps.Info, Options: core.DecideOptions{DirectPlay: true, DirectStream: true}}
-	plexCtx := sessions.WithPlexAdmission(ctx, func(context.Context) (sessions.PlexAdmission, error) {
+	admitted := sessions.PlanAdmission{Source: ps, Media: ps.Info, Options: core.DecideOptions{DirectPlay: true, DirectStream: true}}
+	plexCtx := sessions.WithPlanAdmission(ctx, func(context.Context) (sessions.PlanAdmission, error) {
 		return admitted, nil
 	})
 	viewer := &core.Viewer{ID: friendUser.ID}

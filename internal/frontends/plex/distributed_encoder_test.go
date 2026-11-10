@@ -24,7 +24,7 @@ type recordedPlexEncoder struct {
 	startErr                         error
 }
 
-func (e *recordedPlexEncoder) StartPlexHLS(_ context.Context, u *core.User, playID, id string, q core.HLSRequest) (core.HLSSession, error) {
+func (e *recordedPlexEncoder) StartSegmentedHLS(_ context.Context, u *core.User, playID, id string, q core.HLSRequest) (core.HLSSession, error) {
 	e.starts++
 	if u == nil || playID == "" || id == "" || q.SessionID != id {
 		return nil, core.ErrUnauthorized
@@ -40,12 +40,12 @@ func (e *recordedPlexEncoder) StartPlexHLS(_ context.Context, u *core.User, play
 	e.sessions[id] = hs
 	return hs, nil
 }
-func (e *recordedPlexEncoder) PlexHLSSession(id string) (core.HLSSession, bool) {
+func (e *recordedPlexEncoder) SegmentedHLSSession(id string) (core.HLSSession, bool) {
 	e.lookups++
 	hs, ok := e.sessions[id]
 	return hs, ok
 }
-func (e *recordedPlexEncoder) StopPlexHLS(id string) bool {
+func (e *recordedPlexEncoder) StopSegmentedHLS(id string) bool {
 	if _, ok := e.sessions[id]; !ok {
 		return false
 	}
@@ -87,7 +87,7 @@ func (s *remotePlexFixtureSession) ServeSegment(w http.ResponseWriter, r *http.R
 
 func TestPlexEncoderUniversalRoutesPreserveAuthorization(t *testing.T) {
 	remote := &recordedPlexEncoder{sessions: map[string]core.HLSSession{}}
-	f := newFixture(func(d *Deps) { d.PlexEncoder = remote })
+	f := newFixture(func(d *Deps) { d.Encoder = remote })
 	defer f.srv.Close()
 	f.trans.decision = core.Decision{Kind: core.DecisionRemux, VideoCopy: true, AudioCopy: true, Container: "mpegts"}
 	startPath := "/video/:/transcode/universal/start.m3u8?path=%2Flibrary%2Fmetadata%2F1000000000000550&session=remote-plex"
@@ -139,7 +139,7 @@ func TestPlexEncoderUniversalRoutesPreserveAuthorization(t *testing.T) {
 
 func TestPlexEncoderFailureAndMountCleanupRetainOwnership(t *testing.T) {
 	remote := &recordedPlexEncoder{sessions: map[string]core.HLSSession{}, startErr: errors.New("uncertain owned remote start")}
-	f := newFixture(func(d *Deps) { d.PlexEncoder = remote })
+	f := newFixture(func(d *Deps) { d.Encoder = remote })
 	defer f.srv.Close()
 	f.get(t, decisionPath("/video/:/transcode/universal/start.m3u8?path=%2Flibrary%2Fmetadata%2F1000000000000550&session=pending-remote"))
 	_ = f.get(t, "/video/:/transcode/universal/start.m3u8?path=%2Flibrary%2Fmetadata%2F1000000000000550&session=pending-remote")
@@ -161,7 +161,7 @@ func TestPlexEncoderDASHAndHTTPStartsUseSameSeam(t *testing.T) {
 	for _, tc := range []struct{ format, protocol, content string }{{"start.mpd", "dash", "application/dash+xml"}, {"start", "http", "video/x-matroska"}} {
 		t.Run(tc.protocol, func(t *testing.T) {
 			remote := &recordedPlexEncoder{sessions: map[string]core.HLSSession{}}
-			f := newFixture(func(d *Deps) { d.PlexEncoder = remote })
+			f := newFixture(func(d *Deps) { d.Encoder = remote })
 			defer f.srv.Close()
 			ps, err := f.playback.Prepare(context.Background(), &ownerUser, fightClub.Key, core.ClientCaps{ClientID: "client-1"})
 			if err != nil {
@@ -181,7 +181,7 @@ func TestPlexEncoderDASHAndHTTPStartsUseSameSeam(t *testing.T) {
 
 func TestPlexTokenMissingEntryTransfersOnlyToOwnerAuthorization(t *testing.T) {
 	remote := &recordedPlexEncoder{sessions: map[string]core.HLSSession{}}
-	owner := newFixture(func(d *Deps) { d.PlexEncoder = remote })
+	owner := newFixture(func(d *Deps) { d.Encoder = remote })
 	defer owner.srv.Close()
 	owner.trans.decision = core.Decision{Kind: core.DecisionRemux, VideoCopy: true, AudioCopy: true, Container: "mpegts"}
 	owner.get(t, decisionPath("/video/:/transcode/universal/start.m3u8?path=%2Flibrary%2Fmetadata%2F1000000000000550&session=owner-transfer"))
@@ -190,7 +190,7 @@ func TestPlexTokenMissingEntryTransfersOnlyToOwnerAuthorization(t *testing.T) {
 		t.Fatal(start.Code, start.Body.String())
 	}
 	delegate := &recordedPlexEncoder{sessions: map[string]core.HLSSession{}, forwardHandler: owner.srv, forwardID: "owner-transfer"}
-	sender := newFixture(func(d *Deps) { d.PlexEncoder = delegate })
+	sender := newFixture(func(d *Deps) { d.Encoder = delegate })
 	defer sender.srv.Close()
 	path := "/video/:/transcode/universal/session/owner-transfer/base/00042.ts"
 	for _, tc := range []struct {

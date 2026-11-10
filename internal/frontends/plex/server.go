@@ -54,7 +54,7 @@ type Server struct {
 	shelfSerial      uint64
 	shelfWriter      *shelfPersistence
 	plexEncoderMu    sync.RWMutex
-	plexEncoder      PlexEncoder
+	plexEncoder      SegmentedEncoder
 	homeSharedMu     sync.Mutex
 	homeShared       map[string]*homeSharedEntry
 	shelfRefMu       sync.Mutex
@@ -89,7 +89,7 @@ type Server struct {
 		GetUntrustedURL(context.Context, string) ([]byte, string, error)
 	}
 	channelRaster     frontend.SVGRasterizer
-	boundStreams      frontend.PlexStreamAPI
+	boundStreams      frontend.StreamBindings
 	variantIDs        *variantIDRegistry
 	playIDs           *playIdentities
 	versionFlows      *versionFlowStore
@@ -148,10 +148,10 @@ func NewServer(d Deps) *Server {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	if d.SessionStores == nil {
-		panic("plex: Deps.SessionStores is required (wire sessions.NewPlexSessionStores())")
+		panic("plex: Deps.SessionStores is required (wire sessions.NewSessionStores())")
 	}
 	if d.Experience == nil {
-		panic("plex: Deps.Experience is required (wire experience.NewPlexExperience())")
+		panic("plex: Deps.Experience is required (wire experience.NewSelectors())")
 	}
 	d.Dashboard, d.Resources = d.Experience.StatisticsDefaults(d.Dashboard, d.Resources, d.Now)
 	coord := d.SessionCoordination
@@ -160,8 +160,8 @@ func NewServer(d Deps) *Server {
 	}
 	s := &Server{
 		activities:        map[string]model.Activity{},
-		plexEncoder:       d.PlexEncoder,
-		boundStreams:      d.PlexStreams,
+		plexEncoder:       d.Encoder,
+		boundStreams:      d.Streams,
 		d:                 d,
 		log:               d.Logger.With("component", "plex"),
 		imageURL:          func(path, size string) string { return "https://image.tmdb.org/t/p/" + size + path },

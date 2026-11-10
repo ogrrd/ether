@@ -62,7 +62,7 @@ func TestAuthoredPlexRepresentationOwnerContract(t *testing.T) {
 	m := authoredManager(t)
 	const publicID = "authored-public"
 	remote := &recordedPlexEncoder{sessions: map[string]core.HLSSession{}}
-	owner := newFixture(func(d *Deps) { d.PlexEncoder = remote })
+	owner := newFixture(func(d *Deps) { d.Encoder = remote })
 	defer owner.srv.Close()
 	owner.trans.decision = core.Decision{Kind: core.DecisionRemux, VideoCopy: true, AudioCopy: true, Container: "mpegts"}
 	startPath := "/video/:/transcode/universal/start.m3u8?path=/library/metadata/1000000000000550&session=" + publicID
@@ -72,7 +72,7 @@ func TestAuthoredPlexRepresentationOwnerContract(t *testing.T) {
 		t.Fatal(master.Code)
 	}
 	delegate := &recordedPlexEncoder{sessions: map[string]core.HLSSession{}, forwardHandler: owner.srv, forwardID: publicID}
-	sender := newFixture(func(d *Deps) { d.PlexEncoder = delegate })
+	sender := newFixture(func(d *Deps) { d.Encoder = delegate })
 	defer sender.srv.Close()
 	entry, _ := owner.srv.transcodes.get(publicID)
 	resolve := func(base, child string) string {

@@ -13,7 +13,7 @@ import (
 func (s *Server) UsePlaybackBroker(b frontend.Sessions) {
 	if s != nil {
 		s.playbackBroker = b
-		s.sessions.bind(s.d.SessionStores.UnderlyingPlexActivityStore(b))
+		s.sessions.bind(s.d.SessionStores.UnderlyingActivityStore(b))
 	}
 }
 
@@ -27,7 +27,7 @@ func (s *Server) plexPlanRequest(pr *Request, p *playRequest) frontend.PlanReque
 		Viewer: pr.User, Device: device, Protocol: "plex", Item: p.key, Caps: caps,
 		Intent: frontend.PlayIntent{
 			Options: p.opts, PreferRemux: p.mde, PlaybackID: pr.SessionID, ClientSessionID: p.sessionID,
-			Plex: &frontend.PlexHints{
+			Hints: &frontend.PlayHints{
 				ManualSubtitle: p.manualSubtitle,
 				Collection:     p.collection, MediaIndex: p.mediaIndex, PartReleaseID: p.partReleaseID,
 				AudioSelection: p.audioSel, SubtitleSelection: p.subSel, SubtitleSet: p.subSet, SubtitleStream: p.subStream,
@@ -55,11 +55,11 @@ func (s *Server) plexAccess(pr *Request) frontend.SessionAccess {
 
 // openPlexPlan runs version and track resolution inside Plan, then publishes
 // the decision Plan made. The adapter renders that decision.
-func (s *Server) openPlexPlan(ctx context.Context, pr *Request, p *playRequest, admit func(context.Context) (frontend.PlexAdmission, error)) (frontend.Decision, error) {
+func (s *Server) openPlexPlan(ctx context.Context, pr *Request, p *playRequest, admit func(context.Context) (frontend.PlanAdmission, error)) (frontend.Decision, error) {
 	if s == nil || s.playbackBroker == nil || pr == nil || pr.User == nil || p == nil || p.sessionID == "" || admit == nil {
 		return frontend.Decision{}, frontend.ErrNotAvailable
 	}
-	ctx = frontend.WithPlexAdmission(ctx, admit)
+	ctx = frontend.WithPlanAdmission(ctx, admit)
 	plan, err := s.playbackBroker.Plan(ctx, s.plexPlanRequest(pr, p))
 	if err != nil {
 		return frontend.Decision{}, fmt.Errorf("Plex broker plan: %w", err)
@@ -76,8 +76,8 @@ func (s *Server) publishBrokerPlayback(ctx context.Context, pr *Request, p *play
 	if ps == nil {
 		return frontend.Decision{}, frontend.ErrNotAvailable
 	}
-	return s.openPlexPlan(ctx, pr, p, func(context.Context) (frontend.PlexAdmission, error) {
-		return frontend.PlexAdmission{
+	return s.openPlexPlan(ctx, pr, p, func(context.Context) (frontend.PlanAdmission, error) {
+		return frontend.PlanAdmission{
 			Source: ps, Media: ps.Info, Caps: p.caps, Options: p.opts, PreferRemux: p.mde, Protocol: p.protocol,
 			RemoteMaxBitrateKbps: s.cfg().Transcode.RemoteMaxBitrateKbps,
 		}, nil

@@ -194,8 +194,8 @@ func (l *Library) Transcoder() core.Transcoder   { return l.trans }
 func (l *Library) Deps() plex.Deps {
 	c := l.cfg()
 	return plex.Deps{
-		SessionStores:    sessions.NewPlexSessionStores(),
-		Experience:       experience.NewPlexExperience(),
+		SessionStores:    sessions.NewSessionStores(),
+		Experience:       experience.NewSelectors(),
 		Catalog:          l.Catalog(),
 		Collections:      l.Collections(),
 		Recommender:      l.Recommender(),

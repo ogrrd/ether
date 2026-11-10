@@ -164,7 +164,7 @@ type Broker struct {
 	mu                  sync.Mutex
 	plans               map[string]brokerPlan
 	sessions            map[string]*brokerSession
-	plexActivities      map[string]*PlexActivity
+	plexActivities      map[string]*PlaybackActivity
 	plexActivityNext    int
 	retired             map[string]retiredSession
 	lazySessions        map[string]lazySession
@@ -190,7 +190,7 @@ type Broker struct {
 	planSweepEvery      time.Duration
 	detailPlans         map[string]*detailFlight
 	cluster             *brokerCluster
-	plexStreams         *PlexStreamTable
+	plexStreams         *StreamTable
 	historyQueue        chan sourceHistorySample
 	historyCancel       context.CancelFunc
 	historyDone         chan struct{}
@@ -219,7 +219,7 @@ func NewBroker(d BrokerDeps) (*Broker, error) {
 	if limit > 4096 {
 		return nil, errors.New("sessions: max pending starts exceeds 4096")
 	}
-	b := &Broker{sampleLimit: 100000, deps: d, startSlots: make(chan struct{}, limit), shutdownTimeout: 10 * time.Second, lazyCleanupWait: 5 * time.Second, planSweepEvery: 5 * time.Second, plans: make(map[string]brokerPlan), pendingByViewer: make(map[int64]int), sourceLeases: make(map[string]*sourceLease), sessions: make(map[string]*brokerSession), plexActivities: make(map[string]*PlexActivity), retired: make(map[string]retiredSession), devices: make(map[deviceKey]frontend.SessionCapabilities), playCapsByDevice: make(map[deviceKey]rememberedPlayCaps), owners: coord.Owners, gates: coord.Gates, bindings: NewBindingTable[frontend.PlayIntent](), plexStreams: NewPlexStreamTable()}
+	b := &Broker{sampleLimit: 100000, deps: d, startSlots: make(chan struct{}, limit), shutdownTimeout: 10 * time.Second, lazyCleanupWait: 5 * time.Second, planSweepEvery: 5 * time.Second, plans: make(map[string]brokerPlan), pendingByViewer: make(map[int64]int), sourceLeases: make(map[string]*sourceLease), sessions: make(map[string]*brokerSession), plexActivities: make(map[string]*PlaybackActivity), retired: make(map[string]retiredSession), devices: make(map[deviceKey]frontend.SessionCapabilities), playCapsByDevice: make(map[deviceKey]rememberedPlayCaps), owners: coord.Owners, gates: coord.Gates, bindings: NewBindingTable[frontend.PlayIntent](), plexStreams: NewStreamTable()}
 	if d, ok := b.deps.DistributedHLS.(interface {
 		BindDelivery(func(http.ResponseWriter, *http.Request, string)) error
 	}); ok {
@@ -335,13 +335,13 @@ func copyRequest(r frontend.PlanRequest) frontend.PlanRequest {
 	}
 	r.Caps.Profiles = cloneClientProfiles(r.Caps.Profiles)
 	r.Intent.Options.AudioFilters = slices.Clone(r.Intent.Options.AudioFilters)
-	if r.Intent.Plex != nil {
-		p := *r.Intent.Plex
+	if r.Intent.Hints != nil {
+		p := *r.Intent.Hints
 		if p.SubtitleStream != nil {
 			s := copyStream(*p.SubtitleStream)
 			p.SubtitleStream = &s
 		}
-		r.Intent.Plex = &p
+		r.Intent.Hints = &p
 	}
 	return r
 }
@@ -390,13 +390,13 @@ func (b *Broker) Plan(ctx context.Context, req frontend.PlanRequest) (frontend.P
 		return frontend.PlayPlan{}, core.ErrUnauthorized
 	}
 	if req.Protocol == "plex" {
-		if admit, ok := frontend.PlexAdmissionFrom(ctx); ok {
+		if admit, ok := frontend.PlanAdmissionFrom(ctx); ok {
 			return b.planPlexAdmission(ctx, req, admit)
 		}
 	}
 	// Plex-specific version and stream identifiers remain on the existing Plex
 	// path until its adapter can translate them into neutral selections.
-	if req.Intent.Plex != nil {
+	if req.Intent.Hints != nil {
 		return frontend.PlayPlan{}, core.ErrNotAvailable
 	}
 	b.mu.Lock()
@@ -706,7 +706,7 @@ func (b *Broker) Plan(ctx context.Context, req frontend.PlanRequest) (frontend.P
 	}
 	id := rand.Text()
 	etag := sourceRevision(ps)
-	if req.Intent.SubtitleSet || (req.Intent.Plex != nil && req.Intent.Plex.ManualSubtitle) {
+	if req.Intent.SubtitleSet || (req.Intent.Hints != nil && req.Intent.Hints.ManualSubtitle) {
 		if err := b.RecordAuthorizedSubtitleIntent(ctx, v.ID, req.Item, true); err != nil {
 			return frontend.PlayPlan{}, err
 		}
@@ -893,7 +893,7 @@ func (b *Broker) Open(ctx context.Context, req frontend.OpenRequest) (frontend.S
 	if deliverySession == "" {
 		deliverySession = id
 	}
-	s := &brokerSession{autoSubtitleIdentity: new(int), manualSubtitle: p.request.Intent.SubtitleSet || (p.request.Intent.Plex != nil && p.request.Intent.Plex.ManualSubtitle), public: copySession(session), grant: grant, playID: ps.ID, clientID: p.request.Caps.ClientID, playbackID: playbackID, caps: p.request.Caps, opts: p.request.Intent.Options, decision: p.decision, allowTranscoding: p.request.Intent.AllowTranscoding, versionHandle: p.versionHandle, exactRelease: p.exactRelease, sourcePinned: p.pinned, sourceETag: p.etag, deliverySession: deliverySession}
+	s := &brokerSession{autoSubtitleIdentity: new(int), manualSubtitle: p.request.Intent.SubtitleSet || (p.request.Intent.Hints != nil && p.request.Intent.Hints.ManualSubtitle), public: copySession(session), grant: grant, playID: ps.ID, clientID: p.request.Caps.ClientID, playbackID: playbackID, caps: p.request.Caps, opts: p.request.Intent.Options, decision: p.decision, allowTranscoding: p.request.Intent.AllowTranscoding, versionHandle: p.versionHandle, exactRelease: p.exactRelease, sourcePinned: p.pinned, sourceETag: p.etag, deliverySession: deliverySession}
 	barrier, barrierErr := b.admitSessionBarrier(ctx, v.ID, string(req.Protocol), p.request.Device.ID, p.request.Item, ps.ID, id)
 	if barrierErr != nil {
 		if errors.Is(barrierErr, errTransferCommitUnknown) {

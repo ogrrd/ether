@@ -6,7 +6,7 @@ import (
 )
 
 // SearchSources lives in internal/frontend (host_sessions_experience.go).
-// Its former For method is PlexExperience.SearchFor.
+// Its former For method is Selectors.SearchFor.
 type SearchSources = frontend.SearchSources
 
 // SearchFor is the shared search seen through one frontend's visibility.

@@ -75,8 +75,8 @@ func TestStartPlexHLSMintsInputLease(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plexCtx := WithPlexAdmission(ctx, func(context.Context) (PlexAdmission, error) {
-		return PlexAdmission{Source: ps, Media: ps.Info, Caps: core.ClientCaps{ClientID: "plex-tv"}, Options: core.DecideOptions{DirectPlay: true, DirectStream: true}}, nil
+	plexCtx := WithPlanAdmission(ctx, func(context.Context) (PlanAdmission, error) {
+		return PlanAdmission{Source: ps, Media: ps.Info, Caps: core.ClientCaps{ClientID: "plex-tv"}, Options: core.DecideOptions{DirectPlay: true, DirectStream: true}}, nil
 	})
 	dev := core.Device{ID: "plex-tv"}
 	plan, err := broker.Plan(plexCtx, frontend.PlanRequest{Viewer: viewer, Device: dev, Protocol: "plex", Item: core.MovieKey(1), Caps: core.ClientCaps{ClientID: "plex-tv"}, Intent: frontend.PlayIntent{ClientSessionID: "plex-1", Options: core.DecideOptions{DirectPlay: true, DirectStream: true}}})
@@ -87,7 +87,7 @@ func TestStartPlexHLSMintsInputLease(t *testing.T) {
 		t.Fatal(err)
 	}
 	q := core.HLSRequest{SessionID: "plex-1", ReleaseID: ps.SourceReleaseID(), Info: ps.Info, Decision: core.Decision{Kind: core.DecisionRemux, VideoCopy: true, AudioCopy: true, Container: "mpegts"}}
-	hs, err := broker.StartPlexHLS(ctx, viewer, ps.ID, "plex-1", q)
+	hs, err := broker.StartSegmentedHLS(ctx, viewer, ps.ID, "plex-1", q)
 	if err != nil || hs == nil {
 		t.Fatalf("local Plex encoder: %v", err)
 	}

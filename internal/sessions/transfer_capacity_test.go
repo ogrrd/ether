@@ -68,8 +68,8 @@ func TestViewerHourOfPlaybackReusesTransferTickets(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		plexCtx := WithPlexAdmission(ctx, func(context.Context) (PlexAdmission, error) {
-			return PlexAdmission{Source: ps, Media: ps.Info, Caps: core.ClientCaps{ClientID: device.ID}, Options: core.DecideOptions{DirectPlay: true, DirectStream: true}}, nil
+		plexCtx := WithPlanAdmission(ctx, func(context.Context) (PlanAdmission, error) {
+			return PlanAdmission{Source: ps, Media: ps.Info, Caps: core.ClientCaps{ClientID: device.ID}, Options: core.DecideOptions{DirectPlay: true, DirectStream: true}}, nil
 		})
 		plan, err := b.Plan(plexCtx, frontend.PlanRequest{
 			Viewer: viewer, Device: device, Protocol: "plex", Item: item, Caps: core.ClientCaps{ClientID: device.ID},

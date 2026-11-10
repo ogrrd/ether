@@ -40,8 +40,8 @@ type TimelinePersistenceResult struct {
 	ViewCount          int
 	Changed, Completed bool
 }
-type PlexTimelineWriter interface {
-	PlexTimeline(context.Context, int64, RatingKey, time.Duration, time.Duration, string, string, *int) (TimelinePersistenceResult, error)
+type TimelineWriter interface {
+	StoreTimeline(context.Context, int64, RatingKey, time.Duration, time.Duration, string, string, *int) (TimelinePersistenceResult, error)
 }
 type timelineStoredKey struct{}
 

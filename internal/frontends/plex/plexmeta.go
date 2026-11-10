@@ -16,7 +16,7 @@ type plexMetaBatch struct {
 }
 
 func (s *Server) plexMetaOn() bool {
-	if s == nil || s.d.PlexMeta == nil || s.d.Config == nil {
+	if s == nil || s.d.LibraryMetadata == nil || s.d.Config == nil {
 		return false
 	}
 	cfg := s.d.Config()
@@ -27,7 +27,7 @@ func (s *Server) withPlexMeta(ctx context.Context, keys []frontend.RatingKey, gu
 	if !s.plexMetaOn() {
 		return ctx
 	}
-	cached := s.d.PlexMeta.CachedMany(ctx, keys)
+	cached := s.d.LibraryMetadata.CachedMany(ctx, keys)
 	now := s.now()
 	refresh := make([]frontend.RatingKey, 0, len(keys))
 	seen := map[frontend.RatingKey]bool{}
@@ -45,7 +45,7 @@ func (s *Server) withPlexMeta(ctx context.Context, keys []frontend.RatingKey, gu
 			refresh = append(refresh, k)
 		}
 	}
-	s.d.PlexMeta.Schedule(refresh...)
+	s.d.LibraryMetadata.Schedule(refresh...)
 	return context.WithValue(ctx, plexMetaCtxKey{}, plexMetaBatch{rows: cached, guids: guids})
 }
 
@@ -62,9 +62,9 @@ func (s *Server) plexMetaCached(ctx context.Context, k frontend.RatingKey) (fron
 		row, ok = batch.rows[k]
 		guid = batch.guids[k]
 	} else {
-		row, ok = s.d.PlexMeta.Cached(ctx, k)
-		if s.d.PlexGUID != nil {
-			guid = s.d.PlexGUID.Cached(ctx, k)
+		row, ok = s.d.LibraryMetadata.Cached(ctx, k)
+		if s.d.LibraryGUIDs != nil {
+			guid = s.d.LibraryGUIDs.Cached(ctx, k)
 		}
 	}
 	if !ok || row.Empty() || guid == "" || row.GUID != guid {

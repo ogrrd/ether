@@ -862,7 +862,7 @@ func TestWaysToWatchSubtitleReread(t *testing.T) {
 	}
 	pg := plexguid.New(db, plexguid.Options{})
 	t.Cleanup(func() { pg.Close() })
-	f.srv.d.PlexGUID = pg
+	f.srv.d.LibraryGUIDs = pg
 
 	const plexToken = "plex-tv-user-token"
 	f.srv.d.Auth.(*fakeAuth).users[plexToken] = ownerUser

@@ -12,7 +12,7 @@ import (
 
 func TestPlexGrantMissingEntryUsesOriginalOwnerPrecedenceAndPolicy(t *testing.T) {
 	remote := &recordedPlexEncoder{sessions: map[string]core.HLSSession{}}
-	owner := newFixture(func(d *Deps) { d.PlexEncoder = remote })
+	owner := newFixture(func(d *Deps) { d.Encoder = remote })
 	defer owner.srv.Close()
 	owner.trans.decision = core.Decision{Kind: core.DecisionRemux, VideoCopy: true, AudioCopy: true, Container: "mpegts"}
 	owner.get(t, decisionPath("/video/:/transcode/universal/start.m3u8?path=%2Flibrary%2Fmetadata%2F1000000000000550&session=grant-owner"))
@@ -21,7 +21,7 @@ func TestPlexGrantMissingEntryUsesOriginalOwnerPrecedenceAndPolicy(t *testing.T)
 		t.Fatal(start.Code, start.Body.String())
 	}
 	delegate := &recordedPlexEncoder{sessions: map[string]core.HLSSession{}, forwardHandler: owner.srv, forwardID: "grant-owner"}
-	sender := newFixture(func(d *Deps) { d.PlexEncoder = delegate })
+	sender := newFixture(func(d *Deps) { d.Encoder = delegate })
 	defer sender.srv.Close()
 	path := "/video/:/transcode/universal/session/grant-owner/base/00042.ts"
 	entry, _ := owner.srv.transcodes.get("grant-owner")
@@ -84,7 +84,7 @@ func TestPlexGrantMissingEntryUsesOriginalOwnerPrecedenceAndPolicy(t *testing.T)
 
 func TestPlexGrantTransferRejectsAmbiguityAndPreservesLocalNil(t *testing.T) {
 	delegate := &recordedPlexEncoder{sessions: map[string]core.HLSSession{}}
-	sender := newFixture(func(d *Deps) { d.PlexEncoder = delegate })
+	sender := newFixture(func(d *Deps) { d.Encoder = delegate })
 	defer sender.srv.Close()
 	path := "/video/:/transcode/universal/session/missing/base/00042.ts"
 	for _, suffix := range []string{"", "?" + streamGrantParam + "=one&" + streamGrantParam + "=two", "?" + strings.ToLower(streamGrantParam) + "=one", "?" + streamGrantParam + "=one&X-Plex-Token=invalid", "?" + streamGrantParam + "=one&" + readCapParam + "=a&" + readCapParam + "=b", "?" + streamGrantParam + "=", "?" + streamGrantParam + "=" + strings.Repeat("x", 513), "?" + streamGrantParam + "=%00"} {
@@ -123,7 +123,7 @@ func TestPlexGrantTransferRejectsAmbiguityAndPreservesLocalNil(t *testing.T) {
 		t.Fatal("nil grant seam changed authentication")
 	}
 	// Failed authentication for an existing local entry never delegates elsewhere.
-	local := newFixture(func(d *Deps) { d.PlexEncoder = delegate })
+	local := newFixture(func(d *Deps) { d.Encoder = delegate })
 	defer local.srv.Close()
 	local.trans.decision = core.Decision{Kind: core.DecisionRemux, VideoCopy: true, AudioCopy: true, Container: "mpegts"}
 	local.get(t, decisionPath("/video/:/transcode/universal/start.m3u8?path=%2Flibrary%2Fmetadata%2F1000000000000550&session=local-grant"))

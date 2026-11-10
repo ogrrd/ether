@@ -14,10 +14,10 @@ type variantRef struct {
 }
 type variantIDRegistry struct{ shared frontend.VariantIDs }
 
-func newVariantIDRegistry(stores frontend.PlexSessionStores, db *sql.DB) *variantIDRegistry {
+func newVariantIDRegistry(stores frontend.SessionStores, db *sql.DB) *variantIDRegistry {
 	return newVariantIDRegistryAt(stores, db, time.Now)
 }
-func newVariantIDRegistryAt(stores frontend.PlexSessionStores, db *sql.DB, now func() time.Time) *variantIDRegistry {
+func newVariantIDRegistryAt(stores frontend.SessionStores, db *sql.DB, now func() time.Time) *variantIDRegistry {
 	return &variantIDRegistry{shared: stores.NewVariantIDs(db, now)}
 }
 func variantHash(key frontend.RatingKey, release string) int64 {

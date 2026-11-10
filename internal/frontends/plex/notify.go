@@ -47,7 +47,7 @@ type sessionActivities struct {
 	mu     sync.Mutex
 	local  map[string]playEntry
 	next   int
-	broker frontend.PlexActivityStore
+	broker frontend.PlaybackActivityStore
 }
 
 func newSessionActivities() *sessionActivities {
@@ -57,7 +57,7 @@ func newSessionActivities() *sessionActivities {
 func trackID(userID int64, clientID, sessionID string) string {
 	return fmt.Sprintf("%d/%s/%s", userID, clientID, sessionID)
 }
-func (t *sessionActivities) bind(b frontend.PlexActivityStore) {
+func (t *sessionActivities) bind(b frontend.PlaybackActivityStore) {
 	if t == nil {
 		return
 	}
@@ -65,7 +65,7 @@ func (t *sessionActivities) bind(b frontend.PlexActivityStore) {
 	t.broker = b
 	t.mu.Unlock()
 }
-func (t *sessionActivities) mounted() frontend.PlexActivityStore {
+func (t *sessionActivities) mounted() frontend.PlaybackActivityStore {
 	if t == nil {
 		return nil
 	}
@@ -78,7 +78,7 @@ func (t *sessionActivities) has(id string) bool {
 		return false
 	}
 	if b := t.mounted(); b != nil {
-		return b.HasPlexActivity(id)
+		return b.HasActivity(id)
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -90,7 +90,7 @@ func (t *sessionActivities) ensure(id string, key int) {
 		return
 	}
 	if b := t.mounted(); b != nil {
-		b.EnsurePlexActivity(id, key)
+		b.EnsureActivity(id, key)
 		return
 	}
 	t.mu.Lock()
@@ -108,7 +108,7 @@ func (t *sessionActivities) update(id string, fn func(*playEntry)) playEntry {
 		return zero
 	}
 	if b := t.mounted(); b != nil {
-		act := b.UpsertPlexActivity(id, func(a *frontend.PlexActivity) {
+		act := b.UpsertActivity(id, func(a *frontend.PlaybackActivity) {
 			e := activityEntry(*a)
 			fn(&e)
 			*a = entryActivity(e)
@@ -131,7 +131,7 @@ func (t *sessionActivities) remove(id string) (playEntry, bool) {
 		return playEntry{}, false
 	}
 	if b := t.mounted(); b != nil {
-		act, ok := b.RemovePlexActivity(id)
+		act, ok := b.RemoveActivity(id)
 		if !ok {
 			return playEntry{}, false
 		}
@@ -151,7 +151,7 @@ func (t *sessionActivities) list() []playEntry {
 		return nil
 	}
 	if b := t.mounted(); b != nil {
-		acts := b.ListPlexActivities()
+		acts := b.ListActivities()
 		out := make([]playEntry, 0, len(acts))
 		for _, a := range acts {
 			out = append(out, activityEntry(a))
@@ -171,7 +171,7 @@ func (t *sessionActivities) expire(now time.Time, ttl time.Duration) []playEntry
 		return nil
 	}
 	if b := t.mounted(); b != nil {
-		acts := b.ExpirePlexActivities(now, ttl)
+		acts := b.ExpireActivities(now, ttl)
 		out := make([]playEntry, 0, len(acts))
 		for _, a := range acts {
 			out = append(out, activityEntry(a))
@@ -190,7 +190,7 @@ func (t *sessionActivities) expire(now time.Time, ttl time.Duration) []playEntry
 	return out
 }
 
-func activityEntry(a frontend.PlexActivity) playEntry {
+func activityEntry(a frontend.PlaybackActivity) playEntry {
 	e := playEntry{id: a.ID, sessionKey: a.SessionKey, decisionSeen: a.DecisionSeen, playingSeen: a.PlayingSeen, user: a.User, key: a.Key, state: a.State, offset: a.Offset, duration: a.Duration, playQueueItemID: a.PlayQueueItemID, transcodeID: a.TranscodeID, startedAt: a.StartedAt, updatedAt: a.UpdatedAt}
 	e.client = Request{ClientID: a.ClientID, Product: a.Product, Version: a.Version, Platform: a.Platform, PlatformVersion: a.PlatformVersion, Device: a.Device, DeviceName: a.DeviceName, Model: a.Model, Vendor: a.Vendor, ProfileName: a.ProfileName, SessionID: a.SessionID, Remote: a.Remote}
 	if a.RemoteIP != "" {
@@ -199,8 +199,8 @@ func activityEntry(a frontend.PlexActivity) playEntry {
 	return e
 }
 
-func entryActivity(e playEntry) frontend.PlexActivity {
-	a := frontend.PlexActivity{ID: e.id, SessionKey: e.sessionKey, DecisionSeen: e.decisionSeen, PlayingSeen: e.playingSeen, User: e.user, ClientID: e.client.ClientID, Product: e.client.Product, Version: e.client.Version, Platform: e.client.Platform, PlatformVersion: e.client.PlatformVersion, Device: e.client.Device, DeviceName: e.client.DeviceName, Model: e.client.Model, Vendor: e.client.Vendor, ProfileName: e.client.ProfileName, SessionID: e.client.SessionID, Remote: e.client.Remote, Key: e.key, State: e.state, Offset: e.offset, Duration: e.duration, PlayQueueItemID: e.playQueueItemID, TranscodeID: e.transcodeID, StartedAt: e.startedAt, UpdatedAt: e.updatedAt}
+func entryActivity(e playEntry) frontend.PlaybackActivity {
+	a := frontend.PlaybackActivity{ID: e.id, SessionKey: e.sessionKey, DecisionSeen: e.decisionSeen, PlayingSeen: e.playingSeen, User: e.user, ClientID: e.client.ClientID, Product: e.client.Product, Version: e.client.Version, Platform: e.client.Platform, PlatformVersion: e.client.PlatformVersion, Device: e.client.Device, DeviceName: e.client.DeviceName, Model: e.client.Model, Vendor: e.client.Vendor, ProfileName: e.client.ProfileName, SessionID: e.client.SessionID, Remote: e.client.Remote, Key: e.key, State: e.state, Offset: e.offset, Duration: e.duration, PlayQueueItemID: e.playQueueItemID, TranscodeID: e.transcodeID, StartedAt: e.startedAt, UpdatedAt: e.updatedAt}
 	if e.client.RemoteIP.IsValid() {
 		a.RemoteIP = e.client.RemoteIP.String()
 	}

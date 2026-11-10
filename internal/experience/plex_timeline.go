@@ -7,16 +7,16 @@ import (
 	"time"
 )
 
-// PlexTimeline persists the client's report and restores continuation only
+// TimelineStore persists the client's report and restores continuation only
 // when persistence changed. The adapter has already parsed the wire grammar.
-type PlexTimeline struct {
-	Writer          frontend.PlexTimelineWriter
+type TimelineStore struct {
+	Writer          frontend.TimelineWriter
 	Now             func() time.Time
 	RestoreContinue func(context.Context, int64, core.RatingKey) error
 }
 
-func (p PlexTimeline) Store(ctx context.Context, user int64, key core.RatingKey, offset, duration time.Duration, status, queue string, offline *int) (context.Context, *frontend.TimelinePersistenceResult, error) {
-	result, err := p.Writer.PlexTimeline(ctx, user, key, offset, duration, status, queue, offline)
+func (p TimelineStore) Store(ctx context.Context, user int64, key core.RatingKey, offset, duration time.Duration, status, queue string, offline *int) (context.Context, *frontend.TimelinePersistenceResult, error) {
+	result, err := p.Writer.StoreTimeline(ctx, user, key, offset, duration, status, queue, offline)
 	if err != nil {
 		return ctx, nil, err
 	}

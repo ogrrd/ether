@@ -421,7 +421,7 @@ func TestInsightsAndActivity(t *testing.T) {
 		t.Fatalf("recent = %+v %v", recent, err)
 	}
 	partial := movieKey(3, 2)
-	if _, err := h.st.PlexTimeline(ctx, 1, partial, 20*time.Minute, time.Hour, "playing", "partial", nil); err != nil {
+	if _, err := h.st.StoreTimeline(ctx, 1, partial, 20*time.Minute, time.Hour, "playing", "partial", nil); err != nil {
 		t.Fatal(err)
 	}
 	recent, err = h.e.RecentActivity(ctx, 1, 1)
@@ -433,7 +433,7 @@ func TestInsightsAndActivity(t *testing.T) {
 		t.Fatalf("owner activity must not change Plex viewing history: %+v %v", history, err)
 	}
 	h.clock.Set(testNow.Add(3 * time.Hour))
-	if _, err := h.st.PlexTimeline(ctx, 1, film.Key, 30*time.Minute, time.Hour, "playing", "rewatch", nil); err != nil {
+	if _, err := h.st.StoreTimeline(ctx, 1, film.Key, 30*time.Minute, time.Hour, "playing", "rewatch", nil); err != nil {
 		t.Fatal(err)
 	}
 	recent, err = h.e.RecentActivity(ctx, 1, 10)

@@ -10,7 +10,7 @@ import (
 	"github.com/braedonsaunders/ether/internal/frontends/plex/model"
 )
 
-type plexTimelineWriter = frontend.PlexTimelineWriter
+type plexTimelineWriter = frontend.TimelineWriter
 
 func (s *Server) timelineWatch(ctx context.Context, pr *Request, key frontend.RatingKey, offset, duration time.Duration, status string, r *http.Request) (context.Context, *frontend.TimelinePersistenceResult, error) {
 	if suppressTimelineWatch(ctx) {
@@ -28,11 +28,11 @@ func (s *Server) timelineWatch(ctx context.Context, pr *Request, key frontend.Ra
 		}
 		offline = &n
 	}
-	timelineOpts := frontend.PlexTimelineOptions{Writer: writer, Now: s.now}
+	timelineOpts := frontend.TimelineStoreOptions{Writer: writer, Now: s.now}
 	if s.d.Discovery != nil && s.d.Discovery.Personal != nil {
 		timelineOpts.RestoreContinue = s.d.Discovery.Personal.RestoreContinue
 	}
-	persist := s.d.Experience.NewPlexTimeline(timelineOpts)
+	persist := s.d.Experience.NewTimelineStore(timelineOpts)
 	return persist.Store(ctx, pr.User.ID, key, offset, duration, status, r.URL.Query().Get("playQueueItemID"), offline)
 }
 func timelineWatchAttrs(mc *model.MediaContainer, result *frontend.TimelinePersistenceResult) {

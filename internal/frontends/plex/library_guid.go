@@ -108,11 +108,11 @@ func (s *Server) guidKeys(ctx context.Context, guid string, typ frontend.MediaTy
 	}
 	switch scheme {
 	case "plex":
-		if s.d.PlexGUID == nil {
+		if s.d.LibraryGUIDs == nil {
 			return nil, frontend.ErrNotFound
 		}
 		if strings.HasPrefix(cleanGUID, "plex://season/") || strings.HasPrefix(cleanGUID, "plex://episode/") {
-			k, err := s.d.PlexGUID.ExactKey(ctx, cleanGUID)
+			k, err := s.d.LibraryGUIDs.ExactKey(ctx, cleanGUID)
 			if err != nil {
 				if errors.Is(err, frontend.ErrAmbiguousLibraryGUID) {
 					return nil, frontend.ErrNotFound
@@ -121,7 +121,7 @@ func (s *Server) guidKeys(ctx context.Context, guid string, typ frontend.MediaTy
 			}
 			return []frontend.RatingKey{k}, nil
 		}
-		k, err := s.d.PlexGUID.Lookup(ctx, cleanGUID)
+		k, err := s.d.LibraryGUIDs.Lookup(ctx, cleanGUID)
 		if err != nil {
 			return nil, err
 		}

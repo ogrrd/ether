@@ -122,7 +122,7 @@ func TestMissingSelectedAudioUsesViewerPreferences(t *testing.T) {
 }
 
 func TestStreamIDsKeepIssuedAudioAndSubtitleIdentity(t *testing.T) {
-	r := sessions.NewPlexStreamTable()
+	r := sessions.NewStreamTable()
 	for _, kind := range []string{"audio", "subtitle"} {
 		en := core.StreamInfo{Index: 1, Type: kind, Language: "eng", Codec: "ac3", Channels: 6}
 		fr := en
@@ -142,9 +142,9 @@ func TestStreamIDsKeepIssuedAudioAndSubtitleIdentity(t *testing.T) {
 	}
 }
 
-func bindTable(t *testing.T, r *sessions.PlexStreamTable, key core.RatingKey, index int, info core.StreamInfo) int64 {
+func bindTable(t *testing.T, r *sessions.StreamTable, key core.RatingKey, index int, info core.StreamInfo) int64 {
 	t.Helper()
-	id, err := r.Bind(sessions.PlexStreamBinding{Key: key, Index: index, Info: info})
+	id, err := r.Bind(sessions.StreamBinding{Key: key, Index: index, Info: info})
 	if err != nil || id == 0 {
 		t.Fatalf("bind %d %v", id, err)
 	}
@@ -152,7 +152,7 @@ func bindTable(t *testing.T, r *sessions.PlexStreamTable, key core.RatingKey, in
 }
 
 func TestSubtitleIdentityIgnoresPosition(t *testing.T) {
-	r := sessions.NewPlexStreamTable()
+	r := sessions.NewStreamTable()
 	es := core.StreamInfo{Type: "subtitle", Language: "es", Codec: "srt"}
 	first := bindTable(t, r, fightClub.Key, 3, es)
 	moved := es
@@ -184,11 +184,11 @@ func TestStreamIdentityIDsSurviveRegistrationOrderChanges(t *testing.T) {
 		en := core.StreamInfo{Type: kind, Language: "eng", Codec: "aac", Channels: 2}
 		fr := en
 		fr.Language = "fre"
-		before := sessions.NewPlexStreamTable()
+		before := sessions.NewStreamTable()
 		englishID := bindTable(t, before, fightClub.Key, 1, en)
 		// A restart or table wipe must not let a cached English ID select
 		// French merely because French is now the first render at that position.
-		after := sessions.NewPlexStreamTable()
+		after := sessions.NewStreamTable()
 		frenchID := bindTable(t, after, fightClub.Key, 1, fr)
 		if frenchID == englishID {
 			t.Fatalf("%s cached English ID aliases French after reset", kind)

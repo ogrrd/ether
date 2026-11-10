@@ -24,7 +24,7 @@ func validPlexTranscodeID(id string) bool {
 	return true
 }
 
-func (b *Broker) planPlexAdmission(ctx context.Context, req frontend.PlanRequest, admit func(context.Context) (PlexAdmission, error)) (frontend.PlayPlan, error) {
+func (b *Broker) planPlexAdmission(ctx context.Context, req frontend.PlanRequest, admit func(context.Context) (PlanAdmission, error)) (frontend.PlayPlan, error) {
 	if !validPlexTranscodeID(req.Intent.ClientSessionID) || req.Device.ID == "" || req.Item == 0 || req.Viewer == nil {
 		return frontend.PlayPlan{}, core.ErrNotAvailable
 	}
@@ -337,8 +337,8 @@ func (b *Broker) dropPlexPlan(id string) {
 	}
 }
 
-// PlexAdmission and its context helpers live in internal/frontend
+// PlanAdmission and its context helpers live in internal/frontend
 // (host_sessions_experience.go).
-type PlexAdmission = frontend.PlexAdmission
+type PlanAdmission = frontend.PlanAdmission
 
-var WithPlexAdmission = frontend.WithPlexAdmission
+var WithPlanAdmission = frontend.WithPlanAdmission

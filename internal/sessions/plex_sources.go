@@ -10,10 +10,10 @@ import (
 	"github.com/braedonsaunders/ether/internal/frontend"
 )
 
-// PlexSources is the trusted source-lifetime boundary used after the adapter's
+// PartSources is the trusted source-lifetime boundary used after the adapter's
 // authentication, title policy and issued-part checks. It does not publish a
 // second broker session for a HEAD, download or anonymous continuation.
-type PlexSources struct {
+type PartSources struct {
 	Playback core.Playback
 	Log      *slog.Logger
 }
@@ -21,7 +21,7 @@ type PlexSources struct {
 // Prepare bounds acquisition while leaving shared source flights and normal
 // admission/supersession with Playback. A successful wait is followed by normal
 // admission; an error never falls through to a second acquisition attempt.
-func (s PlexSources) Prepare(ctx context.Context, viewer *core.User, key core.RatingKey, caps core.ClientCaps, release string, wait time.Duration) (*core.PlaySession, error) {
+func (s PartSources) Prepare(ctx context.Context, viewer *core.User, key core.RatingKey, caps core.ClientCaps, release string, wait time.Duration) (*core.PlaySession, error) {
 	if s.Playback == nil {
 		return nil, core.ErrNotAvailable
 	}
@@ -44,7 +44,7 @@ func (s PlexSources) Prepare(ctx context.Context, viewer *core.User, key core.Ra
 // Part retains an existing source where possible, including the unique
 // anonymous part continuation. A variant mismatch records the previous source
 // so admission can recognize a fallback to that same live session.
-func (s PlexSources) Part(viewer int64, client string, key core.RatingKey, release string) PlexPartSource {
+func (s PartSources) Part(viewer int64, client string, key core.RatingKey, release string) PartSource {
 	ps, ok := s.Playback.SessionFor(viewer, client, key)
 	anonymous := false
 	if client == "" {
@@ -55,7 +55,7 @@ func (s PlexSources) Part(viewer int64, client string, key core.RatingKey, relea
 			anonymous = ok && ps != nil
 		}
 	}
-	result := PlexPartSource{Session: ps, Matches: ok, AnonymousContinuation: anonymous}
+	result := PartSource{Session: ps, Matches: ok, AnonymousContinuation: anonymous}
 	if ok && ps != nil {
 		result.PreviousID = ps.ID
 		if release != "" && (ps.Resolution == nil || ps.Resolution.Release.ID != release) {
@@ -67,8 +67,8 @@ func (s PlexSources) Part(viewer int64, client string, key core.RatingKey, relea
 
 // ServePart preserves the Plex range grammar and request cancellation. The
 // admitted source ID is retained; delivery must not open or supersede a session.
-func (s PlexSources) ServePart(w http.ResponseWriter, r *http.Request, sourceID string) {
+func (s PartSources) ServePart(w http.ResponseWriter, r *http.Request, sourceID string) {
 	s.Playback.ServeRange(w, r.WithContext(core.WithPlexPart(r.Context())), sourceID)
 }
 
-type PlexPartSource = frontend.PlexPartSource
+type PartSource = frontend.PartSource

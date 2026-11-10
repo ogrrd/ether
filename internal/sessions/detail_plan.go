@@ -31,7 +31,7 @@ type detailFlight struct {
 func (b *Broker) DetailPlan(ctx context.Context, req frontend.PlanRequest) (frontend.PlayPlan, error) {
 	ctx, cancel := context.WithTimeout(ctx, detailPlanBudget)
 	defer cancel()
-	if req.Viewer == nil || req.Device.ID == "" || req.Protocol == "" || req.Item == 0 || req.Channel != "" || req.Intent.Plex != nil {
+	if req.Viewer == nil || req.Device.ID == "" || req.Protocol == "" || req.Item == 0 || req.Channel != "" || req.Intent.Hints != nil {
 		return frontend.PlayPlan{}, core.ErrUnauthorized
 	}
 	// Explicit source tracks require a generation pin through Open. Detail

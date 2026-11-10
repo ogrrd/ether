@@ -314,9 +314,9 @@ func DownloadsAllowed(viewer *core.User, ready, allowFriends bool, policy Access
 	return allowFriends
 }
 
-// PlexWireID is the positive int32-range id Plex clients already parse.
+// WireID is the positive int32-range id Plex clients already parse.
 // Offer rows use it directly and are not stream bindings.
-func PlexWireID(key core.RatingKey, slot string) int64 {
+func WireID(key core.RatingKey, slot string) int64 {
 	h := fnv.New64a()
 	_, _ = h.Write([]byte(strconv.FormatInt(int64(key), 10) + "/" + slot))
 	return int64(h.Sum64()%2_000_000_000) + 1
@@ -455,10 +455,10 @@ type StartHintKey struct {
 	Key      core.RatingKey
 }
 
-// PlexStreamBinding is one Plex-visible stream id. WireID is zero on bind;
-// BindPlexStream assigns it. SessionID is empty for library metadata and is
+// StreamBinding is one Plex-visible stream id. WireID is zero on bind;
+// BindStream assigns it. SessionID is empty for library metadata and is
 // the broker session id after Open.
-type PlexStreamBinding struct {
+type StreamBinding struct {
 	WireID    int64
 	SessionID string
 	Key       core.RatingKey
@@ -466,10 +466,10 @@ type PlexStreamBinding struct {
 	Info      core.StreamInfo
 }
 
-// PlexAdmission is the source and the version and track selections for one
+// PlanAdmission is the source and the version and track selections for one
 // Plex plan. Plan makes the direct, remux, or transcode decision from them.
 // Open publishes that decision. The adapter renders it and does not decide again.
-type PlexAdmission struct {
+type PlanAdmission struct {
 	Source               *core.PlaySession
 	Media                core.MediaInfo
 	Caps                 core.ClientCaps
@@ -500,10 +500,10 @@ type VersionSnapshot struct {
 	Until    time.Time
 }
 
-// PlexActivity is one Plex client's playback as the session list shows it.
+// PlaybackActivity is one Plex client's playback as the session list shows it.
 // The broker is the only store. Cluster rows for these activities use
 // protocol plex.
-type PlexActivity struct {
+type PlaybackActivity struct {
 	ID                                                     string
 	DecisionSeen                                           bool
 	PlayingSeen                                            bool
@@ -528,7 +528,7 @@ type StartObservation interface {
 	Info() core.MediaInfo
 }
 
-type PlexPartSource struct {
+type PartSource struct {
 	Session               *core.PlaySession
 	Matches               bool
 	PreviousID            string
@@ -565,7 +565,7 @@ func (e *DownloadPreparationError) Error() string { return e.Err.Error() }
 func (e *DownloadPreparationError) Unwrap() error { return e.Err }
 
 // Selections and BindingTable are generic and cannot be constructed
-// through the PlexSessionStores factory (Go interfaces have no generic
+// through the SessionStores factory (Go interfaces have no generic
 // methods); their small generic implementations live here and sessions
 // aliases them.
 
@@ -741,7 +741,7 @@ func (t *BindingTable[R]) ByPlayID(PlayID string) []string {
 
 // ---------------------------------------------------------------------------
 // Session store host contracts. Implementations live in internal/sessions;
-// the app wires them through PlexSessionStores. Value types shared across
+// the app wires them through SessionStores. Value types shared across
 // the boundary are defined in this file; sessions aliases them.
 
 // PlaybackOwners is the v39 playback owner history.
@@ -841,23 +841,23 @@ type VariantIDs interface {
 	Prune(ctx context.Context, liveIDs []int64, liveRefs []VariantRef) (int64, error)
 }
 
-// PlexStreamTable is the Plex visible-id map.
-type PlexStreamTable interface {
-	Bind(binding PlexStreamBinding) (int64, error)
-	Lookup(id int64) (PlexStreamBinding, bool)
+// StreamTable is the Plex visible-id map.
+type StreamTable interface {
+	Bind(binding StreamBinding) (int64, error)
+	Lookup(id int64) (StreamBinding, bool)
 }
 
-// PlexStreamAPI is the visible-id and sidecar surface Plex calls.
-type PlexStreamAPI interface {
-	BindPlexStream(context.Context, SessionAccess, PlexStreamBinding) (int64, error)
-	ResolvePlexStream(context.Context, SessionAccess, int64) (PlexStreamBinding, error)
-	OpenPlexSidecar(context.Context, SessionAccess, auth.Acceptance, int64) (io.ReadCloser, core.StreamInfo, error)
+// StreamBindings is the visible-id and sidecar surface Plex calls.
+type StreamBindings interface {
+	BindStream(context.Context, SessionAccess, StreamBinding) (int64, error)
+	ResolveStream(context.Context, SessionAccess, int64) (StreamBinding, error)
+	OpenSidecar(context.Context, SessionAccess, auth.Acceptance, int64) (io.ReadCloser, core.StreamInfo, error)
 }
 
-// PlexSources prepares and serves Plex direct-play part sources.
-type PlexSources interface {
+// PartSources prepares and serves Plex direct-play part sources.
+type PartSources interface {
 	Prepare(ctx context.Context, viewer *core.User, key core.RatingKey, caps core.ClientCaps, release string, wait time.Duration) (*core.PlaySession, error)
-	Part(viewer int64, client string, key core.RatingKey, release string) PlexPartSource
+	Part(viewer int64, client string, key core.RatingKey, release string) PartSource
 	ServePart(w http.ResponseWriter, r *http.Request, sourceID string)
 }
 
@@ -894,26 +894,26 @@ func Estimate(ctx context.Context, playback Estimator, viewer *core.Viewer, clie
 	return playback.Estimate(ctx, title, caps()), nil
 }
 
-// PlexActivityStore is the broker's Plex session-list store.
-type PlexActivityStore interface {
-	HasPlexActivity(id string) bool
-	EnsurePlexActivity(id string, key int)
-	UpsertPlexActivity(id string, fn func(*PlexActivity)) PlexActivity
-	RemovePlexActivity(id string) (PlexActivity, bool)
-	ListPlexActivities() []PlexActivity
-	ExpirePlexActivities(now time.Time, ttl time.Duration) []PlexActivity
+// PlaybackActivityStore is the broker's Plex session-list store.
+type PlaybackActivityStore interface {
+	HasActivity(id string) bool
+	EnsureActivity(id string, key int)
+	UpsertActivity(id string, fn func(*PlaybackActivity)) PlaybackActivity
+	RemoveActivity(id string) (PlaybackActivity, bool)
+	ListActivities() []PlaybackActivity
+	ExpireActivities(now time.Time, ttl time.Duration) []PlaybackActivity
 }
 
-// PlexActivitySource reaches the Plex activity store from a session broker
+// PlaybackActivitySource reaches the Plex activity store from a session broker
 // or its surface binding.
-type PlexActivitySource interface {
-	PlexActivities() PlexActivityStore
+type PlaybackActivitySource interface {
+	PlexActivities() PlaybackActivityStore
 }
 
-// PlexSessionStores constructs the session stores Plex owns and provides
+// SessionStores constructs the session stores Plex owns and provides
 // the package-level session helpers Plex calls. Implemented in
 // internal/sessions, wired by the app (and spike).
-type PlexSessionStores interface {
+type SessionStores interface {
 	NewCoordination() Coordination
 	NewDecisionArms(ctx context.Context, db *sql.DB, now func() time.Time, node string, log *slog.Logger, wg *sync.WaitGroup) DecisionArms
 	NewStartGuard() StartGuard
@@ -921,10 +921,10 @@ type PlexSessionStores interface {
 	NewVersionFlows(ctx context.Context, db *sql.DB) VersionFlows
 	NewDownloadQueueStore() DownloadQueueStore
 	NewVariantIDs(db *sql.DB, now func() time.Time) VariantIDs
-	NewPlexStreamTable() PlexStreamTable
+	NewStreamTable() StreamTable
 	NewDownloadJob(playback core.Playback, remuxer core.DownloadRemuxer) DownloadJob
 	NewDownloadQueuePersistence(queue DownloadQueueStore, db *sql.DB, artifacts core.DownloadRemuxer, log *slog.Logger, expiry func() time.Duration, storageID func() string, users func(context.Context) ([]core.User, error)) DownloadQueuePersistence
-	NewPlexSources(playback core.Playback, log *slog.Logger) PlexSources
+	NewPartSources(playback core.Playback, log *slog.Logger) PartSources
 	ObserveStart(ctx context.Context, source core.HLSSession, id string) (StartObservation, bool)
 	EncodeQueue(q *PlayQueue) (string, error)
 	DecodeQueue(id, userID, rev, updated int64, data string) (*PlayQueue, error)
@@ -932,25 +932,25 @@ type PlexSessionStores interface {
 	UnshuffleQueue(p *PlayQueue)
 	QueueItemIndex(items []QueueItem, id int64) int
 	VariantHash(key core.RatingKey, releaseID string) int64
-	UnderlyingPlexActivityStore(s Sessions) PlexActivityStore
+	UnderlyingActivityStore(s Sessions) PlaybackActivityStore
 }
 
-// PlexAdmission is the source and the version and track selections for one
+// PlanAdmission is the source and the version and track selections for one
 // Plex plan. Plan makes the direct, remux, or transcode decision from them.
 // Open publishes that decision. The adapter renders it and does not decide again.
 type plexAdmissionKey struct{}
 
-// WithPlexAdmission attaches the prepared source for one Plex Plan call.
-func WithPlexAdmission(ctx context.Context, admit func(context.Context) (PlexAdmission, error)) context.Context {
+// WithPlanAdmission attaches the prepared source for one Plex Plan call.
+func WithPlanAdmission(ctx context.Context, admit func(context.Context) (PlanAdmission, error)) context.Context {
 	if admit == nil {
 		return ctx
 	}
 	return context.WithValue(ctx, plexAdmissionKey{}, admit)
 }
 
-// PlexAdmissionFrom returns the admission callback WithPlexAdmission attached.
-func PlexAdmissionFrom(ctx context.Context) (func(context.Context) (PlexAdmission, error), bool) {
-	admit, ok := ctx.Value(plexAdmissionKey{}).(func(context.Context) (PlexAdmission, error))
+// PlanAdmissionFrom returns the admission callback WithPlanAdmission attached.
+func PlanAdmissionFrom(ctx context.Context) (func(context.Context) (PlanAdmission, error), bool) {
+	admit, ok := ctx.Value(plexAdmissionKey{}).(func(context.Context) (PlanAdmission, error))
 	return admit, ok && admit != nil
 }
 
@@ -961,17 +961,17 @@ type plexServe struct {
 
 type plexServeKey struct{}
 
-// WithPlexServe carries the request's remote bit and subtitle format into
-// ResolvePlexStream and OpenPlexSidecar without changing their signatures.
-func WithPlexServe(ctx context.Context, remote bool, format string) context.Context {
+// WithStreamServe carries the request's remote bit and subtitle format into
+// ResolveStream and OpenSidecar without changing their signatures.
+func WithStreamServe(ctx context.Context, remote bool, format string) context.Context {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	return context.WithValue(ctx, plexServeKey{}, plexServe{remote: remote, format: format})
 }
 
-// PlexServeFrom returns the remote bit and subtitle format WithPlexServe attached.
-func PlexServeFrom(ctx context.Context) (remote bool, format string) {
+// StreamServeFrom returns the remote bit and subtitle format WithStreamServe attached.
+func StreamServeFrom(ctx context.Context) (remote bool, format string) {
 	if ctx == nil {
 		return false, ""
 	}
@@ -1077,7 +1077,7 @@ type SearchResults struct {
 	CollectionSearch bool
 }
 
-// PlexIssuedIdentity is the selection resolvePlaySelection already holds
+// IssuedTrackIdentity is the selection resolvePlaySelection already holds
 // after the Plex adapter has accepted a stream ID from the item-scoped
 // issued registry. Positions are indexes into the full MediaInfo.Streams
 // slice from that issuance. They are not StreamInfo.Index values and they
@@ -1097,7 +1097,7 @@ type SearchResults struct {
 // legacy position-only choice and is preserved.
 //
 // The translator does not retain either pointer and does not pin a source.
-type PlexIssuedIdentity struct {
+type IssuedTrackIdentity struct {
 	Audio            *core.StreamInfo
 	AudioPosition    int
 	AudioSet         bool
@@ -1252,7 +1252,7 @@ func AssemblePostPlay[P any](ctx context.Context, selection PostPlaySelection, v
 
 // ---------------------------------------------------------------------------
 // Experience host contracts. Selector implementations live in
-// internal/experience; adapters build them through PlexExperience
+// internal/experience; adapters build them through Selectors
 // constructors from the option value types below and call the selector
 // interfaces. Generic home/postplay assembly orchestrates only these
 // contracts, so it lives here like the generic session tables.
@@ -1282,14 +1282,14 @@ type DetailRelatedOptions struct {
 	Get        func(context.Context, core.RatingKey) (*core.Title, error)
 }
 
-// PlexTimeline persists one Plex timeline report through the host writer.
-type PlexTimeline interface {
+// TimelineStore persists one Plex timeline report through the host writer.
+type TimelineStore interface {
 	Store(ctx context.Context, user int64, key core.RatingKey, offset, duration time.Duration, status, queue string, offline *int) (context.Context, *TimelinePersistenceResult, error)
 }
 
-// PlexTimelineOptions configures a PlexTimeline.
-type PlexTimelineOptions struct {
-	Writer          PlexTimelineWriter
+// TimelineStoreOptions configures a TimelineStore.
+type TimelineStoreOptions struct {
+	Writer          TimelineWriter
 	Now             func() time.Time
 	RestoreContinue func(context.Context, int64, core.RatingKey) error
 }
@@ -1464,13 +1464,13 @@ type Search interface {
 	Keyword(ctx context.Context, viewer *core.User, query string, types []core.MediaType, limit int) ([]core.Title, error)
 }
 
-// PlexExperience constructs the experience selectors Plex uses and
+// Selectors constructs the experience selectors Plex uses and
 // provides its package-level operations. Implemented in
 // internal/experience, wired by the app (and spike).
-type PlexExperience interface {
+type Selectors interface {
 	NewRecent(RecentOptions) Recent
 	NewDetailRelated(DetailRelatedOptions) DetailRelated
-	NewPlexTimeline(PlexTimelineOptions) PlexTimeline
+	NewTimelineStore(TimelineStoreOptions) TimelineStore
 	NewEpisodeBatch(EpisodeBatchOptions) EpisodeBatch
 	NewContinueDeck(ContinueDeckOptions) ContinueDeck
 	NewContinue(ContinueOptions) Continue
@@ -1750,7 +1750,7 @@ func (UnsupportedPlexTrackIdentityError) Is(target error) bool {
 //
 // The result positions are indexes in probed.Streams. Encoder indexes still
 // come from the selected StreamInfo.Index.
-func TranslatePlexTrackIdentity(issued PlexIssuedIdentity, probed core.MediaInfo) (TrackSelection, error) {
+func TranslatePlexTrackIdentity(issued IssuedTrackIdentity, probed core.MediaInfo) (TrackSelection, error) {
 	if issued.AudioSet != (issued.AudioPosition >= 0) {
 		return TrackSelection{}, UnsupportedPlexTrackIdentityError{Reason: "audio set flag does not match a nonnegative position"}
 	}

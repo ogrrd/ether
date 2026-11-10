@@ -9,8 +9,8 @@ import (
 	"github.com/braedonsaunders/ether/internal/frontend"
 )
 
-// PlexTimelineResult describes persistence, rather than echoing the playhead.
-type PlexTimelineResult = frontend.TimelinePersistenceResult
+// TimelineResult describes persistence, rather than echoing the playhead.
+type TimelineResult = frontend.TimelinePersistenceResult
 type plexStatusKey struct{}
 
 // WithPlexTimelineStored keeps broker liveness reporting from writing a second watch update.
@@ -35,18 +35,18 @@ type plexTimelineStore struct {
 	plays map[plexPlayID]plexPlay
 }
 
-// PlexTimeline applies the session-local crossing and resume rules measured on PMS.
+// TimelineStore applies the session-local crossing and resume rules measured on PMS.
 // The media and playlist tracks are independent. The cache has a fixed bound;
 // its cost depends on active clients, never the catalogue's size.
-func (s *State) PlexTimeline(ctx context.Context, user int64, key core.RatingKey, offset, duration time.Duration, status, queue string, offline *int) (PlexTimelineResult, error) {
+func (s *State) StoreTimeline(ctx context.Context, user int64, key core.RatingKey, offset, duration time.Duration, status, queue string, offline *int) (TimelineResult, error) {
 	ctx = context.WithValue(ctx, plexStatusKey{}, status)
 	s.plexTimeline.Lock()
 	defer s.plexTimeline.Unlock()
 	cur, err := s.Get(ctx, user, key)
 	if err != nil {
-		return PlexTimelineResult{}, err
+		return TimelineResult{}, err
 	}
-	out := PlexTimelineResult{PlaybackState: "ignore", ViewOffset: cur.ViewOffset, ViewCount: cur.ViewCount}
+	out := TimelineResult{PlaybackState: "ignore", ViewOffset: cur.ViewOffset, ViewCount: cur.ViewCount}
 	if offline != nil {
 		if *offline < 0 {
 			return out, nil

@@ -1436,8 +1436,8 @@ func (s *Server) renderTitles(ctx context.Context, pr *Request, ts []frontend.Ti
 			}
 		}
 	}
-	if s.d.PlexGUID != nil {
-		guids = s.d.PlexGUID.CachedMany(ctx, lookup)
+	if s.d.LibraryGUIDs != nil {
+		guids = s.d.LibraryGUIDs.CachedMany(ctx, lookup)
 	}
 	ctx = s.withPlexMeta(ctx, lookup, guids)
 	var order episodeOrderView
@@ -1450,7 +1450,7 @@ func (s *Server) renderTitles(ctx context.Context, pr *Request, ts []frontend.Ti
 		if !o.storedOnly {
 			s.applyEpisodeOrder(ctx, pr, &ts[i], &m, order)
 		}
-		if s.d.PlexGUID != nil {
+		if s.d.LibraryGUIDs != nil {
 			k := ts[i].Key
 			if guid := guids[k]; guid != "" {
 				if !(ts[i].Type == frontend.TypeSeason && ts[i].Season >= 9000) {
@@ -1479,8 +1479,8 @@ func (s *Server) renderTitles(ctx context.Context, pr *Request, ts []frontend.Ti
 		}
 		out = append(out, m)
 	}
-	if s.d.PlexGUID != nil && len(missingGUIDs) > 0 && !o.storedOnly {
-		s.d.PlexGUID.Schedule(missingGUIDs...)
+	if s.d.LibraryGUIDs != nil && len(missingGUIDs) > 0 && !o.storedOnly {
+		s.d.LibraryGUIDs.Schedule(missingGUIDs...)
 	}
 	if !o.detail && !o.skipLeafCounts {
 		s.applyListLeafCountsOpts(ctx, pr, out, ts, o.storedOnly)

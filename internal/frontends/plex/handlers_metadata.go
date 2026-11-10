@@ -71,7 +71,7 @@ func (s *Server) metadataKeys(ctx context.Context, raw string) ([]frontend.Ratin
 		raw = decoded
 	}
 	if strings.Contains(raw, "://") {
-		if s.d.PlexGUID == nil {
+		if s.d.LibraryGUIDs == nil {
 			return nil, errors.New("no keys")
 		}
 		// A list of plex.tv identities (Infuse resolves its Watchlist row
@@ -82,7 +82,7 @@ func (s *Server) metadataKeys(ctx context.Context, raw string) ([]frontend.Ratin
 		var unknown []string
 		for _, guid := range guids {
 			guid = strings.TrimSpace(guid)
-			k, err := s.d.PlexGUID.ExactKey(ctx, guid)
+			k, err := s.d.LibraryGUIDs.ExactKey(ctx, guid)
 			if err != nil {
 				if len(guids) == 1 {
 					return nil, err

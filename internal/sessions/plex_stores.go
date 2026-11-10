@@ -13,9 +13,9 @@ import (
 
 type plexStores struct{}
 
-// NewPlexSessionStores returns the sessions-backed implementation of the
+// NewSessionStores returns the sessions-backed implementation of the
 // Plex session-store host contract.
-func NewPlexSessionStores() frontend.PlexSessionStores { return plexStores{} }
+func NewSessionStores() frontend.SessionStores { return plexStores{} }
 
 func (plexStores) NewCoordination() frontend.Coordination { return NewCoordination() }
 
@@ -37,7 +37,7 @@ func (plexStores) NewVariantIDs(db *sql.DB, now func() time.Time) frontend.Varia
 	return NewVariantIDs(db, now)
 }
 
-func (plexStores) NewPlexStreamTable() frontend.PlexStreamTable { return NewPlexStreamTable() }
+func (plexStores) NewStreamTable() frontend.StreamTable { return NewStreamTable() }
 
 func (plexStores) NewDownloadJob(playback core.Playback, remuxer core.DownloadRemuxer) frontend.DownloadJob {
 	return DownloadJob{Playback: playback, Remuxer: remuxer}
@@ -51,8 +51,8 @@ func (plexStores) NewDownloadQueuePersistence(queue frontend.DownloadQueueStore,
 	return DownloadQueuePersistence{Queue: q, DB: db, Artifacts: artifacts, Log: log, Expiry: expiry, StorageID: storageID, Users: users}
 }
 
-func (plexStores) NewPlexSources(playback core.Playback, log *slog.Logger) frontend.PlexSources {
-	return PlexSources{Playback: playback, Log: log}
+func (plexStores) NewPartSources(playback core.Playback, log *slog.Logger) frontend.PartSources {
+	return PartSources{Playback: playback, Log: log}
 }
 
 func (plexStores) ObserveStart(ctx context.Context, source core.HLSSession, id string) (frontend.StartObservation, bool) {
@@ -70,7 +70,7 @@ func (plexStores) QueueItemIndex(items []frontend.QueueItem, id int64) int {
 func (plexStores) VariantHash(key core.RatingKey, releaseID string) int64 {
 	return VariantHash(key, releaseID)
 }
-func (plexStores) UnderlyingPlexActivityStore(s frontend.Sessions) frontend.PlexActivityStore {
+func (plexStores) UnderlyingActivityStore(s frontend.Sessions) frontend.PlaybackActivityStore {
 	b := UnderlyingBroker(s)
 	if b == nil {
 		return nil

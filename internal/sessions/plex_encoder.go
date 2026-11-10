@@ -6,10 +6,10 @@ import (
 	"net/http"
 )
 
-// StartPlexHLS is the shared universal encoder seam after the Plex adapter has
+// StartSegmentedHLS is the shared universal encoder seam after the Plex adapter has
 // performed its existing acceptance, policy, selection and grant checks. Errors
 // never authorize caller fallback or a second encoder.
-func (b *Broker) StartPlexHLS(ctx context.Context, viewer *core.User, playID, publicID string, q core.HLSRequest) (core.HLSSession, error) {
+func (b *Broker) StartSegmentedHLS(ctx context.Context, viewer *core.User, playID, publicID string, q core.HLSRequest) (core.HLSSession, error) {
 	if q.SessionID != publicID || playID == "" || !validPlexTranscodeID(publicID) {
 		return nil, core.ErrUnauthorized
 	}
@@ -78,9 +78,9 @@ func (b *Broker) StartPlexHLS(ctx context.Context, viewer *core.User, playID, pu
 	return hs, err
 }
 
-// PlexHLSSession reports ownership independently of current availability. A nil
+// SegmentedHLSSession reports ownership independently of current availability. A nil
 // session with true means retained remote responsibility, never local fallback.
-func (b *Broker) PlexHLSSession(id string) (core.HLSSession, bool) {
+func (b *Broker) SegmentedHLSSession(id string) (core.HLSSession, bool) {
 	if remote := b.deps.DistributedHLS; remote != nil && remote.Allocated(id) {
 		session, _ := remote.Session(id)
 		return session, true
@@ -91,10 +91,10 @@ func (b *Broker) PlexHLSSession(id string) (core.HLSSession, bool) {
 	return b.deps.Transcoder.Session(id)
 }
 
-// StopPlexHLS handles local and remote encoder retirement through the broker.
+// StopSegmentedHLS handles local and remote encoder retirement through the broker.
 // Remote ownership includes uncertain start/stop phases; true reports ownership,
 // not proof that an asynchronous remote retirement has completed.
-func (b *Broker) StopPlexHLS(id string) bool {
+func (b *Broker) StopSegmentedHLS(id string) bool {
 	if remote := b.deps.DistributedHLS; remote != nil && remote.Allocated(id) {
 		remote.Stop(id)
 		return true

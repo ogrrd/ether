@@ -131,7 +131,7 @@ func (b *Broker) rememberedPlayCaps(viewer int64, protocol frontend.Protocol, de
 // one whose network locality changed since: remote and LAN plays select
 // differently, so a warm pick could be lower than Play's.
 func (b *Broker) WarmDetail(ctx context.Context, req frontend.PlanRequest) bool {
-	if req.Protocol == "" || req.Protocol == "plex" || req.Device.ID == "" || req.Viewer == nil || req.Item == 0 || req.Channel != "" || req.Version != "" || req.Intent.Plex != nil {
+	if req.Protocol == "" || req.Protocol == "plex" || req.Device.ID == "" || req.Viewer == nil || req.Item == 0 || req.Channel != "" || req.Version != "" || req.Intent.Hints != nil {
 		return false
 	}
 	warm, ok := b.deps.Playback.(core.Prewarmer)

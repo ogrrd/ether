@@ -50,33 +50,33 @@ type PlexHomeCacheSource struct {
 	NoProviderWait func(context.Context) context.Context
 }
 
-// PlexEncoder is an opt-in trusted host seam implemented by the shared broker.
+// SegmentedEncoder is an opt-in trusted host seam implemented by the shared broker.
 // Starts occur only after existing Plex authentication, owner gates, preparation
 // and admission. The broker must revalidate the exact source revision and retain
 // uncertain execution responsibility. It may choose local execution only before
 // remote allocation; a returned error is never permission for Plex to retry local.
 // Session/Stop true means the broker owns responsibility, even when Session is
 // nil because start is pending. Transport errors must never turn true into false.
-type PlexEncoder interface {
-	StartPlexHLS(context.Context, *User, string, string, HLSRequest) (HLSSession, error)
-	PlexHLSSession(string) (HLSSession, bool)
-	StopPlexHLS(string) bool
+type SegmentedEncoder interface {
+	StartSegmentedHLS(context.Context, *User, string, string, HLSRequest) (HLSSession, error)
+	SegmentedHLSSession(string) (HLSSession, bool)
+	StopSegmentedHLS(string) bool
 }
 
-// PlexSubtitleSource resolves cached OpenSubtitles and synchronized sidecars.
-type PlexSubtitleSource interface {
+// SubtitleSource resolves cached OpenSubtitles and synchronized sidecars.
+type SubtitleSource interface {
 	OpenFormat(string, string) (io.ReadCloser, string, error)
 }
 
-// PlexSubtitleCatalog is optionally implemented by PlexDeps.Subtitles: the sidecars
+// SubtitleSidecars is optionally implemented by PlexDeps.Subtitles: the sidecars
 // already cached for a title and viewer, without network access, skipping
 // streams embedded already lists (by ExternalURL) or covers (by language).
-type PlexSubtitleCatalog interface {
+type SubtitleSidecars interface {
 	CachedSidecars(ctx context.Context, t *Title, u *User, embedded []StreamInfo) []StreamInfo
 }
 
-// PlexSubtitleOffer is one subtitle search result.
-type PlexSubtitleOffer struct {
+// SidecarOffer is one subtitle search result.
+type SidecarOffer struct {
 	ID              int64  // provider file id, passed back to DownloadSubtitle
 	Language        string // ISO 639-1
 	Title           string // release or file name
@@ -87,36 +87,36 @@ type PlexSubtitleOffer struct {
 	PerfectMatch    bool // matched the playing file's hash or release
 }
 
-// PlexSubtitleSearch is optionally implemented by PlexDeps.Subtitles: Plex's
+// SubtitleSearch is optionally implemented by PlexDeps.Subtitles: Plex's
 // on-demand subtitle search and pick.
-type PlexSubtitleSearch interface {
-	SearchSubtitles(ctx context.Context, t *Title, u *User, lang, release string) ([]PlexSubtitleOffer, error)
+type SubtitleSearch interface {
+	SearchSubtitles(ctx context.Context, t *Title, u *User, lang, release string) ([]SidecarOffer, error)
 	// DownloadSubtitle fetches an offer returned by SearchSubtitles for t
 	// and returns its sidecar stream; ErrNotFound for unknown offers.
 	DownloadSubtitle(ctx context.Context, t *Title, u *User, id int64) (StreamInfo, error)
 }
 
-// PlexSubtitleUpload is optionally implemented by PlexDeps.Subtitles: Plex Web's
+// SubtitleUpload is optionally implemented by PlexDeps.Subtitles: Plex Web's
 // "Upload Subtitles" (POST /library/metadata/{key}/subtitles).
-type PlexSubtitleUpload interface {
+type SubtitleUpload interface {
 	UploadSubtitle(ctx context.Context, t *Title, u *User, filename, format, language string, body []byte) (StreamInfo, error)
 }
 
 // PlexDeps are the Plex server's dependencies. Catalog, State, Auth and Playback
 // are required; the rest degrade gracefully when nil.
 type PlexDeps struct {
-	// PlexEncoder optionally dispatches authenticated universal playback through
+	// SegmentedEncoder optionally dispatches authenticated universal playback through
 	// the shared broker; nil preserves the existing local encoder path.
-	PlexEncoder PlexEncoder
-	PlexStreams PlexStreamAPI
+	Encoder SegmentedEncoder
+	Streams StreamBindings
 	// SessionStores constructs the session stores this server owns and
 	// provides the session helpers it calls. Required: NewServer panics
-	// without it. The app wires sessions.NewPlexSessionStores().
-	SessionStores PlexSessionStores
+	// without it. The app wires sessions.NewSessionStores().
+	SessionStores SessionStores
 	// Experience constructs the experience selectors this server uses and
 	// provides its operations, including statistics defaults. Required:
-	// NewServer panics without it. The app wires experience.NewPlexExperience().
-	Experience PlexExperience
+	// NewServer panics without it. The app wires experience.NewSelectors().
+	Experience          Selectors
 	SessionCoordination Coordination
 	// LibraryTitles returns the Movies / TV Shows library names from the
 	// libraries service (libraries 1/2); nil uses "Movies" / "TV Shows".
@@ -128,8 +128,8 @@ type PlexDeps struct {
 	JudgedOnFacts       func(context.Context) func(Title) bool
 	PrioritizeAvailable func(context.Context, []Title) []Title
 	EpisodeOrder        EpisodeOrder
-	PlexGUID            LibraryGUIDs
-	PlexMeta            LibraryMetadata
+	LibraryGUIDs        LibraryGUIDs
+	LibraryMetadata     LibraryMetadata
 	Discovery           *DiscoveryFeatures
 	// Search is the app's shared search (every frontend's); zero builds it
 	// from this server's own dependencies.
@@ -155,7 +155,7 @@ type PlexDeps struct {
 	Downloads        DownloadRemuxer
 	TrackPreferences PlaybackTrackPreferences
 	Markers          MarkerRanges
-	Subtitles        PlexSubtitleSource
+	Subtitles        SubtitleSource
 	Extras           ExtrasProvider
 	// Prerolls are owner pre-rolls (#298); nil leaves play queues and
 	// extras exactly as without the feature.
@@ -170,8 +170,8 @@ type PlexDeps struct {
 	Config func() HostConfig
 	// OwnerSubscription returns the current entitlement snapshot from plex.tv.
 	OwnerSubscription func() (active bool, features []string)
-	Logger   *slog.Logger
-	Identity PlexIdentity
+	Logger            *slog.Logger
+	Identity          PlexIdentity
 
 	// Sections overrides the default Movies (1) and TV Shows (2) sections.
 	Sections []PlexSection

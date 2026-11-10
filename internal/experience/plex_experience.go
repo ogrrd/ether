@@ -10,9 +10,9 @@ import (
 
 type plexExperience struct{}
 
-// NewPlexExperience returns the experience-backed implementation of the
+// NewSelectors returns the experience-backed implementation of the
 // Plex experience host contract.
-func NewPlexExperience() frontend.PlexExperience { return plexExperience{} }
+func NewSelectors() frontend.Selectors { return plexExperience{} }
 
 func (plexExperience) NewRecent(o frontend.RecentOptions) frontend.Recent {
 	return Recent{Visibility: o.Visibility, Unrestricted: o.Unrestricted}
@@ -20,8 +20,8 @@ func (plexExperience) NewRecent(o frontend.RecentOptions) frontend.Recent {
 func (plexExperience) NewDetailRelated(o frontend.DetailRelatedOptions) frontend.DetailRelated {
 	return DetailRelated{Source: o.Source, Visibility: o.Visibility, Get: o.Get}
 }
-func (plexExperience) NewPlexTimeline(o frontend.PlexTimelineOptions) frontend.PlexTimeline {
-	return PlexTimeline{Writer: o.Writer, Now: o.Now, RestoreContinue: o.RestoreContinue}
+func (plexExperience) NewTimelineStore(o frontend.TimelineStoreOptions) frontend.TimelineStore {
+	return TimelineStore{Writer: o.Writer, Now: o.Now, RestoreContinue: o.RestoreContinue}
 }
 func (plexExperience) NewEpisodeBatch(o frontend.EpisodeBatchOptions) frontend.EpisodeBatch {
 	b := EpisodeBatch{Catalog: o.Catalog, State: o.State}

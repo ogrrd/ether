@@ -10,7 +10,7 @@ import (
 )
 
 // testStores returns the real sessions-backed store factory for tests.
-func testStores() frontend.PlexSessionStores { return sessions.NewPlexSessionStores() }
+func testStores() frontend.SessionStores { return sessions.NewSessionStores() }
 
 // testDeps fills the required host factories in d from the real
 // sessions/experience implementations, leaving explicitly set fields alone.
@@ -19,7 +19,7 @@ func testDeps(d Deps) Deps {
 		d.SessionStores = testStores()
 	}
 	if d.Experience == nil {
-		d.Experience = experience.NewPlexExperience()
+		d.Experience = experience.NewSelectors()
 	}
 	return d
 }
@@ -66,5 +66,5 @@ func TestNewServerRequiresSessionStores(t *testing.T) {
 			t.Fatal("NewServer without SessionStores did not panic")
 		}
 	}()
-	NewServer(Deps{Experience: experience.NewPlexExperience()})
+	NewServer(Deps{Experience: experience.NewSelectors()})
 }

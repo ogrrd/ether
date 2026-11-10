@@ -16,9 +16,9 @@ func BindSurface(b frontend.Sessions, protocol frontend.Protocol) frontend.Sessi
 	return surface{broker: b, protocol: protocol}
 }
 
-// BindPlexStreams is BindSurface for the Plex stream methods. The returned
+// BindStreams is BindSurface for the Plex stream methods. The returned
 // value rejects any access whose protocol is not plex.
-func BindPlexStreams(b *Broker) PlexStreamAPI {
+func BindStreams(b *Broker) StreamBindings {
 	return surface{broker: b, protocol: "plex"}
 }
 
@@ -324,43 +324,43 @@ func (s surface) StopProtocol(ctx context.Context, protocol frontend.Protocol) e
 	return b.StopProtocol(ctx, protocol)
 }
 
-func (s surface) BindPlexStream(ctx context.Context, a frontend.SessionAccess, binding PlexStreamBinding) (int64, error) {
+func (s surface) BindStream(ctx context.Context, a frontend.SessionAccess, binding StreamBinding) (int64, error) {
 	if a.Protocol != s.protocol {
 		return 0, core.ErrUnauthorized
 	}
 	api, ok := s.broker.(interface {
-		BindPlexStream(context.Context, frontend.SessionAccess, PlexStreamBinding) (int64, error)
+		BindStream(context.Context, frontend.SessionAccess, StreamBinding) (int64, error)
 	})
 	if !ok {
 		return 0, core.ErrNotAvailable
 	}
-	return api.BindPlexStream(ctx, a, binding)
+	return api.BindStream(ctx, a, binding)
 }
 
-func (s surface) ResolvePlexStream(ctx context.Context, a frontend.SessionAccess, wireID int64) (PlexStreamBinding, error) {
+func (s surface) ResolveStream(ctx context.Context, a frontend.SessionAccess, wireID int64) (StreamBinding, error) {
 	if a.Protocol != s.protocol {
-		return PlexStreamBinding{}, core.ErrUnauthorized
+		return StreamBinding{}, core.ErrUnauthorized
 	}
 	api, ok := s.broker.(interface {
-		ResolvePlexStream(context.Context, frontend.SessionAccess, int64) (PlexStreamBinding, error)
+		ResolveStream(context.Context, frontend.SessionAccess, int64) (StreamBinding, error)
 	})
 	if !ok {
-		return PlexStreamBinding{}, core.ErrNotAvailable
+		return StreamBinding{}, core.ErrNotAvailable
 	}
-	return api.ResolvePlexStream(ctx, a, wireID)
+	return api.ResolveStream(ctx, a, wireID)
 }
 
-func (s surface) OpenPlexSidecar(ctx context.Context, a frontend.SessionAccess, receipt auth.Acceptance, wireID int64) (io.ReadCloser, core.StreamInfo, error) {
+func (s surface) OpenSidecar(ctx context.Context, a frontend.SessionAccess, receipt auth.Acceptance, wireID int64) (io.ReadCloser, core.StreamInfo, error) {
 	if a.Protocol != s.protocol {
 		return nil, core.StreamInfo{}, core.ErrUnauthorized
 	}
 	api, ok := s.broker.(interface {
-		OpenPlexSidecar(context.Context, frontend.SessionAccess, auth.Acceptance, int64) (io.ReadCloser, core.StreamInfo, error)
+		OpenSidecar(context.Context, frontend.SessionAccess, auth.Acceptance, int64) (io.ReadCloser, core.StreamInfo, error)
 	})
 	if !ok {
 		return nil, core.StreamInfo{}, core.ErrNotAvailable
 	}
-	return api.OpenPlexSidecar(ctx, a, receipt, wireID)
+	return api.OpenSidecar(ctx, a, receipt, wireID)
 }
 
 func (s surface) ReportSample(ctx context.Context, a frontend.SessionAccess, id string, sample frontend.ProgressSample) (frontend.ReportOutcome, error) {
@@ -374,11 +374,11 @@ func (s surface) ReportSample(ctx context.Context, a frontend.SessionAccess, id 
 	return reporter.ReportSample(ctx, a, id, sample)
 }
 
-// PlexStreamAPI lives in internal/frontend (host_sessions_experience.go).
-type PlexStreamAPI = frontend.PlexStreamAPI
+// StreamBindings lives in internal/frontend (host_sessions_experience.go).
+type StreamBindings = frontend.StreamBindings
 
 // PlexActivities reaches the broker's Plex activity store.
-func (b *Broker) PlexActivities() frontend.PlexActivityStore {
+func (b *Broker) PlexActivities() frontend.PlaybackActivityStore {
 	if b == nil {
 		return nil
 	}
@@ -386,8 +386,8 @@ func (b *Broker) PlexActivities() frontend.PlexActivityStore {
 }
 
 // PlexActivities reaches the underlying broker's Plex activity store.
-func (s surface) PlexActivities() frontend.PlexActivityStore {
-	if src, ok := s.broker.(frontend.PlexActivitySource); ok {
+func (s surface) PlexActivities() frontend.PlaybackActivityStore {
+	if src, ok := s.broker.(frontend.PlaybackActivitySource); ok {
 		return src.PlexActivities()
 	}
 	return nil

@@ -19,7 +19,7 @@ func TestPendingPlexPlaysKeepCompletionsAndLaterResume(t *testing.T) {
 	key := core.MovieKey(88)
 	for _, offset := range []time.Duration{3 * time.Second, 920 * time.Second, 70 * time.Second, 950 * time.Second, 80 * time.Second} {
 		*now = now.Add(time.Second)
-		if _, err := s.PlexTimeline(ctx, 1, key, offset, 1000*time.Second, "playing", "", nil); err != nil {
+		if _, err := s.StoreTimeline(ctx, 1, key, offset, 1000*time.Second, "playing", "", nil); err != nil {
 			t.Fatal(err)
 		}
 	}

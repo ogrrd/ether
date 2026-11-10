@@ -113,16 +113,16 @@ func (a *App) buildPlex(ctx context.Context, cfg config.Config) (frontend.PlexDe
 		ClientIdentifier: clientID,
 		Background:       true,
 	})
-	a.plexGUID, deps.PlexGUID = guidService, guidService
+	a.plexGUID, deps.LibraryGUIDs = guidService, guidService
 	metadataService := plexmeta.New(a.db, plexmeta.Options{
 		HTTP:             a.opts.plextvHTTP,
 		Token:            plexToken,
 		ClientIdentifier: clientID,
 		GUID: func(ctx context.Context, k core.RatingKey) string {
-			if deps.PlexGUID == nil {
+			if deps.LibraryGUIDs == nil {
 				return ""
 			}
-			return deps.PlexGUID.Cached(ctx, k)
+			return deps.LibraryGUIDs.Cached(ctx, k)
 		},
 		Enabled: func() bool {
 			cfg := a.cfg.Read()
@@ -130,7 +130,7 @@ func (a *App) buildPlex(ctx context.Context, cfg config.Config) (frontend.PlexDe
 		},
 		Background: true,
 	})
-	a.plexMeta, deps.PlexMeta = metadataService, metadataService
+	a.plexMeta, deps.LibraryMetadata = metadataService, metadataService
 	if err := a.buildPlexWatch(); err != nil {
 		guidService.Close()
 		metadataService.Close()
@@ -148,8 +148,8 @@ func (a *App) buildPlex(ctx context.Context, cfg config.Config) (frontend.PlexDe
 	deps.Subtitles = plexSubtitles{a}
 	deps.TrackPreferences = a.trackprefs
 	deps.SessionCoordination = a.sessionCoordination
-	deps.SessionStores = sessions.NewPlexSessionStores()
-	deps.Experience = experience.NewPlexExperience()
+	deps.SessionStores = sessions.NewSessionStores()
+	deps.Experience = experience.NewSelectors()
 	deps.Markers = a.markers
 	// The remuxer is built once in buildIntegrations and shared with every
 	// front end.

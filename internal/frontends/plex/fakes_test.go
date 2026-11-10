@@ -1478,7 +1478,7 @@ func (f *fixture) attachPlaybackBroker(d Deps) {
 	}
 	f.broker = broker
 	f.srv.UsePlaybackBroker(sessions.BindSurface(broker, "plex"))
-	f.srv.UsePlexStreams(sessions.BindPlexStreams(broker))
+	f.srv.UsePlexStreams(sessions.BindStreams(broker))
 }
 
 func (f *fixture) bindStream(key core.RatingKey, index int, info core.StreamInfo) int64 {
@@ -1527,7 +1527,7 @@ func mountTestBroker(s *Server, now func() time.Time) {
 		panic(err)
 	}
 	s.UsePlaybackBroker(sessions.BindSurface(broker, "plex"))
-	s.UsePlexStreams(sessions.BindPlexStreams(broker))
+	s.UsePlexStreams(sessions.BindStreams(broker))
 }
 
 type discardProgress struct{}

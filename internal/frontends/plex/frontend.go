@@ -53,11 +53,11 @@ func (f Frontend) Mount(ctx context.Context, host frontend.Host) (frontend.Insta
 				deps.Logger = host.Log
 			}
 			srv := NewServer(deps)
-			if deps.PlexStreams != nil {
-				srv.UsePlexStreams(deps.PlexStreams)
+			if deps.Streams != nil {
+				srv.UsePlexStreams(deps.Streams)
 			}
-			if deps.PlexEncoder != nil {
-				srv.UsePlexEncoder(deps.PlexEncoder)
+			if deps.Encoder != nil {
+				srv.UsePlexEncoder(deps.Encoder)
 			}
 			host.Plex.BindServer(srv)
 			f.Server = srv

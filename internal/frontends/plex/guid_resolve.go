@@ -15,7 +15,7 @@ const maxGUIDResolves = 64
 // lookup stores each verified mapping; identities it cannot verify stay
 // unresolved.
 func (s *Server) resolveGUIDsLater(guids []string) {
-	if s.d.PlexGUID == nil || len(guids) == 0 {
+	if s.d.LibraryGUIDs == nil || len(guids) == 0 {
 		return
 	}
 	s.guidResolveMu.Lock()
@@ -39,7 +39,7 @@ func (s *Server) resolveGUIDsLater(guids []string) {
 	go func() {
 		for _, g := range queued {
 			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-			if _, err := s.d.PlexGUID.Lookup(ctx, g); err != nil {
+			if _, err := s.d.LibraryGUIDs.Lookup(ctx, g); err != nil {
 				s.log.Debug("plex identity unresolved", "guid", g, "err", err)
 			}
 			cancel()

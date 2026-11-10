@@ -1635,6 +1635,12 @@ func (s *Service) RemoveFromContinue(ctx context.Context, v *core.Viewer, k core
 	})
 }
 
+func (s *Service) LibraryGUIDs() frontend.LibraryGUIDs       { return nil }
+func (s *Service) LibraryMetadata() frontend.LibraryMetadata { return nil }
+func (s *Service) Markers(_ context.Context, _ core.RatingKey, info core.MediaInfo) ([]frontend.MarkerRange, error) {
+	return PlaybackMarkerRanges(context.Background(), nil, 0, info)
+}
+
 func (s *Service) sortTitles(ctx context.Context, items []core.Title, q frontend.ItemQuery) error {
 	if q.Sort == "" {
 		return nil

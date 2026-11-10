@@ -86,10 +86,10 @@ type Server struct {
 	trackPrefs        frontend.PlaybackTrackPreferences
 	markers           frontend.MarkerRanges
 	trickplay         frontend.TrickplayProvider
-	extras            any
-	prerolls          any
-	subtitles         frontend.SubtitleSidecarSource
-	variants          frontend.VariantResolver
+	extras            frontend.ExtraStreams
+	prerolls          frontend.Prerolls
+	subtitles         frontend.SubtitleCatalog
+	variants          frontend.Editions
 	plexGUID          frontend.LibraryGUIDs
 	plexMeta          frontend.LibraryMetadata
 	variantIDs        *variantIDRegistry

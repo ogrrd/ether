@@ -20,6 +20,7 @@ import (
 
 	"github.com/braedonsaunders/ether/internal/config"
 	"github.com/braedonsaunders/ether/internal/core"
+	"github.com/braedonsaunders/ether/internal/frontend"
 	"github.com/braedonsaunders/ether/internal/livetv/livetvtest"
 	"github.com/braedonsaunders/ether/internal/resolver"
 	"github.com/braedonsaunders/ether/internal/sessions"
@@ -1402,6 +1403,13 @@ func (t fixtureTrickplay) SetTrickplayFallback(id string, jpeg []byte) {
 		p.SetTrickplayFallback(id, jpeg)
 	}
 }
+func (t fixtureTrickplay) CancelTrickplay(id string) {
+	if p := t.provider(); p != nil {
+		if c, ok := p.(frontend.TrickplayCanceler); ok {
+			c.CancelTrickplay(id)
+		}
+	}
+}
 func (t fixtureTrickplay) AcquireTrickplay(ctx context.Context, src core.TrickplaySource) (core.TrickplayLease, error) {
 	p := t.provider()
 	if p == nil {
@@ -1541,4 +1549,270 @@ func (t *fakeTranscoder) StartEncoder(_ context.Context, r transcode.EncoderRequ
 }
 func (t *fakeTranscoder) StartDecoder(_ context.Context, r transcode.DecoderRequest) (transcode.Decoder, error) {
 	return &livetvtest.Decoder{Format: r.Format}, nil
+}
+
+func (s *Server) setTrackPreferences(tp frontend.PlaybackTrackPreferences) {
+	if s != nil {
+		s.trackPrefs = tp
+	}
+}
+
+func (s *Server) setMarkers(m frontend.MarkerRanges) {
+	if s != nil {
+		s.markers = m
+	}
+}
+
+func (s *Server) setTrickplay(tp frontend.TrickplayProvider) {
+	if s != nil {
+		s.trickplay = tp
+	}
+}
+
+func (s *Server) setExtras(ex any) {
+	if s == nil {
+		return
+	}
+	if ex == nil {
+		s.extras = nil
+		return
+	}
+	if es, ok := ex.(frontend.ExtraStreams); ok {
+		s.extras = es
+		return
+	}
+	s.extras = testExtraStreams{src: ex}
+}
+
+func (s *Server) setPrerolls(p any) {
+	if s == nil {
+		return
+	}
+	if p == nil {
+		s.prerolls = nil
+		return
+	}
+	if pr, ok := p.(frontend.Prerolls); ok {
+		s.prerolls = pr
+		return
+	}
+	s.prerolls = testPrerolls{src: p}
+}
+
+func (s *Server) setSubtitles(sub frontend.SubtitleSidecarSource) {
+	if s == nil {
+		return
+	}
+	if sub == nil {
+		s.subtitles = nil
+		return
+	}
+	if sc, ok := sub.(frontend.SubtitleCatalog); ok {
+		s.subtitles = sc
+		return
+	}
+	s.subtitles = testSubtitleCatalog{src: sub}
+}
+
+func (s *Server) setVariants(v frontend.VariantResolver) {
+	if s == nil {
+		return
+	}
+	if v == nil {
+		s.variants = nil
+		return
+	}
+	if ed, ok := v.(frontend.Editions); ok {
+		s.variants = ed
+		return
+	}
+	s.variants = testEditions{src: v}
+}
+
+func (s *Server) setPlexGUID(g frontend.LibraryGUIDs) {
+	if s != nil {
+		s.plexGUID = g
+	}
+}
+
+func (s *Server) setPlexMeta(m frontend.LibraryMetadata) {
+	if s != nil {
+		s.plexMeta = m
+	}
+}
+
+type testExtraStreams struct{ src any }
+
+func (t testExtraStreams) Lookup(k core.RatingKey) (frontend.Extra, bool) { return frontend.Extra{}, false }
+func (t testExtraStreams) Open(context.Context, core.RatingKey) (string, string, map[string]string, error) {
+	return "", "", nil, core.ErrNotFound
+}
+func (t testExtraStreams) Enabled() bool {
+	if e, ok := t.src.(interface{ Enabled() bool }); ok {
+		return e.Enabled()
+	}
+	return false
+}
+func (t testExtraStreams) List(ctx context.Context, parent *core.Title, lang string) ([]frontend.ExtraClip, error) {
+	if l, ok := t.src.(interface {
+		List(context.Context, *core.Title, string) ([]frontend.ExtraClip, error)
+	}); ok {
+		return l.List(ctx, parent, lang)
+	}
+	return nil, nil
+}
+func (t testExtraStreams) Clip(key core.RatingKey) (frontend.ExtraClip, bool) {
+	if c, ok := t.src.(interface {
+		Clip(core.RatingKey) (frontend.ExtraClip, bool)
+	}); ok {
+		return c.Clip(key)
+	}
+	if l, ok := t.src.(interface {
+		Lookup(core.RatingKey) (frontend.ExtraClip, bool)
+	}); ok {
+		return l.Lookup(key)
+	}
+	return frontend.ExtraClip{}, false
+}
+func (t testExtraStreams) Resolve(ctx context.Context, e frontend.ExtraClip) (frontend.ResolvedExtra, error) {
+	if r, ok := t.src.(interface {
+		Resolve(context.Context, frontend.ExtraClip) (frontend.ResolvedExtra, error)
+	}); ok {
+		return r.Resolve(ctx, e)
+	}
+	return frontend.ResolvedExtra{}, core.ErrNotFound
+}
+func (t testExtraStreams) PrewarmBytes() int64 {
+	if p, ok := t.src.(interface{ PrewarmBytes() int64 }); ok {
+		return p.PrewarmBytes()
+	}
+	return 0
+}
+
+type testPrerolls struct{ src any }
+
+func (t testPrerolls) Intro(context.Context, *frontend.Viewer, frontend.Device, frontend.ItemDetail, bool) (frontend.Extra, string, bool, error) {
+	return frontend.Extra{}, "", false, nil
+}
+func (t testPrerolls) Lookup(context.Context, frontend.RatingKey) (frontend.Extra, bool) {
+	return frontend.Extra{}, false
+}
+func (t testPrerolls) Open(context.Context, frontend.RatingKey) (io.ReadSeekCloser, time.Time, error) {
+	return nil, time.Time{}, core.ErrNotFound
+}
+func (t testPrerolls) Started(context.Context, *frontend.Viewer, frontend.Device, frontend.RatingKey) {}
+func (t testPrerolls) Active(ctx context.Context) bool {
+	if p, ok := t.src.(interface{ Active(context.Context) bool }); ok {
+		return p.Active(ctx)
+	}
+	return false
+}
+func (t testPrerolls) Pick(ctx context.Context, req frontend.PrerollRequest) (frontend.PrerollClip, bool) {
+	if p, ok := t.src.(interface {
+		Pick(context.Context, frontend.PrerollRequest) (frontend.PrerollClip, bool)
+	}); ok {
+		return p.Pick(ctx, req)
+	}
+	return frontend.PrerollClip{}, false
+}
+func (t testPrerolls) Clip(ctx context.Context, key frontend.RatingKey) (frontend.PrerollClip, bool) {
+	if p, ok := t.src.(interface {
+		Clip(context.Context, frontend.RatingKey) (frontend.PrerollClip, bool)
+	}); ok {
+		return p.Clip(ctx, key)
+	}
+	return frontend.PrerollClip{}, false
+}
+func (t testPrerolls) Thumb(ctx context.Context, key frontend.RatingKey) (string, bool) {
+	if p, ok := t.src.(interface {
+		Thumb(context.Context, frontend.RatingKey) (string, bool)
+	}); ok {
+		return p.Thumb(ctx, key)
+	}
+	return "", false
+}
+func (t testPrerolls) RecordPlay(ctx context.Context, play frontend.PrerollPlay) {
+	if p, ok := t.src.(interface {
+		RecordPlay(context.Context, frontend.PrerollPlay)
+	}); ok {
+		p.RecordPlay(ctx, play)
+		return
+	}
+	if p, ok := t.src.(interface {
+		Started(context.Context, frontend.PrerollPlay)
+	}); ok {
+		p.Started(ctx, play)
+	}
+}
+
+type testSubtitleCatalog struct{ src frontend.SubtitleSidecarSource }
+
+func (t testSubtitleCatalog) Enabled() bool { return true }
+func (t testSubtitleCatalog) Search(context.Context, *core.Viewer, core.Device, core.RatingKey, string) ([]frontend.SubtitleOffer, error) {
+	return nil, nil
+}
+func (t testSubtitleCatalog) Download(context.Context, *core.Viewer, core.Device, core.RatingKey, string) (int, error) {
+	return 0, core.ErrNotAvailable
+}
+func (t testSubtitleCatalog) OpenFormat(id, format string) (io.ReadCloser, string, error) {
+	return t.src.OpenFormat(id, format)
+}
+func (t testSubtitleCatalog) OpenFormatFrom(id, format, source string) (io.ReadCloser, string, error) {
+	if from, ok := t.src.(interface {
+		OpenFormatFrom(string, string, string) (io.ReadCloser, string, error)
+	}); ok {
+		return from.OpenFormatFrom(id, format, source)
+	}
+	return t.src.OpenFormat(id, format)
+}
+func (t testSubtitleCatalog) CachedSidecars(ctx context.Context, title *frontend.Title, u *frontend.User, embedded []frontend.StreamInfo) []frontend.StreamInfo {
+	if c, ok := t.src.(frontend.SubtitleSidecarCatalog); ok {
+		return c.CachedSidecars(ctx, title, u, embedded)
+	}
+	return nil
+}
+func (t testSubtitleCatalog) SearchSubtitles(ctx context.Context, title *frontend.Title, u *frontend.User, lang, release string) ([]frontend.SubtitleSearchOffer, error) {
+	if s, ok := t.src.(frontend.SubtitleSidecarSearch); ok {
+		return s.SearchSubtitles(ctx, title, u, lang, release)
+	}
+	return nil, nil
+}
+func (t testSubtitleCatalog) DownloadSubtitle(ctx context.Context, title *frontend.Title, u *frontend.User, id int64) (frontend.StreamInfo, error) {
+	if s, ok := t.src.(frontend.SubtitleSidecarSearch); ok {
+		return s.DownloadSubtitle(ctx, title, u, id)
+	}
+	return frontend.StreamInfo{}, core.ErrNotFound
+}
+func (t testSubtitleCatalog) UploadSubtitle(ctx context.Context, title *frontend.Title, u *frontend.User, filename, format, language string, body []byte) (frontend.StreamInfo, error) {
+	if up, ok := t.src.(frontend.SubtitleSidecarUpload); ok {
+		return up.UploadSubtitle(ctx, title, u, filename, format, language, body)
+	}
+	return frontend.StreamInfo{}, core.ErrNotFound
+}
+func (t testSubtitleCatalog) DeleteSubtitle(ctx context.Context, key frontend.RatingKey, u *frontend.User, stream frontend.StreamInfo) error {
+	if del, ok := t.src.(subtitleDelete); ok {
+		return del.DeleteSubtitle(ctx, key, u, stream)
+	}
+	return core.ErrNotFound
+}
+
+type testEditions struct{ src frontend.VariantResolver }
+
+func (t testEditions) Editions(context.Context, *core.Viewer, core.Device, core.RatingKey) ([]frontend.Version, error) {
+	return nil, nil
+}
+func (t testEditions) Variants(ctx context.Context, req core.ResolveRequest, max int) ([]core.ReleaseVariant, error) {
+	return t.src.Variants(ctx, req, max)
+}
+func (t testEditions) RefillSearchCache(title *core.Title) <-chan struct{} {
+	if r, ok := t.src.(frontend.SearchCacheRefiller); ok {
+		return r.RefillSearchCache(title)
+	}
+	return nil
+}
+func (t testEditions) Available(ctx context.Context, key core.RatingKey) (bool, bool) {
+	if a, ok := t.src.(frontend.AvailabilitySource); ok {
+		return a.Available(ctx, key)
+	}
+	return false, false
 }

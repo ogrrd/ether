@@ -8,13 +8,13 @@ import (
 	"github.com/braedonsaunders/ether/internal/frontend"
 )
 
-// UseHost attaches shared frontend.Host services to this server.
-func (s *Server) UseHost(host frontend.Host) {
+// bindHost attaches shared frontend.Host services to this server.
+func (s *Server) bindHost(host frontend.Host) {
 	if s == nil {
 		return
 	}
-	if tp, ok := host.TrackPreferences.(frontend.PlaybackTrackPreferences); ok && tp != nil {
-		s.trackPrefs = tp
+	if host.TrackPreferences != nil {
+		s.trackPrefs = host.TrackPreferences
 	}
 	if host.ExtraStreams != nil {
 		s.extras = host.ExtraStreams
@@ -22,86 +22,16 @@ func (s *Server) UseHost(host frontend.Host) {
 	if host.Prerolls != nil {
 		s.prerolls = host.Prerolls
 	}
-	if sub, ok := host.Subtitles.(frontend.SubtitleSidecarSource); ok && sub != nil {
-		s.subtitles = sub
+	if host.Subtitles != nil {
+		s.subtitles = host.Subtitles
 	}
-	if vr, ok := host.Editions.(interface{ VariantResolver() frontend.VariantResolver }); ok {
-		if v := vr.VariantResolver(); v != nil {
-			s.variants = v
-		}
+	if host.Editions != nil {
+		s.variants = host.Editions
 	}
-	if lg, ok := host.Editions.(interface{ LibraryGUIDs() frontend.LibraryGUIDs }); ok {
-		if g := lg.LibraryGUIDs(); g != nil {
-			s.plexGUID = g
-		}
-	}
-	if lm, ok := host.Editions.(interface{ LibraryMetadata() frontend.LibraryMetadata }); ok {
-		if m := lm.LibraryMetadata(); m != nil {
-			s.plexMeta = m
-		}
-	}
-}
-
-// UseTrackPreferences attaches the viewer track-preference service.
-func (s *Server) UseTrackPreferences(tp frontend.PlaybackTrackPreferences) {
-	if s != nil {
-		s.trackPrefs = tp
-	}
-}
-
-// UseMarkers attaches a marker range provider override.
-func (s *Server) UseMarkers(m frontend.MarkerRanges) {
-	if s != nil {
-		s.markers = m
-	}
-}
-
-// UseTrickplay attaches a trickplay provider override.
-func (s *Server) UseTrickplay(tp frontend.TrickplayProvider) {
-	if s != nil {
-		s.trickplay = tp
-	}
-}
-
-// UseExtras attaches an extras provider override.
-func (s *Server) UseExtras(ex any) {
-	if s != nil {
-		s.extras = ex
-	}
-}
-
-// UsePrerolls attaches a pre-rolls provider override.
-func (s *Server) UsePrerolls(p any) {
-	if s != nil {
-		s.prerolls = p
-	}
-}
-
-// UseSubtitles attaches a subtitle sidecar source override.
-func (s *Server) UseSubtitles(sub frontend.SubtitleSidecarSource) {
-	if s != nil {
-		s.subtitles = sub
-	}
-}
-
-// UseVariants attaches a variant resolver override.
-func (s *Server) UseVariants(v frontend.VariantResolver) {
-	if s != nil {
-		s.variants = v
-	}
-}
-
-// UsePlexGUID attaches a library GUID service override.
-func (s *Server) UsePlexGUID(g frontend.LibraryGUIDs) {
-	if s != nil {
-		s.plexGUID = g
-	}
-}
-
-// UsePlexMeta attaches a library metadata service override.
-func (s *Server) UsePlexMeta(m frontend.LibraryMetadata) {
-	if s != nil {
-		s.plexMeta = m
+	if host.Experience != nil {
+		s.plexGUID = host.Experience.LibraryGUIDs()
+		s.plexMeta = host.Experience.LibraryMetadata()
+		s.markers = host.Experience
 	}
 }
 

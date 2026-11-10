@@ -19,50 +19,33 @@ import (
 const prerollSource = "preroll"
 
 func (s *Server) prerollsActive(ctx context.Context) bool {
-	if p, ok := s.prerolls.(interface{ Active(context.Context) bool }); ok {
-		return p.Active(ctx)
-	}
-	return false
+	return s.prerolls != nil && s.prerolls.Active(ctx)
 }
 
 func (s *Server) prerollsPick(ctx context.Context, req frontend.PrerollRequest) (frontend.PrerollClip, bool) {
-	if p, ok := s.prerolls.(interface {
-		Pick(context.Context, frontend.PrerollRequest) (frontend.PrerollClip, bool)
-	}); ok {
-		return p.Pick(ctx, req)
+	if s.prerolls == nil {
+		return frontend.PrerollClip{}, false
 	}
-	return frontend.PrerollClip{}, false
+	return s.prerolls.Pick(ctx, req)
 }
 
 func (s *Server) prerollsClip(ctx context.Context, key frontend.RatingKey) (frontend.PrerollClip, bool) {
-	if p, ok := s.prerolls.(interface {
-		Clip(context.Context, frontend.RatingKey) (frontend.PrerollClip, bool)
-	}); ok {
-		return p.Clip(ctx, key)
+	if s.prerolls == nil {
+		return frontend.PrerollClip{}, false
 	}
-	return frontend.PrerollClip{}, false
+	return s.prerolls.Clip(ctx, key)
 }
 
 func (s *Server) prerollsThumb(ctx context.Context, key frontend.RatingKey) (string, bool) {
-	if p, ok := s.prerolls.(interface {
-		Thumb(context.Context, frontend.RatingKey) (string, bool)
-	}); ok {
-		return p.Thumb(ctx, key)
+	if s.prerolls == nil {
+		return "", false
 	}
-	return "", false
+	return s.prerolls.Thumb(ctx, key)
 }
 
 func (s *Server) prerollsRecordPlay(ctx context.Context, play frontend.PrerollPlay) {
-	if p, ok := s.prerolls.(interface {
-		RecordPlay(context.Context, frontend.PrerollPlay)
-	}); ok {
-		p.RecordPlay(ctx, play)
-		return
-	}
-	if p, ok := s.prerolls.(interface {
-		Started(context.Context, frontend.PrerollPlay)
-	}); ok {
-		p.Started(ctx, play)
+	if s.prerolls != nil {
+		s.prerolls.RecordPlay(ctx, play)
 	}
 }
 

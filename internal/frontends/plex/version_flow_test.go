@@ -149,7 +149,7 @@ func TestVersionIdentityAcrossPlayFlow(t *testing.T) {
 					}
 					subs := newFakeSubtitles()
 					subs.offers = []SubtitleOffer{{ID: 101, Language: "nl", Title: "Downloaded Dutch", Provider: "OpenSubtitles"}}
-					f.srv.UseSubtitles(subs)
+					f.srv.setSubtitles(subs)
 					notifications, ok := f.srv.notifier.subscribe([]string{"activity"}, &ownerUser)
 					if !ok {
 						t.Fatal("activity subscription failed")
@@ -230,9 +230,9 @@ func TestVersionFlowSharedAcrossNodes(t *testing.T) {
 			a.srv.UsePlaybackBroker(b.srv.playbackBroker)
 			a.srv.UsePlexStreams(b.srv.boundStreams)
 			a.srv.d.Playback = pb
-			a.srv.UseVariants(ra)
+			a.srv.setVariants(ra)
 			b.srv.d.Playback = pb
-			b.srv.UseVariants(rb)
+			b.srv.setVariants(rb)
 			path := "/library/metadata/" + fightClub.Key.String()
 			headers := []string{"Accept", "application/json", "X-Plex-Product", "Plex for Samsung"}
 			fetch := func(f *fixture, stage, target string) []wireMedia {
@@ -379,7 +379,7 @@ func TestAndroidTVSubtitleDownloadDuringPlayback(t *testing.T) {
 	subs := newFakeSubtitles()
 	subs.offers = []SubtitleOffer{{ID: 101, Language: "nl", Title: "Downloaded Dutch", Provider: "OpenSubtitles"}}
 	blocking := &blockingSubtitleDownload{subs, make(chan struct{}), make(chan struct{})}
-	f.srv.UseSubtitles(blocking)
+	f.srv.setSubtitles(blocking)
 	search := decodeJSON(t, f.get(t, path+"/subtitles?language=nl", headers...))
 	offer := search["Stream"].([]any)[0].(map[string]any)["key"].(string)
 	if rec := put(path + "/subtitles?key=" + urlEsc(offer)); rec.Code != http.StatusOK {

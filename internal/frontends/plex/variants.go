@@ -742,10 +742,8 @@ func (s *Server) watchVariants(pr *Request, t *frontend.Title) {
 				return
 			case <-timer.C:
 			}
-			if retryAdmission && s.detailSearchAllowed(pr) {
-				if refiller, ok := s.variants.(frontend.SearchCacheRefiller); ok {
-					retryAdmission = refiller.RefillSearchCache(&title) == nil
-				}
+			if retryAdmission && s.detailSearchAllowed(pr) && s.variants != nil {
+				retryAdmission = s.variants.RefillSearchCache(&title) == nil
 			}
 			vctx, cancel := context.WithTimeout(s.ctx, variantRenderBudget)
 			vs, err := s.variants.Variants(vctx, frontend.ResolveRequest{Title: &title, Client: caps, User: &user}, frontend.MaxVariants)

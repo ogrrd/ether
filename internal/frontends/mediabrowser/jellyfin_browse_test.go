@@ -902,6 +902,13 @@ type staticEditions struct{ versions []frontend.Version }
 func (s staticEditions) Editions(context.Context, *frontend.Viewer, frontend.Device, frontend.RatingKey) ([]frontend.Version, error) {
 	return s.versions, nil
 }
+func (staticEditions) Variants(context.Context, frontend.ResolveRequest, int) ([]frontend.ReleaseVariant, error) {
+	return nil, nil
+}
+func (staticEditions) RefillSearchCache(*frontend.Title) <-chan struct{} { return nil }
+func (staticEditions) Available(context.Context, frontend.RatingKey) (bool, bool) {
+	return false, false
+}
 
 type issuedHandles struct{ n int }
 

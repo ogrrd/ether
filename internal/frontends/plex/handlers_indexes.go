@@ -14,57 +14,31 @@ import (
 )
 
 func (s *Server) trickplayAvailable(id string) bool {
-	if s == nil || id == "" {
+	if s == nil || s.playbackBroker == nil || id == "" {
 		return false
 	}
-	if s.trickplay != nil {
-		return s.trickplay.TrickplayAvailable(id)
-	}
-	if tp, ok := s.playbackBroker.(interface{ TrickplayAvailable(string) bool }); ok {
-		return tp.TrickplayAvailable(id)
-	}
-	return false
+	return s.playbackBroker.TrickplayAvailable(id)
 }
 
 func (s *Server) trickplayBIF(id string) ([]byte, bool) {
-	if s == nil || id == "" {
+	if s == nil || s.playbackBroker == nil || id == "" {
 		return nil, false
 	}
-	if s.trickplay != nil {
-		return s.trickplay.TrickplayBIF(id)
-	}
-	if tp, ok := s.playbackBroker.(interface{ TrickplayBIF(string) ([]byte, bool) }); ok {
-		return tp.TrickplayBIF(id)
-	}
-	return nil, false
+	return s.playbackBroker.TrickplayBIF(id)
 }
 
 func (s *Server) trickplayFrame(id string, at time.Duration) ([]byte, bool) {
-	if s == nil || id == "" {
+	if s == nil || s.playbackBroker == nil || id == "" {
 		return nil, false
 	}
-	if s.trickplay != nil {
-		return s.trickplay.TrickplayFrame(id, at)
-	}
-	if tp, ok := s.playbackBroker.(interface{ TrickplayFrame(string, time.Duration) ([]byte, bool) }); ok {
-		return tp.TrickplayFrame(id, at)
-	}
-	return nil, false
+	return s.playbackBroker.TrickplayFrame(id, at)
 }
 
 func (s *Server) cancelTrickplay(id string) {
-	if s == nil || id == "" {
+	if s == nil || s.playbackBroker == nil || id == "" {
 		return
 	}
-	if s.trickplay != nil {
-		if canceler, ok := s.trickplay.(frontend.TrickplayCanceler); ok {
-			canceler.CancelTrickplay(id)
-		}
-		return
-	}
-	if canceler, ok := s.playbackBroker.(frontend.TrickplayCanceler); ok {
-		canceler.CancelTrickplay(id)
-	}
+	s.playbackBroker.CancelTrickplay(id)
 }
 
 // handleIndexBIF serves the sparse BIF snapshot for a currently available

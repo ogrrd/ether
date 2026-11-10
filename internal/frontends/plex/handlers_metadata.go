@@ -236,18 +236,16 @@ func (s *Server) handleMetadata(w http.ResponseWriter, r *http.Request) {
 				// Version discovery belongs to the open detail page, not to
 				// admission of the independent playback warm-up. Start it first
 				// so a warm-up that needs a search can join the same work.
-				if pr.User != nil && s.detailSearchAllowed(pr) {
-					if refiller, ok := s.variants.(frontend.SearchCacheRefiller); ok {
-						// Repeated metadata fetches while the same page is being
-						// watched must not retry a failed search on every fetch.
-						watchKey := fmt.Sprintf("%d|%s|%d", pr.User.ID, pr.ClientID, t.Key)
-						s.variantWatch.mu.Lock()
-						watching := s.variantWatch.pending[watchKey]
-						s.variantWatch.mu.Unlock()
-						if !watching {
-							pr.detailRefillRequested = true
-							pr.detailRefill = refiller.RefillSearchCache(t)
-						}
+				if pr.User != nil && s.detailSearchAllowed(pr) && s.variants != nil {
+					// Repeated metadata fetches while the same page is being
+					// watched must not retry a failed search on every fetch.
+					watchKey := fmt.Sprintf("%d|%s|%d", pr.User.ID, pr.ClientID, t.Key)
+					s.variantWatch.mu.Lock()
+					watching := s.variantWatch.pending[watchKey]
+					s.variantWatch.mu.Unlock()
+					if !watching {
+						pr.detailRefillRequested = true
+						pr.detailRefill = s.variants.RefillSearchCache(t)
 					}
 				}
 				s.warmDetail(ctx, pr, t)
@@ -368,9 +366,7 @@ func (s *Server) detail(ctx context.Context, pr *Request, t *frontend.Title, chi
 // sameDayUnavailable is a local visibility lookup. Merely browsing must never
 // spend search quota trying to discover an upload.
 func (s *Server) sameDayUnavailable(ctx context.Context, pr *Request, t *frontend.Title) bool {
-	var source frontend.AvailabilitySource
-	source, _ = s.variants.(frontend.AvailabilitySource)
-	return s.d.Experience.SameDayUnavailable(ctx, t, s.now(), s.d.FilterAvailable, source)
+	return s.d.Experience.SameDayUnavailable(ctx, t, s.now(), s.d.FilterAvailable, s.variants)
 }
 
 // showOnDeck picks the episode to resume or start next.

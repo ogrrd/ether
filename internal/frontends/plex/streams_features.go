@@ -90,12 +90,8 @@ func (s *Server) rememberStreamRequest(r *http.Request, user *frontend.Viewer, k
 			id = 0 // A malformed subtitle selector means None.
 		}
 		if id == -1 {
-			if resetter, ok := s.trackPrefs.(interface {
-				ForgetChoice(context.Context, int64, frontend.RatingKey, string) error
-			}); ok {
-				if err := resetter.ForgetChoice(r.Context(), user.ID, key, kind); err != nil {
-					s.log.Warn("reset stream preference", "error", err)
-				}
+			if err := s.trackPrefs.ForgetChoice(r.Context(), user.ID, key, kind); err != nil {
+				s.log.Warn("reset stream preference", "error", err)
 			}
 			continue
 		}
@@ -229,20 +225,14 @@ func (s *Server) preloadShowLanguages(ctx context.Context, pr *Request, ts []fro
 // preloadTrackChoices keeps detailed list rendering from reading each title's
 // remembered audio and subtitle choices separately.
 func (s *Server) preloadTrackChoices(ctx context.Context, pr *Request, ts []frontend.Title, o renderOpts) {
-	if pr == nil || pr.User == nil || !o.media || (!o.detail && !o.detailEpisodes) {
-		return
-	}
-	batch, ok := s.trackPrefs.(interface {
-		PreloadChoices(context.Context, int64, []frontend.RatingKey) error
-	})
-	if !ok {
+	if s.trackPrefs == nil || pr == nil || pr.User == nil || !o.media || (!o.detail && !o.detailEpisodes) {
 		return
 	}
 	keys := make([]frontend.RatingKey, 0, len(ts))
 	for _, t := range ts {
 		keys = append(keys, t.Key)
 	}
-	if err := batch.PreloadChoices(ctx, pr.User.ID, keys); err != nil {
+	if err := s.trackPrefs.PreloadChoices(ctx, pr.User.ID, keys); err != nil {
 		s.log.Warn("preload stream preferences", "err", err)
 	}
 }

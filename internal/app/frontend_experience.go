@@ -423,7 +423,7 @@ func (a *App) newSurfaceExperience(protocol core.Protocol, artwork ...frontend.A
 	if a.cfg != nil {
 		detail.enabled = func() bool { return a.cfg.Read().Personalize.MicroReasons }
 	}
-	return &surfaceExperience{Service: service, receipts: receipts, protocol: protocol, artwork: artworkSource, active: a.users.ActiveUser, rowViews: rowViews, detail: detail, generation: func(ctx context.Context) (int64, error) {
+	return &surfaceExperience{Service: service, receipts: receipts, protocol: protocol, artwork: artworkSource, active: a.users.ActiveUser, rowViews: rowViews, detail: detail, guids: a.plexGUID, metadata: a.plexMeta, markers: a.markers, generation: func(ctx context.Context) (int64, error) {
 		return viewerpolicy.Read(ctx, a.db)
 	}, catalogGen: func() uint64 {
 		if a.catalog == nil {
@@ -461,6 +461,9 @@ func (a *App) newSurfaceExperience(protocol core.Protocol, artwork ...frontend.A
 type surfaceExperience struct {
 	*experience.Service
 	receipts    *experience.Receipts
+	guids       frontend.LibraryGUIDs
+	metadata    frontend.LibraryMetadata
+	markers     frontend.MarkerRanges
 	protocol    core.Protocol
 	artwork     frontend.Artwork
 	active      func(context.Context, int64) (*core.User, error)
@@ -901,4 +904,25 @@ func (s *surfaceExperience) ReportRowInteraction(ctx context.Context, i frontend
 		return experience.ErrReceipt
 	}
 	return s.receipts.Report(ctx, i)
+}
+
+func (s *surfaceExperience) LibraryGUIDs() frontend.LibraryGUIDs {
+	if s == nil {
+		return nil
+	}
+	return s.guids
+}
+
+func (s *surfaceExperience) LibraryMetadata() frontend.LibraryMetadata {
+	if s == nil {
+		return nil
+	}
+	return s.metadata
+}
+
+func (s *surfaceExperience) Markers(ctx context.Context, key core.RatingKey, info core.MediaInfo) ([]frontend.MarkerRange, error) {
+	if s == nil {
+		return experience.PlaybackMarkerRanges(ctx, nil, key, info)
+	}
+	return experience.PlaybackMarkerRanges(ctx, s.markers, key, info)
 }

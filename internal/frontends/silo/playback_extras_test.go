@@ -3,6 +3,7 @@ package silo
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -108,6 +109,27 @@ func (s *siloSubtitles) Search(context.Context, *core.Viewer, core.Device, core.
 func (s *siloSubtitles) Download(context.Context, *core.Viewer, core.Device, core.RatingKey, string) (int, error) {
 	s.downloads++
 	return 4, nil
+}
+func (*siloSubtitles) OpenFormat(string, string) (io.ReadCloser, string, error) {
+	return nil, "", core.ErrNotFound
+}
+func (*siloSubtitles) OpenFormatFrom(string, string, string) (io.ReadCloser, string, error) {
+	return nil, "", core.ErrNotFound
+}
+func (*siloSubtitles) CachedSidecars(context.Context, *frontend.Title, *frontend.User, []frontend.StreamInfo) []frontend.StreamInfo {
+	return nil
+}
+func (*siloSubtitles) SearchSubtitles(context.Context, *frontend.Title, *frontend.User, string, string) ([]frontend.SubtitleSearchOffer, error) {
+	return nil, nil
+}
+func (*siloSubtitles) DownloadSubtitle(context.Context, *frontend.Title, *frontend.User, int64) (frontend.StreamInfo, error) {
+	return frontend.StreamInfo{}, core.ErrNotFound
+}
+func (*siloSubtitles) UploadSubtitle(context.Context, *frontend.Title, *frontend.User, string, string, string, []byte) (frontend.StreamInfo, error) {
+	return frontend.StreamInfo{}, core.ErrNotFound
+}
+func (*siloSubtitles) DeleteSubtitle(context.Context, frontend.RatingKey, *frontend.User, frontend.StreamInfo) error {
+	return nil
 }
 
 func TestSiloSubtitleSearchDoesNotDownloadUntilSelection(t *testing.T) {

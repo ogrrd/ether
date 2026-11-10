@@ -18,7 +18,7 @@ func TestAccountSubtitleModeStaysManualUntilChanged(t *testing.T) {
 	user := core.User{ID: 7, Username: "ada", SubtitleLanguages: []string{"de"}}
 	plain := &Server{d: testDeps(Deps{Auth: &fakeAuth{users: map[string]core.User{"t": user}}}), log: slog.Default()}
 	withPrefs := &Server{d: testDeps(Deps{Auth: plain.d.Auth}), log: slog.Default()}
-	withPrefs.UseTrackPreferences(prefs)
+	withPrefs.setTrackPreferences(prefs)
 	body := func(s *Server) string {
 		t.Helper()
 		w := httptest.NewRecorder()
@@ -72,7 +72,7 @@ func TestPlexSelectionHonoursSubtitleMode(t *testing.T) {
 		t.Fatal(err)
 	}
 	srv := &Server{d: testDeps(Deps{}), log: slog.Default()}
-	srv.UseTrackPreferences(prefs)
+	srv.setTrackPreferences(prefs)
 	info := core.MediaInfo{Streams: []core.StreamInfo{{Type: "audio", Language: "ja"}, {Type: "audio", Language: "en"}, {Type: "subtitle", Language: "en", Forced: true}, {Type: "subtitle", Language: "en"}}}
 	got := srv.preferredSelection(context.Background(), &core.User{ID: 7}, core.MovieKey(1), info, "ja", selection{})
 	if !got.subtitleSet || got.subtitle != 3 || got.audio != 0 {

@@ -432,14 +432,7 @@ func (s *Server) handleAccounts(w http.ResponseWriter, r *http.Request) {
 // trackprefs row. Stores that cannot tell own from inherited still report
 // the GetRules result, which tests and older fakes rely on.
 func viewerStoredSubtitlePreference(ctx context.Context, prefs TrackPreferences, user int64) bool {
-	type own interface {
-		HasViewerRules(context.Context, int64) (bool, error)
-	}
-	checker, ok := prefs.(own)
-	if !ok {
-		return true
-	}
-	has, err := checker.HasViewerRules(ctx, user)
+	has, err := prefs.HasViewerRules(ctx, user)
 	return err == nil && has
 }
 

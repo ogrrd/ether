@@ -32,10 +32,12 @@ type VersionHandles interface {
 	MatchSession(context.Context, VersionScope, string, string) error
 }
 
-// Editions is an optional local-media catalogue. Implementations return
-// probed copies already on disk and do not search indexers.
+// Editions is an optional local-media catalogue and release variant resolver.
 type Editions interface {
 	Editions(context.Context, *core.Viewer, core.Device, core.RatingKey) ([]Version, error)
+	Variants(ctx context.Context, req core.ResolveRequest, max int) ([]core.ReleaseVariant, error)
+	RefillSearchCache(t *core.Title) <-chan struct{}
+	Available(ctx context.Context, key core.RatingKey) (bool, bool)
 }
 
 // EditionBatch resolves local copies for a page in one lookup.

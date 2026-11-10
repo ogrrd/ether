@@ -32,9 +32,9 @@ func TestNoScopedOverridesPreserveSelection(t *testing.T) {
 	}
 	info := core.MediaInfo{Streams: []core.StreamInfo{{Type: "audio", Language: "fr"}, {Type: "audio", Language: "en"}}}
 	viewer := &core.User{ID: 7}
-	f.srv.UseTrackPreferences(unscopedTrackPreferences{prefs})
+	f.srv.setTrackPreferences(unscopedTrackPreferences{prefs})
 	old := f.srv.preferredSelection(context.Background(), viewer, fightClub.Key, info, "", selection{})
-	f.srv.UseTrackPreferences(prefs)
+	f.srv.setTrackPreferences(prefs)
 	got := f.srv.preferredSelection(context.Background(), viewer, fightClub.Key, info, "", selection{})
 	if got != old {
 		t.Fatalf("no-override selection changed: old=%+v new=%+v", old, got)
@@ -46,7 +46,7 @@ func TestScopedQualityOnlyTightensPlexRequest(t *testing.T) {
 	defer f.srv.Close()
 	db := store.OpenTest(t)
 	prefs := trackprefs.New(db)
-	f.srv.UseTrackPreferences(prefs)
+	f.srv.setTrackPreferences(prefs)
 	viewer := &core.User{ID: 7}
 	info := core.MediaInfo{Streams: []core.StreamInfo{{Type: "audio", Language: "en"}}}
 	for _, tc := range []struct{ requested, preferred, want int }{{2000, 5000, 2000}, {5000, 2000, 2000}} {
@@ -70,7 +70,7 @@ func TestPersistentShowChoiceAppliesToNextEpisodeDecision(t *testing.T) {
 	}
 	defer db.Close()
 	prefs := trackprefs.New(db)
-	f.srv.UseTrackPreferences(prefs)
+	f.srv.setTrackPreferences(prefs)
 	r := trackprefs.Default()
 	r.AudioLanguages = []string{"en"}
 	r.SubtitleLanguages = []string{"en"}
@@ -110,7 +110,7 @@ func TestMDECannotBypassRequestedAudioProcessing(t *testing.T) {
 	}
 	defer db.Close()
 	prefs := trackprefs.New(db)
-	f.srv.UseTrackPreferences(prefs)
+	f.srv.setTrackPreferences(prefs)
 	r := trackprefs.Default()
 	r.Loudness = true
 	if err = prefs.PutRules(context.Background(), 0, r); err != nil {
@@ -134,7 +134,7 @@ func (f fakeMarkers) Markers(context.Context, core.RatingKey, core.MediaInfo) ([
 // mistakenly flags an earlier one.
 func TestMultipleCreditsMarkersRendering(t *testing.T) {
 	srv := &Server{d: testDeps(Deps{}), log: slog.Default()}
-	srv.UseMarkers(fakeMarkers{
+	srv.setMarkers(fakeMarkers{
 		{Type: "credits", StartMS: 5_800_000, EndMS: 6_000_000, Final: true},
 		{Type: "intro", StartMS: 30_000, EndMS: 90_000},
 		{Type: "credits", StartMS: 5_400_000, EndMS: 5_760_000, Final: true},

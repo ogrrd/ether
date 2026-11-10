@@ -599,6 +599,32 @@ func (f TrackPreferences) SetSubtitle(ctx context.Context, v *core.Viewer, langu
 	return frontend.ErrPreferencesNotFound
 }
 
+func (Experience) LibraryGUIDs() frontend.LibraryGUIDs       { return nil }
+func (Experience) LibraryMetadata() frontend.LibraryMetadata { return nil }
+func (Experience) Markers(context.Context, core.RatingKey, core.MediaInfo) ([]frontend.MarkerRange, error) {
+	return nil, nil
+}
+
+func (Sessions) TrickplayAvailable(string) bool                  { return false }
+func (Sessions) TrickplayBIF(string) ([]byte, bool)              { return nil, false }
+func (Sessions) TrickplayFrame(string, time.Duration) ([]byte, bool) { return nil, false }
+func (Sessions) CancelTrickplay(string)                          {}
+
+func (TrackPreferences) Select(context.Context, int64, core.RatingKey, core.MediaInfo, string) (frontend.PlaybackPreferenceSelection, error) {
+	return frontend.PlaybackPreferenceSelection{}, nil
+}
+func (TrackPreferences) Remember(context.Context, int64, core.RatingKey, string, *core.StreamInfo) error {
+	return nil
+}
+func (TrackPreferences) GetRules(context.Context, int64) (frontend.PlaybackPreferenceRules, error) {
+	return frontend.PlaybackPreferenceRules{}, nil
+}
+func (TrackPreferences) HasViewerRules(context.Context, int64) (bool, error) { return false, nil }
+func (TrackPreferences) ForgetChoice(context.Context, int64, core.RatingKey, string) error {
+	return nil
+}
+func (TrackPreferences) PreloadChoices(context.Context, int64, []core.RatingKey) error { return nil }
+
 func (f Sessions) ReportSample(ctx context.Context, a frontend.SessionAccess, id string, sample frontend.ProgressSample) (frontend.ReportOutcome, error) {
 	if f.ReportSampleFunc != nil {
 		return f.ReportSampleFunc(ctx, a, id, sample)

@@ -2315,12 +2315,11 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 			writeHTTPError(w, http.StatusForbidden)
 			return
 		}
-		deleter, ok := s.subtitles.(subtitleDelete)
-		if !ok {
+		if s.subtitles == nil {
 			writeHTTPError(w, http.StatusNotFound)
 			return
 		}
-		if err := deleter.DeleteSubtitle(r.Context(), binding.Key, pr.User, binding.Info); err != nil {
+		if err := s.subtitles.DeleteSubtitle(r.Context(), binding.Key, pr.User, binding.Info); err != nil {
 			writeHTTPError(w, http.StatusNotFound)
 			return
 		}
@@ -2329,10 +2328,8 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 				sel.subtitle, sel.subtitleSet, sel.subtitleStream = -1, true, nil
 			}
 		})
-		if resetter, ok := s.trackPrefs.(interface {
-			ForgetChoice(context.Context, int64, frontend.RatingKey, string) error
-		}); ok {
-			if err := resetter.ForgetChoice(r.Context(), pr.User.ID, binding.Key, "subtitle"); err != nil {
+		if s.trackPrefs != nil {
+			if err := s.trackPrefs.ForgetChoice(r.Context(), pr.User.ID, binding.Key, "subtitle"); err != nil {
 				s.log.Warn("clear deleted subtitle preference", "error", err)
 			}
 		}

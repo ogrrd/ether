@@ -57,7 +57,7 @@ func TestShieldTroyCaptureFollowup(t *testing.T) {
 						f.catalog.titles[troy.Key] = troy
 						f.srv.d.Transcoder = shieldContractTranscoder{f.trans}
 						prefs := trackprefs.New(store.OpenTest(t))
-						f.srv.UseTrackPreferences(prefs)
+						f.srv.setTrackPreferences(prefs)
 						rules := trackprefs.Default()
 						rules.SubtitleLanguages = []string{"en"}
 						rules.SubtitleMode = "always"
@@ -70,7 +70,7 @@ func TestShieldTroyCaptureFollowup(t *testing.T) {
 							{Index: 3, Type: "subtitle", Codec: "hdmv_pgs_subtitle", Language: "en"},
 						}}
 						f.playback.info = facts
-						f.srv.UseVariants(&fakeVariantResolver{byKey: testVariantLists()})
+						f.srv.setVariants(&fakeVariantResolver{byKey: testVariantLists()})
 						pb := &shieldMetadataPlayback{Playback: f.playback, facts: facts, ready: warm}
 						f.srv.d.Playback = pb
 						device := "SHIELD Android TV"

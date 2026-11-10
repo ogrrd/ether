@@ -160,7 +160,7 @@ func newVariantFixture(t *testing.T, playback core.Playback) *variantFixture {
 		Identity: Identity{Version: "1.43.4.10903-e5521bd8c", Platform: "Linux"},
 		Now:      func() time.Time { return fixedNow },
 	}))
-	srv.UseVariants(vr)
+	srv.setVariants(vr)
 	t.Cleanup(func() { srv.Close() })
 	mountTestBroker(srv, func() time.Time { return fixedNow })
 	return &variantFixture{srv: srv, resolver: vr, playback: playback}

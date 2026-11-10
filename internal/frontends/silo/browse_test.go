@@ -663,6 +663,13 @@ type batchEditions struct {
 func (b batchEditions) Editions(context.Context, *frontend.Viewer, frontend.Device, frontend.RatingKey) ([]frontend.Version, error) {
 	panic("a catalogue page reads its editions in one batch")
 }
+func (batchEditions) Variants(context.Context, frontend.ResolveRequest, int) ([]frontend.ReleaseVariant, error) {
+	return nil, nil
+}
+func (batchEditions) RefillSearchCache(*frontend.Title) <-chan struct{} { return nil }
+func (batchEditions) Available(context.Context, frontend.RatingKey) (bool, bool) {
+	return false, false
+}
 
 func (b batchEditions) EditionsMany(ctx context.Context, _ *frontend.Viewer, _ frontend.Device, keys []frontend.RatingKey) (map[frontend.RatingKey][]frontend.Version, error) {
 	return b.many(ctx, keys)

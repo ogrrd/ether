@@ -14,6 +14,7 @@ import (
 )
 
 type subtitlePrefs struct {
+	frontendtest.TrackPreferences
 	value frontend.TrackPreferences
 }
 

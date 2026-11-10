@@ -2,6 +2,7 @@ package mediabrowser
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -30,6 +31,17 @@ func (c *extraCatalog) Open(context.Context, core.RatingKey) (string, string, ma
 	c.opens++
 	return "mp4", c.url, map[string]string{"Authorization": "secret"}, nil
 }
+func (*extraCatalog) Enabled() bool { return true }
+func (*extraCatalog) List(context.Context, *core.Title, string) ([]frontend.ExtraClip, error) {
+	return nil, nil
+}
+func (*extraCatalog) Clip(core.RatingKey) (frontend.ExtraClip, bool) {
+	return frontend.ExtraClip{}, false
+}
+func (*extraCatalog) Resolve(context.Context, frontend.ExtraClip) (frontend.ResolvedExtra, error) {
+	return frontend.ResolvedExtra{}, core.ErrNotFound
+}
+func (*extraCatalog) PrewarmBytes() int64 { return 0 }
 
 type cinemaCatalog struct{ clips []frontend.Extra }
 
@@ -59,6 +71,27 @@ func (c *subtitleCatalog) Search(_ context.Context, _ *core.Viewer, _ core.Devic
 func (c *subtitleCatalog) Download(context.Context, *core.Viewer, core.Device, core.RatingKey, string) (int, error) {
 	c.downloads++
 	return 6, nil
+}
+func (*subtitleCatalog) OpenFormat(string, string) (io.ReadCloser, string, error) {
+	return nil, "", core.ErrNotFound
+}
+func (*subtitleCatalog) OpenFormatFrom(string, string, string) (io.ReadCloser, string, error) {
+	return nil, "", core.ErrNotFound
+}
+func (*subtitleCatalog) CachedSidecars(context.Context, *frontend.Title, *frontend.User, []frontend.StreamInfo) []frontend.StreamInfo {
+	return nil
+}
+func (*subtitleCatalog) SearchSubtitles(context.Context, *frontend.Title, *frontend.User, string, string) ([]frontend.SubtitleSearchOffer, error) {
+	return nil, nil
+}
+func (*subtitleCatalog) DownloadSubtitle(context.Context, *frontend.Title, *frontend.User, int64) (frontend.StreamInfo, error) {
+	return frontend.StreamInfo{}, core.ErrNotFound
+}
+func (*subtitleCatalog) UploadSubtitle(context.Context, *frontend.Title, *frontend.User, string, string, string, []byte) (frontend.StreamInfo, error) {
+	return frontend.StreamInfo{}, core.ErrNotFound
+}
+func (*subtitleCatalog) DeleteSubtitle(context.Context, frontend.RatingKey, *frontend.User, frontend.StreamInfo) error {
+	return nil
 }
 
 func TestLocalTrailersAndFeaturesFollowAuthorizedExtras(t *testing.T) {

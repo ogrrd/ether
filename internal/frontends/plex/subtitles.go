@@ -85,11 +85,10 @@ func ensureSelectedSidecar(ps *frontend.PlaySession, want *frontend.StreamInfo) 
 // withCachedSidecars appends the viewer's cached sidecars that info does not
 // already list. It never touches the network.
 func (s *Server) withCachedSidecars(ctx context.Context, u *frontend.User, t *frontend.Title, info frontend.MediaInfo) frontend.MediaInfo {
-	c, ok := s.subtitles.(SubtitleCatalog)
-	if !ok || t == nil {
+	if s.subtitles == nil || t == nil {
 		return info
 	}
-	extra := c.CachedSidecars(ctx, t, u, info.Streams)
+	extra := s.subtitles.CachedSidecars(ctx, t, u, info.Streams)
 	if len(extra) == 0 {
 		return info
 	}
@@ -377,11 +376,11 @@ func (s *Server) handleSubtitleSearch(w http.ResponseWriter, r *http.Request) {
 	}
 	lang = frontend.NormalizeLanguage(lang)
 	mc := libraryContainer()
-	searcher, ok := s.subtitles.(SubtitleSearch)
-	if !ok {
+	if s.subtitles == nil {
 		s.write(w, r, mc)
 		return
 	}
+	searcher := s.subtitles
 	release := ""
 	if pr.User != nil && s.d.Playback != nil {
 		if ps, ok := s.d.Playback.SessionFor(pr.User.ID, pr.ClientID, t.Key); ok && ps != nil && ps.Resolution != nil {
@@ -455,11 +454,11 @@ func (s *Server) handleSubtitlePick(w http.ResponseWriter, r *http.Request) {
 		writeHTTPError(w, http.StatusNotFound)
 		return
 	}
-	searcher, ok := s.subtitles.(SubtitleSearch)
-	if !ok {
+	if s.subtitles == nil {
 		writeHTTPError(w, http.StatusNotFound)
 		return
 	}
+	searcher := s.subtitles
 	if !r.URL.Query().Has("key") {
 		s.handleSubtitleSearch(w, r)
 		return
@@ -582,11 +581,11 @@ func (s *Server) handleSubtitleUpload(w http.ResponseWriter, r *http.Request) {
 		writeHTTPError(w, http.StatusForbidden)
 		return
 	}
-	uploader, ok := s.subtitles.(SubtitleUpload)
-	if !ok {
+	if s.subtitles == nil {
 		writeHTTPError(w, http.StatusNotFound)
 		return
 	}
+	uploader := s.subtitles
 	body, err := io.ReadAll(io.LimitReader(r.Body, maxUploadBytes+1))
 	if err != nil {
 		writeHTTPError(w, http.StatusBadRequest)
@@ -728,15 +727,7 @@ func (s *Server) handleTranscodeSubtitles(w http.ResponseWriter, r *http.Request
 	if keyer, ok := s.d.Playback.(interface{ SourceKey(string) string }); ok {
 		source = keyer.SourceKey(entry.playID)
 	}
-	var reader io.ReadCloser
-	var actual string
-	if from, ok := timeline.(interface {
-		OpenFormatFrom(string, string, string) (io.ReadCloser, string, error)
-	}); ok {
-		reader, actual, err = from.OpenFormatFrom(st.ExternalURL, subtitleFormat(format), source)
-	} else {
-		reader, actual, err = timeline.OpenFormat(st.ExternalURL, subtitleFormat(format))
-	}
+	reader, actual, err := timeline.OpenFormatFrom(st.ExternalURL, subtitleFormat(format), source)
 	if err != nil {
 		writeHTTPError(w, http.StatusNotFound)
 		return

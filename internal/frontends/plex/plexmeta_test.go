@@ -71,8 +71,8 @@ func plexMetaFixture(t *testing.T, use bool, rt http.RoundTripper) (*fixture, *p
 			return c
 		}
 	})
-	f.srv.UsePlexGUID(pg)
-	f.srv.UsePlexMeta(meta)
+	f.srv.setPlexGUID(pg)
+	f.srv.setPlexMeta(meta)
 	t.Cleanup(func() { _ = f.srv.Close() })
 	return f, meta
 }

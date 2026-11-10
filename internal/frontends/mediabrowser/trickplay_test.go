@@ -65,6 +65,12 @@ func (t tileSessions) TranscodeFor(c context.Context, id string) (core.HLSSessio
 func (t tileSessions) Events(c context.Context, s frontend.EventScope) (<-chan frontend.Event, error) {
 	return t.base.Events(c, s)
 }
+func (t tileSessions) TrickplayAvailable(id string) bool     { return t.base.TrickplayAvailable(id) }
+func (t tileSessions) TrickplayBIF(id string) ([]byte, bool) { return t.base.TrickplayBIF(id) }
+func (t tileSessions) TrickplayFrame(id string, at time.Duration) ([]byte, bool) {
+	return t.base.TrickplayFrame(id, at)
+}
+func (t tileSessions) CancelTrickplay(id string) { t.base.CancelTrickplay(id) }
 
 func (t tileSessions) TrickplayOffer(context.Context, frontend.SessionAccess, core.RatingKey) (frontend.TrickplayOffer, bool) {
 	if !t.offer {

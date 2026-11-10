@@ -65,7 +65,7 @@ func (f Frontend) Mount(ctx context.Context, host frontend.Host) (frontend.Insta
 			if deps.PlexEncoder != nil {
 				srv.UsePlexEncoder(deps.PlexEncoder)
 			}
-			srv.UseHost(host)
+			srv.bindHost(host)
 			host.Plex.BindServer(srv)
 			f.Server = srv
 		}
@@ -77,7 +77,7 @@ func (f Frontend) Mount(ctx context.Context, host frontend.Host) (frontend.Insta
 		return nil, err
 	}
 	if f.Server != nil {
-		f.Server.UseHost(host)
+		f.Server.bindHost(host)
 		f.Server.UsePlaybackBroker(host.Sessions)
 	}
 	status := f.StatusFunc

@@ -26,51 +26,39 @@ import (
 // instantly when the trailer ends.
 
 func (s *Server) extrasSource() frontend.ExtrasSource {
-	src, _ := s.extras.(frontend.ExtrasSource)
-	return src
+	return s.extras
 }
 
 func (s *Server) extrasEnabled() bool {
-	src := s.extrasSource()
-	return src != nil && src.Enabled()
+	return s.extras != nil && s.extras.Enabled()
 }
 
 func (s *Server) extrasList(ctx context.Context, parent *frontend.Title, lang string) ([]frontend.ExtraClip, error) {
-	src := s.extrasSource()
-	if src == nil {
+	if s.extras == nil {
 		return nil, nil
 	}
-	return src.List(ctx, parent, lang)
+	return s.extras.List(ctx, parent, lang)
 }
 
 func (s *Server) extrasLookup(key frontend.RatingKey) (frontend.ExtraClip, bool) {
-	if c, ok := s.extras.(interface {
-		Clip(frontend.RatingKey) (frontend.ExtraClip, bool)
-	}); ok {
-		return c.Clip(key)
+	if s.extras == nil {
+		return frontend.ExtraClip{}, false
 	}
-	if l, ok := s.extras.(interface {
-		Lookup(frontend.RatingKey) (frontend.ExtraClip, bool)
-	}); ok {
-		return l.Lookup(key)
-	}
-	return frontend.ExtraClip{}, false
+	return s.extras.Clip(key)
 }
 
 func (s *Server) extrasResolve(ctx context.Context, e frontend.ExtraClip) (frontend.ResolvedExtra, error) {
-	if r, ok := s.extras.(interface {
-		Resolve(context.Context, frontend.ExtraClip) (frontend.ResolvedExtra, error)
-	}); ok {
-		return r.Resolve(ctx, e)
+	if s.extras == nil {
+		return frontend.ResolvedExtra{}, frontend.ErrNotFound
 	}
-	return frontend.ResolvedExtra{}, frontend.ErrNotFound
+	return s.extras.Resolve(ctx, e)
 }
 
 func (s *Server) extrasPrewarmBytes() (int64, bool) {
-	if p, ok := s.extras.(interface{ PrewarmBytes() int64 }); ok {
-		return p.PrewarmBytes(), true
+	if s.extras == nil {
+		return 0, false
 	}
-	return 0, false
+	return s.extras.PrewarmBytes(), true
 }
 
 // extraSession is one resolved extra playback (decision + transcode).

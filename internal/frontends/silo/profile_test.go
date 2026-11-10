@@ -13,7 +13,10 @@ import (
 	"github.com/braedonsaunders/ether/internal/frontend/frontendtest"
 )
 
-type testTracks struct{ value frontend.TrackPreferences }
+type testTracks struct {
+	frontendtest.TrackPreferences
+	value frontend.TrackPreferences
+}
 
 func (t *testTracks) Get(context.Context, *frontend.Viewer) (frontend.TrackPreferences, error) {
 	return t.value, nil

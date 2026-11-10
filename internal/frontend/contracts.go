@@ -299,6 +299,11 @@ type SessionMarkers struct {
 type ExtraStreams interface {
 	Lookup(core.RatingKey) (Extra, bool)
 	Open(context.Context, core.RatingKey) (container, rawURL string, headers map[string]string, err error)
+	Enabled() bool
+	List(ctx context.Context, parent *core.Title, lang string) ([]ExtraClip, error)
+	Clip(key core.RatingKey) (ExtraClip, bool)
+	Resolve(ctx context.Context, e ExtraClip) (ResolvedExtra, error)
+	PrewarmBytes() int64
 }
 
 // CinemaIntros returns playable trailers of other visible, unwatched movies
@@ -331,6 +336,11 @@ type Prerolls interface {
 	Lookup(ctx context.Context, key RatingKey) (Extra, bool)
 	Open(ctx context.Context, key RatingKey) (io.ReadSeekCloser, time.Time, error)
 	Started(ctx context.Context, viewer *Viewer, device Device, key RatingKey)
+	Active(ctx context.Context) bool
+	Pick(ctx context.Context, req PrerollRequest) (PrerollClip, bool)
+	Clip(ctx context.Context, key RatingKey) (PrerollClip, bool)
+	Thumb(ctx context.Context, key RatingKey) (string, bool)
+	RecordPlay(ctx context.Context, play PrerollPlay)
 }
 
 // SubtitleOffer is one subtitle search result. ID is the only value a later
@@ -348,6 +358,13 @@ type SubtitleCatalog interface {
 	Enabled() bool
 	Search(context.Context, *core.Viewer, core.Device, core.RatingKey, string) ([]SubtitleOffer, error)
 	Download(context.Context, *core.Viewer, core.Device, core.RatingKey, string) (int, error)
+	OpenFormat(id, format string) (io.ReadCloser, string, error)
+	OpenFormatFrom(id, format, source string) (io.ReadCloser, string, error)
+	CachedSidecars(ctx context.Context, t *Title, u *User, embedded []StreamInfo) []StreamInfo
+	SearchSubtitles(ctx context.Context, t *Title, u *User, lang, release string) ([]SubtitleSearchOffer, error)
+	DownloadSubtitle(ctx context.Context, t *Title, u *User, id int64) (StreamInfo, error)
+	UploadSubtitle(ctx context.Context, t *Title, u *User, filename, format, language string, body []byte) (StreamInfo, error)
+	DeleteSubtitle(ctx context.Context, key RatingKey, u *User, stream StreamInfo) error
 }
 
 // SubtitleSidecarSource resolves cached OpenSubtitles and synchronized sidecars.
@@ -513,6 +530,9 @@ type NotInterestedPage struct {
 // Experience applies viewer policy before returning any data. Browse operations
 // must not resolve or open a release. Policy is applied before pagination and limits.
 type Experience interface {
+	LibraryGUIDs() LibraryGUIDs
+	LibraryMetadata() LibraryMetadata
+	MarkerRanges
 	Views(context.Context, *core.Viewer) ([]View, error)
 	Collections(context.Context, *core.Viewer, core.Device, CollectionQuery) (CollectionPage, error)
 	NotInterested(context.Context, *core.Viewer, core.Device, PageQuery) (NotInterestedPage, error)
@@ -852,6 +872,10 @@ type Sessions interface {
 	Sessions(context.Context, SessionAccess) ([]Session, error)
 	Recover(context.Context, string, string, time.Duration) error
 	TranscodeFor(context.Context, string) (core.HLSSession, bool)
+	TrickplayAvailable(string) bool
+	TrickplayBIF(string) ([]byte, bool)
+	TrickplayFrame(string, time.Duration) ([]byte, bool)
+	CancelTrickplay(string)
 	// Events includes events from all cluster nodes, filters by viewer unless owner access is authorized, and ends on cancellation.
 	Events(context.Context, EventScope) (<-chan Event, error)
 }

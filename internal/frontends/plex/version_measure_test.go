@@ -66,7 +66,7 @@ func TestVersionBrowseMeasurement(t *testing.T) {
 		d.DisableEnrichment = true
 		d.Hooks = Hooks{}
 	})
-	f.srv.UseVariants(vr)
+	f.srv.setVariants(vr)
 	defer f.srv.Close()
 	titles := make([]core.Title, 200)
 	f.catalog.titles = map[core.RatingKey]core.Title{}

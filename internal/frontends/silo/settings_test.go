@@ -19,6 +19,7 @@ import (
 )
 
 type settingsTracks struct {
+	frontendtest.TrackPreferences
 	tracks          frontend.TrackPreferences
 	bitrate, height int
 	quality         string

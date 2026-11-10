@@ -36,7 +36,7 @@ func TestTimelineStartsTrickplayForConsumedPlayback(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
 	provider := &fakeTrickplay{}
-	f.srv.UseTrickplay(provider)
+	f.srv.setTrickplay(provider)
 	addIndexSession(f, fightClub.Key)
 	f.playback.sessions["index-session"].BytesServed = 1000 // consumed source, not just prepared
 	rec := f.get(t, "/:/timeline?ratingKey="+fightClub.Key.String()+"&time=30000&duration=8340000&state=playing")
@@ -74,7 +74,7 @@ func TestIndexRoutesPrecedePartRouteAndServeBIFAndFrame(t *testing.T) {
 		t.Fatal(err)
 	}
 	provider := &fakeTrickplay{bif: bif, frame: frame}
-	f.srv.UseTrickplay(provider)
+	f.srv.setTrickplay(provider)
 	addIndexSession(f, fightClub.Key)
 
 	// This path would otherwise be consumed as /library/parts/{part}/{file}.
@@ -109,7 +109,7 @@ func TestPartIndexesAttributeOnlyWhenAvailable(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
 	provider := &fakeTrickplay{available: false}
-	f.srv.UseTrickplay(provider)
+	f.srv.setTrickplay(provider)
 	addIndexSession(f, fightClub.Key)
 	path := "/library/metadata/" + fightClub.Key.String()
 	if rec := f.get(t, path); rec.Code != http.StatusOK || strings.Contains(rec.Body.String(), `indexes="sd"`) {
@@ -139,7 +139,7 @@ func TestPlexOnlyTrickplayIdleCancelParity(t *testing.T) {
 				defer owner.Close()
 				provider = owner.Borrow()
 			}
-			f.srv.UseTrickplay(provider)
+			f.srv.setTrickplay(provider)
 			addIndexSession(f, fightClub.Key)
 			playing := f.get(t, "/:/timeline?ratingKey="+fightClub.Key.String()+"&time=30000&duration=8340000&state=playing")
 			if raw.ensured != 1 {
@@ -174,7 +174,7 @@ func TestPlexStopCannotCancelJellyfinOrPrewarmLease(t *testing.T) {
 			owner := trickplay.New(raw)
 			defer owner.Close()
 			p := owner.Borrow()
-			f.srv.UseTrickplay(p)
+			f.srv.setTrickplay(p)
 			addIndexSession(f, fightClub.Key)
 			f.get(t, "/:/timeline?ratingKey="+fightClub.Key.String()+"&time=30000&state=playing")
 			other, err := p.(core.TrickplayLeaser).AcquireTrickplay(context.Background(), core.TrickplaySource{ReleaseID: core.TrickplayCacheKey(f.playback.sessions["index-session"]), InputURL: "prewarm"})
@@ -206,9 +206,9 @@ func TestSharedTrickplayPlexExactWireParity(t *testing.T) {
 		if shared {
 			owner := trickplay.New(raw)
 			defer owner.Close()
-			f.srv.UseTrickplay(owner.Borrow())
+			f.srv.setTrickplay(owner.Borrow())
 		} else {
-			f.srv.UseTrickplay(raw)
+			f.srv.setTrickplay(raw)
 		}
 		addIndexSession(f, fightClub.Key)
 		paths := []string{

@@ -14,4 +14,7 @@ type PlaybackTrackPreferences interface {
 	Select(context.Context, int64, RatingKey, MediaInfo, string) (PlaybackPreferenceSelection, error)
 	Remember(context.Context, int64, RatingKey, string, *StreamInfo) error
 	GetRules(context.Context, int64) (PlaybackPreferenceRules, error)
+	HasViewerRules(context.Context, int64) (bool, error)
+	ForgetChoice(context.Context, int64, RatingKey, string) error
+	PreloadChoices(context.Context, int64, []RatingKey) error
 }

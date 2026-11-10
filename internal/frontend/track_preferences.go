@@ -12,6 +12,7 @@ type TrackPreferences struct {
 	SubtitleAppearance                json.RawMessage
 }
 type TrackPreferenceService interface {
+	PlaybackTrackPreferences
 	Get(context.Context, *Viewer) (TrackPreferences, error)
 	SetSubtitle(context.Context, *Viewer, []string, string) error
 }

@@ -39,7 +39,7 @@ func TestBulkMetadataUsesCachedGUIDsWithoutNetwork(t *testing.T) {
 	defer f.srv.Close()
 	warmer := &detailWarmer{Playback: f.srv.d.Playback}
 	f.srv.d.Playback = warmer
-	f.srv.UsePlexGUID(plexguid.New(db, plexguid.Options{BaseURL: upstream.URL, Token: func() string { return "fixture" }}))
+	f.srv.setPlexGUID(plexguid.New(db, plexguid.Options{BaseURL: upstream.URL, Token: func() string { return "fixture" }}))
 	rec := f.get(t, "/library/metadata/"+fightClub.Key.String()+","+alien.Key.String())
 	if rec.Code != 200 || (calls.Load() != 0 || warmer.calls != 0) {
 		t.Fatalf("bulk status=%d network=%d", rec.Code, calls.Load())
@@ -102,7 +102,7 @@ func TestHubsWarmPlexGUIDsInBackgroundAndEpisodesRenderHierarchy(t *testing.T) {
 		Background: true,
 	})
 	defer pg.Close()
-	f.srv.UsePlexGUID(pg)
+	f.srv.setPlexGUID(pg)
 
 	// First /hubs render schedules background resolution for hub items.
 	rec := f.get(t, "/hubs")
@@ -166,7 +166,7 @@ func TestDetailDoesNotWaitForRemotePlexIdentity(t *testing.T) {
 	defer pg.Close()
 	// Release the fake upstream before Close joins its worker even if this fails.
 	defer close(release)
-	f.srv.UsePlexGUID(pg)
+	f.srv.setPlexGUID(pg)
 	done := make(chan int, 1)
 	go func() { done <- f.get(t, "/library/metadata/"+fightClub.Key.String()).Code }()
 	select {

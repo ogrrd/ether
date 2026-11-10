@@ -41,7 +41,7 @@ func TestPreviewHTTPFollowsSourceMemberAndRevision(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
 	provider := &revisionPreviews{fakeTrickplay: &fakeTrickplay{}, frames: map[string][]byte{}}
-	f.srv.UseTrickplay(provider)
+	f.srv.setTrickplay(provider)
 	addIndexSession(f, fightClub.Key)
 	dir := t.TempDir()
 	open := func(name string) *previewFileSource {

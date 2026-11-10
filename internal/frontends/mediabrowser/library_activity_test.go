@@ -125,7 +125,7 @@ func (f *groupedActivityFake) LatestAddedGrouped(ctx context.Context, v *fronten
 	return rows, err
 }
 
-type listedEdition struct{}
+type listedEdition struct{ staticEditions }
 
 func (listedEdition) Editions(context.Context, *frontend.Viewer, frontend.Device, frontend.RatingKey) ([]frontend.Version, error) {
 	return []frontend.Version{{

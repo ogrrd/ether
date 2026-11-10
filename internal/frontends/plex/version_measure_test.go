@@ -62,7 +62,7 @@ func TestVersionBrowseMeasurement(t *testing.T) {
 	defer rs.Close()
 	vr := &versionMeasureResolver{Service: rs}
 	f := newFixture(func(d *Deps) {
-		d.Config = func() config.Config { return cfg }
+		setDepsConfig(d, func() config.Config { return cfg })
 		d.DisableEnrichment = true
 		d.Variants = vr
 		d.Hooks = Hooks{}

@@ -33,7 +33,7 @@ func TestAndroidPhotoConnectionAndFormat(t *testing.T) {
 		t.Run(product, func(t *testing.T) {
 			f := newFixture(func(d *Deps) {
 				d.ImageURL = func(path, size string) string { return upstream.URL + "/t/p/" + size + path }
-				d.HTTPClient = upstream.Client()
+				setDepsHTTPClient(d, upstream.Client())
 			})
 			defer f.srv.Close()
 
@@ -81,7 +81,7 @@ func TestAndroidPhotoConnectionAndFormat(t *testing.T) {
 					t.Fatalf("invalid %s: %d", option, r.Code)
 				}
 			}
-			f.srv.d.Auth.(*fakeAuth).users["kid"] = core.User{ID: 30, MaxContentRating: "PG"}
+			f.srv.testAuth().users["kid"] = core.User{ID: 30, MaxContentRating: "PG"}
 			// Let queued palette work finish so only the requests below can count.
 			f.srv.waitBackground()
 			before := hits.Load()

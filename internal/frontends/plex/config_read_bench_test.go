@@ -35,7 +35,8 @@ func benchConfigStore(tb testing.TB) *config.Store {
 // configuration.
 func BenchmarkTitleVisible(b *testing.B) {
 	store := benchConfigStore(b)
-	s := &Server{d: testDeps(Deps{Config: store.Read})}
+	s := testServer(Deps{})
+	s.setTestConfig(store.Read)
 	s.sections = s.buildSections()
 	u := &core.User{ID: 2, AllowedLibraries: []core.LibraryID{1, 2}}
 	t := &core.Title{Key: core.EpisodeKey(1399, 1, 1), Type: core.TypeEpisode}
@@ -50,7 +51,8 @@ func BenchmarkTitleVisible(b *testing.B) {
 // BenchmarkSectionTitle is the titled section lookup a converted item makes.
 func BenchmarkSectionTitle(b *testing.B) {
 	store := benchConfigStore(b)
-	s := &Server{d: testDeps(Deps{Config: store.Read})}
+	s := testServer(Deps{})
+	s.setTestConfig(store.Read)
 	s.sections = s.buildSections()
 	b.ReportAllocs()
 	for b.Loop() {
@@ -66,7 +68,8 @@ func BenchmarkSectionTitle(b *testing.B) {
 func TestVisibilityReadsNoConfiguration(t *testing.T) {
 	store := benchConfigStore(t)
 	reads := 0
-	s := &Server{d: testDeps(Deps{Config: func() config.Config { reads++; return store.Read() }})}
+	s := testServer(Deps{})
+	s.setTestConfig(func() config.Config { reads++; return store.Read() })
 	s.sections = s.buildSections()
 	reads = 0
 	restricted := &core.User{ID: 2, AllowedLibraries: []core.LibraryID{2}}
@@ -88,7 +91,8 @@ func TestVisibilityReadsNoConfiguration(t *testing.T) {
 // viewer's visibility filter.
 func BenchmarkLeafCountVisibility(b *testing.B) {
 	store := benchConfigStore(b)
-	s := &Server{d: testDeps(Deps{Config: store.Read})}
+	s := testServer(Deps{})
+	s.setTestConfig(store.Read)
 	s.sections = s.buildSections()
 	u := &core.User{ID: 2, AllowedLibraries: []core.LibraryID{1, 2}}
 	var eps []core.Title

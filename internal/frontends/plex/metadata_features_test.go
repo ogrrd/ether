@@ -73,7 +73,7 @@ func TestAlternateOrderPlexTreeAndCanonicalPlayback(t *testing.T) {
 	if canonical.Season != 1 || canonical.Episode != 2 {
 		t.Fatal("canonical changed", canonical)
 	}
-	f.srv.d.Auth.(*fakeAuth).users["movie-only"] = core.User{ID: 88, AllowedLibraries: []core.LibraryID{1}}
+	f.srv.testAuth().users["movie-only"] = core.User{ID: 88, AllowedLibraries: []core.LibraryID{1}}
 	for _, path := range []string{"/library/metadata/" + virtual.String(), "/library/metadata/" + virtual.String() + "/children", "/library/metadata/" + breakingBad.Key.String() + "/allLeaves", "/library/metadata/" + bbE2.Key.String() + "/parent"} {
 		rec = f.request(t, http.MethodGet, path, map[string]string{"X-Plex-Token": "movie-only"})
 		if rec.Code != 404 {

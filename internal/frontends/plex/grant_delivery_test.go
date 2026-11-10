@@ -66,7 +66,7 @@ func TestPlexGrantMissingEntryUsesOriginalOwnerPrecedenceAndPolicy(t *testing.T)
 		t.Fatal("grant transfer fabricated local entry/encoder")
 	}
 	policy := &forwardedPolicy{denyWAN: true}
-	owner.srv.d.AccessPolicy = policy
+	owner.srv.setTestPolicy(policy)
 	if out := request(dual, "", "198.51.100.8:5000"); out.Code != 401 && out.Code != 403 {
 		t.Fatal("forwarded grant WAN restriction ignored", out.Code)
 	}
@@ -76,7 +76,7 @@ func TestPlexGrantMissingEntryUsesOriginalOwnerPrecedenceAndPolicy(t *testing.T)
 		t.Fatal("forwarded grant hidden title streamed", out.Code)
 	}
 	policy.denyTitle = false
-	delete(owner.srv.d.Auth.(*fakeAuth).users, ownerToken)
+	delete(owner.srv.testAuth().users, ownerToken)
 	if out := request(dual, "", "10.0.0.5:5000"); out.Code != 401 {
 		t.Fatal("revoked owner grant accepted", out.Code)
 	}

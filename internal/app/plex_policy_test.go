@@ -10,6 +10,7 @@ import (
 	artworkservice "github.com/braedonsaunders/ether/internal/artwork/service"
 	"github.com/braedonsaunders/ether/internal/core"
 	"github.com/braedonsaunders/ether/internal/experience"
+	"github.com/braedonsaunders/ether/internal/frontend"
 	"github.com/braedonsaunders/ether/internal/frontends/plex"
 	"github.com/braedonsaunders/ether/internal/safety"
 	"github.com/braedonsaunders/ether/internal/sessions"
@@ -52,19 +53,22 @@ func TestPlexPolicyProductionWiringKeepsOwnerSearch(t *testing.T) {
 	a := &App{safety: policy}
 	hidden := core.Title{Key: core.MovieKey(123), Type: core.TypeMovie, Title: "First Movie", ContentRating: "R"}
 	title := core.Title{Key: core.MovieKey(124), Type: core.TypeMovie, Title: "Second Movie", ContentRating: "G"}
+	vp := surfaceViewerPolicy{app: a}
 	deps := plex.Deps{
+		Host: frontend.Host{
+			Identity:     frontend.BindAuth(policyTestAuth{}),
+			ViewerPolicy: vp,
+		},
 		SessionStores:     sessions.NewPlexSessionStores(),
 		Experience:        experience.NewPlexExperience(),
 		ArtworkStores:     artworkservice.NewPlexArtworkStores(),
 		Catalog:           policyTestCatalog{titles: []core.Title{hidden, title}},
-		Auth:              policyTestAuth{},
 		DisableEnrichment: true,
 	}
-	a.wirePlexPolicy(&deps)
-	if deps.AccessPolicy != policy {
+	if vp.app.safety != policy {
 		t.Fatal("Plex did not receive the production safety service")
 	}
-	restricted, ok := deps.AccessPolicy.(core.ArtworkAccessPolicy)
+	restricted, ok := deps.Host.ViewerPolicy.(core.ArtworkAccessPolicy)
 	if !ok || restricted.Restricted(&core.User{ID: 1, IsOwner: true}) || restricted.Restricted(&core.User{ID: 3}) || !restricted.Restricted(&core.User{ID: 2, MaxContentRating: "PG"}) {
 		t.Fatal("production restriction classification is incorrect")
 	}

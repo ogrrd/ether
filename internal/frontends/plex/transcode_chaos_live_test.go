@@ -205,7 +205,7 @@ func runLiveChaos(t *testing.T, hardware, apple, dashif bool) {
 	f := newFixture()
 	defer f.srv.Close()
 	f.srv.d.LiveTV = service.Frontend()
-	f.srv.d.Identity.MyPlexSubscription = true
+	f.srv.setTestSubscription(true)
 	tune := f.request(t, "POST", "/livetv/dvrs/1/channels/"+channel.ID+"/tune", map[string]string{"Accept": "application/json"})
 	if tune.Code != 200 {
 		t.Fatalf("tune HTTP %d", tune.Code)

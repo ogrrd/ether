@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"runtime"
 	"strings"
 	"sync"
@@ -27,7 +28,15 @@ const DefaultPMSVersion = "1.43.4.10903-e5521bd8c"
 
 // Identity is how the server presents itself. Empty fields fall back to the
 // config snapshot (friendly name, machine identifier) or sensible defaults.
-type Identity = frontend.PlexIdentity
+type Identity struct {
+	MachineIdentifier  string
+	FriendlyName       string
+	Version            string
+	Platform           string
+	PlatformVersion    string
+	MyPlexSubscription bool
+	OwnerFeatures      []string
+}
 
 // Hooks are optional callbacks into other components. They run on their own
 // goroutine and must be safe for concurrent use.
@@ -42,7 +51,7 @@ type SessionToucher interface {
 	Touch(sessionID string)
 }
 
-// Deps are the server's dependencies. Catalog, State, Auth and Playback are
+// Deps are the server's dependencies. Catalog, State, Host.Identity and Playback are
 // required; the rest degrade gracefully when nil.
 type Deps = frontend.PlexDeps
 
@@ -72,6 +81,7 @@ type Server struct {
 	home             *homeCache
 
 	d      Deps
+	host   frontend.Host
 	log    *slog.Logger
 	router chi.Router
 
@@ -127,24 +137,21 @@ type Server struct {
 
 // NewServer builds the PMS API handler.
 func NewServer(d Deps) *Server {
-	if d.Logger == nil {
-		d.Logger = slog.Default()
+	host := d.Host
+	log := host.Log
+	if log == nil {
+		log = slog.Default()
 	}
-	if d.Config == nil {
-		d.Config = func() frontend.HostConfig { return frontend.HostConfig{} }
+	if d.Support == nil && host.Support != nil {
+		d.Support = host.Support
 	}
 	if d.ImageURL == nil {
 		d.ImageURL = func(path, size string) string { return "https://image.tmdb.org/t/p/" + size + path }
 	}
-	if d.HTTPClient == nil {
-		d.HTTPClient = &http.Client{Timeout: 20 * time.Second}
-	}
 	if d.ImageCacheBytes <= 0 {
 		d.ImageCacheBytes = 128 << 20
 	}
-	if d.Now == nil {
-		d.Now = time.Now
-	}
+	httpClient := &http.Client{Timeout: 20 * time.Second}
 	ctx, cancel := context.WithCancel(context.Background())
 	if d.SessionStores == nil {
 		panic("plex: Deps.SessionStores is required (wire sessions.NewPlexSessionStores())")
@@ -155,7 +162,6 @@ func NewServer(d Deps) *Server {
 	if d.ArtworkStores == nil {
 		panic("plex: Deps.ArtworkStores is required (wire artworkservice.NewPlexArtworkStores())")
 	}
-	d.Dashboard, d.Resources = d.Experience.StatisticsDefaults(d.Dashboard, d.Resources, d.Now)
 	coord := d.SessionCoordination
 	if coord == nil || coord.PlaybackOwners() == nil || coord.LifecycleGates() == nil {
 		coord = d.SessionStores.NewCoordination()
@@ -165,9 +171,10 @@ func NewServer(d Deps) *Server {
 		plexEncoder:       d.PlexEncoder,
 		boundStreams:      d.PlexStreams,
 		d:                 d,
-		log:               d.Logger.With("component", "plex"),
-		images:            d.ArtworkStores.NewRemoteCache(d.ImageCacheBytes, d.HTTPClient),
-		channelLogos:      d.ArtworkStores.NewUntrustedImages(d.HTTPClient),
+		host:              host,
+		log:               log.With("component", "plex"),
+		images:            d.ArtworkStores.NewRemoteCache(d.ImageCacheBytes, httpClient),
+		channelLogos:      d.ArtworkStores.NewUntrustedImages(nil),
 		channelRaster:     d.ArtworkStores.NewSVGRasterizer(),
 		variantIDs:        newVariantIDRegistry(d.SessionStores, d.DB),
 		playIDs:           newPlayIdentities(),
@@ -178,15 +185,19 @@ func NewServer(d Deps) *Server {
 		playbackLifecycle: coord.LifecycleGates(),
 		transcodes:        newTranscodeTable(),
 		readCaps:          newReadCapabilityStore(),
-		extraPlay:         newExtraPlayStore(d.DirectHTTP),
+		extraPlay:         newExtraPlayStore(newDirectHTTPClient(host.DirectProxy)),
 		selections:        newSelectionStore(),
 		notifier:          newNotifier(),
 		facets:            newFacetCache(),
 		ctx:               ctx,
 		cancel:            cancel,
 	}
+	s.d.Dashboard, s.d.Resources = d.Experience.StatisticsDefaults(d.Dashboard, d.Resources, s.now)
 	if d.ArtworkImages != nil {
 		s.images = d.ArtworkImages
+	}
+	if host.Sessions != nil {
+		s.UsePlaybackBroker(host.Sessions)
 	}
 	s.shelfWriter = &shelfPersistence{pending: map[string]shelfWrite{}, active: map[string]bool{}, wake: make(chan struct{}, 1)}
 	s.wg.Add(1)
@@ -194,15 +205,15 @@ func NewServer(d Deps) *Server {
 	s.variantIDs.start(ctx, &s.wg)
 	s.transcodes.load = s.loadDistributedBinding
 	s.sections = s.buildSections()
-	s.queues.Configure(d.Now, nil)
+	s.queues.Configure(s.now, nil)
 	if d.DB != nil && d.Cluster == nil {
 		// Standalone queues share the durable store without starting cluster sessions.
-		s.queues.Configure(d.Now, newClusterState(s, d.DB, frontend.StandaloneClusterNode("standalone-queues")).queuePersistence())
+		s.queues.Configure(s.now, newClusterState(s, d.DB, frontend.StandaloneClusterNode("standalone-queues")).queuePersistence())
 	}
 	if d.Cluster != nil && d.DB != nil {
 		s.cl = newClusterState(s, d.DB, d.Cluster)
 		s.versionFlows = newVersionFlowStore(s, d.DB)
-		s.queues.Configure(d.Now, s.cl.queuePersistence())
+		s.queues.Configure(s.now, s.cl.queuePersistence())
 	}
 	if !d.DisableEnrichment && d.Catalog != nil {
 		s.titleJobs = newBGQueue(ctx, &s.wg, titleFetchWorkers, titleFetchQueueLen)
@@ -256,6 +267,85 @@ func NewServer(d Deps) *Server {
 	return s
 }
 
+func newDirectHTTPClient(proxy func(*http.Request) (*url.URL, error)) *http.Client {
+	if proxy == nil {
+		return nil
+	}
+	if tr, ok := http.DefaultTransport.(*http.Transport); ok && tr != nil {
+		cloned := tr.Clone()
+		cloned.Proxy = proxy
+		return &http.Client{Transport: cloned}
+	}
+	return &http.Client{Transport: &http.Transport{Proxy: proxy}}
+}
+
+// UseHost binds or updates the generic frontend host services on s.
+// Non-nil services in h replace existing ones so a partial test mount
+// preserves services configured at construction time.
+func (s *Server) UseHost(h frontend.Host) {
+	if s == nil {
+		return
+	}
+	if h.Support != nil {
+		s.host.Support = h.Support
+		if s.d.Support == nil {
+			s.d.Support = h.Support
+		}
+	}
+	if h.Plex != nil {
+		s.host.Plex = h.Plex
+	}
+	if h.DirectProxy != nil {
+		s.host.DirectProxy = h.DirectProxy
+		if s.extraPlay != nil {
+			s.extraPlay.client = newDirectHTTPClient(h.DirectProxy)
+		}
+	}
+	if h.ViewerPolicy != nil {
+		s.host.ViewerPolicy = h.ViewerPolicy
+	}
+	if h.Capabilities != nil {
+		s.host.Capabilities = h.Capabilities
+	}
+	if h.Identity != nil {
+		s.host.Identity = h.Identity
+	}
+	if h.Log != nil {
+		s.host.Log = h.Log
+		s.log = h.Log.With("component", "plex")
+	}
+	if h.ClientSeen != nil {
+		s.host.ClientSeen = h.ClientSeen
+	}
+	if h.ClientIP != nil {
+		s.host.ClientIP = h.ClientIP
+	}
+	if h.SurfaceURL != nil {
+		s.host.SurfaceURL = h.SurfaceURL
+	}
+	if h.Config != nil {
+		s.host.Config = h.Config
+	}
+	if h.MetadataLanguage != nil {
+		s.host.MetadataLanguage = h.MetadataLanguage
+	}
+	s.UsePlaybackBroker(h.Sessions)
+}
+
+func (s *Server) policy() frontend.AccessPolicy {
+	if s == nil {
+		return nil
+	}
+	return s.host.ViewerPolicy
+}
+
+func (s *Server) listUsers(ctx context.Context) ([]frontend.User, error) {
+	if s == nil || s.host.Identity == nil {
+		return nil, nil
+	}
+	return s.host.Identity.Users(ctx)
+}
+
 // ServeHTTP implements http.Handler.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) { s.router.ServeHTTP(w, r) }
 
@@ -290,15 +380,55 @@ func (s *Server) Close() error {
 	return nil
 }
 
-func (s *Server) now() time.Time { return s.d.Now() }
+func (s *Server) settings() frontend.Settings {
+	if s == nil || s.host.Config == nil {
+		return nil
+	}
+	return s.host.Config()
+}
 
-func (s *Server) cfg() frontend.HostConfig { return s.d.Config() }
+func (s *Server) hasConfig() bool {
+	if s == nil || s.host.Config == nil {
+		return false
+	}
+	_, ok := frontend.HostConfigFrom(s.host.Config())
+	return ok
+}
+
+func (s *Server) now() time.Time {
+	if s != nil {
+		if fn, ok := s.settings()["now"].(func() time.Time); ok && fn != nil {
+			return fn()
+		}
+	}
+	return time.Now()
+}
+
+func (s *Server) cfg() frontend.HostConfig {
+	if s == nil || s.host.Config == nil {
+		return frontend.HostConfig{}
+	}
+	cfg, _ := frontend.HostConfigFrom(s.host.Config())
+	return cfg
+}
 
 // identity resolves the effective identity.
 func (s *Server) identity() Identity {
-	id := s.d.Identity
-	if s.d.OwnerSubscription != nil {
-		id.MyPlexSubscription, id.OwnerFeatures = s.d.OwnerSubscription()
+	var id Identity
+	st := s.settings()
+	id.MachineIdentifier, _ = st["machineIdentifier"].(string)
+	id.FriendlyName, _ = st["friendlyName"].(string)
+	id.Version, _ = st["version"].(string)
+	id.Platform, _ = st["platform"].(string)
+	id.PlatformVersion, _ = st["platformVersion"].(string)
+	if sub, ok := st["myPlexSubscription"].(bool); ok {
+		id.MyPlexSubscription = sub
+	}
+	if feats, ok := st["ownerFeatures"].([]string); ok {
+		id.OwnerFeatures = feats
+	}
+	if fn, ok := st["ownerSubscription"].(func() (bool, []string)); ok && fn != nil {
+		id.MyPlexSubscription, id.OwnerFeatures = fn()
 	}
 	c := s.cfg()
 	if id.MachineIdentifier == "" {
@@ -309,6 +439,8 @@ func (s *Server) identity() Identity {
 	}
 	if name := strings.TrimSpace(c.Server.FriendlyName); name != "" {
 		id.FriendlyName = name
+	} else if name, _ := st["serverName"].(string); strings.TrimSpace(name) != "" && strings.TrimSpace(id.FriendlyName) == "" {
+		id.FriendlyName = strings.TrimSpace(name)
 	} else if strings.TrimSpace(id.FriendlyName) == "" {
 		id.FriendlyName = "Ether"
 	}

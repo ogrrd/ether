@@ -79,7 +79,7 @@ func persistenceFixture(t *testing.T) (*fixture, *sql.DB, *atomic.Int64) {
 		d.Catalog = c
 		d.Recommender = rec
 		d.DisableEnrichment = true
-		d.Now = func() time.Time { return time.Unix(clock.Load(), 0) }
+		setDepsNow(d, func() time.Time { return time.Unix(clock.Load(), 0) })
 	})
 	t.Cleanup(func() { f.srv.Close() })
 	return f, db, clock
@@ -208,7 +208,7 @@ func TestShelfPersistenceBatching(t *testing.T) {
 		d.Catalog = f.srv.d.Catalog
 		d.Recommender = f.srv.d.Recommender
 		d.DisableEnrichment = true
-		d.Now = f.srv.d.Now
+		setDepsNow(d, f.srv.now)
 	})
 	t.Cleanup(func() { b.srv.Close() })
 	if got := b.request(t, "GET", continuation, headers); got.Code != 200 {

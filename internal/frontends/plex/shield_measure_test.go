@@ -94,7 +94,7 @@ func newShieldMeasureRig(t *testing.T, mode string, cached bool) *shieldMeasureR
 	x.engine = debrid.NewEngine(svc, debrid.EngineOptions{HTTPClient: x.upstream.Client(), HedgeDelay: -1})
 	x.rs = resolver.New(debrid.NewIndexer(x.idx, svc), nil, nil, cfg, resolver.Options{})
 	x.f = newFixture(func(d *Deps) {
-		d.Config = func() config.Config { return cfg }
+		setDepsConfig(d, func() config.Config { return cfg })
 		d.DisableEnrichment = true
 		d.Hooks = Hooks{}
 	})

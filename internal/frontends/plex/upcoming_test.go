@@ -14,6 +14,10 @@ import (
 type scopedFakeCollections struct{ *fakeCollections }
 
 type denyTitlePolicy struct{}
+func (denyTitlePolicy) SetMaxRating(context.Context, *core.User, string) error {
+	return core.ErrUnauthorized
+}
+
 
 func (denyTitlePolicy) Allowed(_ *core.User, t *core.Title) bool { return t.Title != "Blocked" }
 
@@ -23,7 +27,7 @@ func (c *scopedFakeCollections) AllowsPlaceholders(_ context.Context, u *core.Us
 }
 
 func TestUpcomingPagingAppliesPolicyBeforeCounting(t *testing.T) {
-	f := newFixture(func(d *Deps) { d.AccessPolicy = denyTitlePolicy{} })
+	f := newFixture(func(d *Deps) { setDepsPolicy(d, denyTitlePolicy{}) })
 	defer f.srv.Close()
 	ck := core.SmartKey(88)
 	items := []core.Title{

@@ -221,7 +221,7 @@ func TestLibraryPersonUnknownAndRestricted(t *testing.T) {
 
 	// A viewer limited to the TV section sees only the show credit, and a
 	// rating-capped viewer never sees the R-rated movie.
-	auth := f.srv.d.Auth.(*fakeAuth)
+	auth := f.srv.testAuth()
 	auth.users["tvonly"] = core.User{ID: 31, Username: "tvonly", AllowedLibraries: []core.LibraryID{2}}
 	auth.users["kid"] = core.User{ID: 30, Username: "kid", MaxContentRating: "TV-PG"}
 	for token, want := range map[string]string{"tvonly": "Boundary Bay", "kid": "Boundary Bay"} {

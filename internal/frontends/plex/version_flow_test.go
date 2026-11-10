@@ -322,7 +322,7 @@ func TestVersionFlowPendingExpiry(t *testing.T) {
 	f.resolver.mu.Lock()
 	f.resolver.byKey[fightClub.Key] = full
 	f.resolver.mu.Unlock()
-	f.srv.d.Now = func() time.Time { return fixedNow.Add(versionPreplayTTL + time.Second) }
+	f.srv.setTestNow(func() time.Time { return fixedNow.Add(versionPreplayTTL + time.Second) })
 	next := f.get(t, path, "Accept", "application/json")
 	if got := decodeWireMedia(t, "abandoned pre-play", next.Body); len(got) != 3 {
 		t.Fatal("abandoned pre-play hid picker")

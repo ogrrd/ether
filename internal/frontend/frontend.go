@@ -105,6 +105,11 @@ type SurfaceIdentity interface {
 	QuickConnectApprove(context.Context, *core.Viewer, string) error
 	Revoke(context.Context, string) error
 	SetupComplete() bool
+	Accept(context.Context, string) (*core.Viewer, CredentialAcceptance, error)
+	ReceiptCurrent(context.Context, CredentialAcceptance) error
+	IssueDelegation(context.Context, int64) (string, error)
+	ActiveUser(context.Context, int64) (*core.User, error)
+	Users(context.Context) ([]core.User, error)
 }
 
 type quietIdentityKey struct{}
@@ -212,6 +217,127 @@ func (boundIdentity) QuickConnectApprove(context.Context, *core.Viewer, string) 
 }
 func (boundIdentity) Revoke(context.Context, string) error { return ErrIdentityUnavailable }
 func (boundIdentity) SetupComplete() bool                  { return false }
+func (b boundIdentity) Accept(ctx context.Context, token string) (*core.Viewer, CredentialAcceptance, error) {
+	u, err := b.Resolve(ctx, token)
+	return u, CredentialAcceptance{}, err
+}
+func (boundIdentity) ReceiptCurrent(context.Context, CredentialAcceptance) error {
+	return core.ErrUnauthorized
+}
+func (boundIdentity) IssueDelegation(context.Context, int64) (string, error) {
+	return "", core.ErrUnauthorized
+}
+func (boundIdentity) ActiveUser(context.Context, int64) (*core.User, error) {
+	return nil, ErrIdentityUnavailable
+}
+func (boundIdentity) Users(context.Context) ([]core.User, error) {
+	return nil, ErrIdentityUnavailable
+}
+
+// BindAuth adapts a core.Auth into a SurfaceIdentity for standalone servers and tests.
+func BindAuth(auth core.Auth) SurfaceIdentity {
+	if auth == nil {
+		return nil
+	}
+	return boundAuth{auth: auth}
+}
+
+type boundAuth struct {
+	auth core.Auth
+}
+
+func (b boundAuth) UnwrapAuth() core.Auth { return b.auth }
+
+func (b boundAuth) Resolve(ctx context.Context, credential string) (*core.Viewer, error) {
+	if b.auth == nil {
+		return nil, core.ErrUnauthorized
+	}
+	return b.auth.Authenticate(ctx, credential)
+}
+
+func (b boundAuth) Accept(ctx context.Context, token string) (*core.Viewer, CredentialAcceptance, error) {
+	if b.auth == nil {
+		return nil, CredentialAcceptance{}, core.ErrUnauthorized
+	}
+	if acc, ok := b.auth.(CredentialAcceptor); ok {
+		return acc.Accept(ctx, token)
+	}
+	u, err := b.auth.Authenticate(ctx, token)
+	return u, CredentialAcceptance{}, err
+}
+
+func (b boundAuth) ReceiptCurrent(ctx context.Context, receipt CredentialAcceptance) error {
+	if acc, ok := b.auth.(CredentialAcceptor); ok {
+		return acc.ReceiptCurrent(ctx, receipt)
+	}
+	return core.ErrUnauthorized
+}
+
+func (b boundAuth) IssueDelegation(ctx context.Context, userID int64) (string, error) {
+	if del, ok := b.auth.(DelegationAuth); ok {
+		return del.IssueDelegation(ctx, userID)
+	}
+	return "", core.ErrUnauthorized
+}
+
+func (b boundAuth) ActiveUser(ctx context.Context, id int64) (*core.User, error) {
+	if b.auth == nil {
+		return nil, core.ErrUnauthorized
+	}
+	if a, ok := b.auth.(ActiveUserSource); ok {
+		return a.ActiveUser(ctx, id)
+	}
+	users, err := b.auth.Users(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, u := range users {
+		if u.ID == id {
+			return &u, nil
+		}
+	}
+	return nil, core.ErrNotFound
+}
+
+func (b boundAuth) Users(ctx context.Context) ([]core.User, error) {
+	if b.auth == nil {
+		return nil, nil
+	}
+	return b.auth.Users(ctx)
+}
+
+func (boundAuth) ViewerTimes(context.Context, string, int64) (ViewerTimes, error) {
+	return ViewerTimes{}, ErrIdentityUnavailable
+}
+func (boundAuth) PublicViewers(context.Context) ([]PublicViewer, error) {
+	return nil, ErrIdentityUnavailable
+}
+func (boundAuth) SignIn(context.Context, string, string, core.Device) (string, error) {
+	return "", ErrIdentityUnavailable
+}
+func (boundAuth) IssueRefresh(context.Context, string, core.Device) (string, error) {
+	return "", ErrIdentityUnavailable
+}
+func (boundAuth) Refresh(context.Context, string, core.Device) (string, string, error) {
+	return "", "", ErrIdentityUnavailable
+}
+func (boundAuth) QuickConnectInitiate(context.Context, core.Device) (string, string, error) {
+	return "", "", ErrIdentityUnavailable
+}
+func (boundAuth) QuickConnectStatus(context.Context, string) (bool, error) {
+	return false, ErrIdentityUnavailable
+}
+func (boundAuth) QuickConnectDetails(context.Context, string) (QuickConnectDetails, error) {
+	return QuickConnectDetails{}, ErrIdentityUnavailable
+}
+func (boundAuth) QuickConnectPoll(context.Context, string) (string, error) {
+	return "", ErrIdentityUnavailable
+}
+func (boundAuth) QuickConnectApprove(context.Context, *core.Viewer, string) error {
+	return ErrIdentityUnavailable
+}
+func (boundAuth) Revoke(context.Context, string) error { return ErrIdentityUnavailable }
+func (boundAuth) SetupComplete() bool                  { return false }
 
 type Settings map[string]any
 

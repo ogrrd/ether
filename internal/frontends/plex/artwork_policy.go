@@ -12,7 +12,7 @@ import (
 func (s *Server) remoteArtworkAllowed(r *http.Request, u *url.URL) bool {
 	viewer := FromContext(r.Context()).User
 	restricted := viewer == nil || viewer.MaxContentRating != "" || len(viewer.AllowedLibraries) > 0
-	if policy, ok := s.d.AccessPolicy.(frontend.ArtworkAccessPolicy); ok {
+	if policy, ok := s.policy().(frontend.ArtworkAccessPolicy); ok {
 		restricted = restricted || policy.Restricted(viewer)
 	}
 	if !restricted {

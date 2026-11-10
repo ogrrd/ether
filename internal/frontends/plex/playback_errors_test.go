@@ -72,7 +72,7 @@ func TestDiscoveryHiddenTitleStaysPlayable(t *testing.T) {
 
 // Content policy still blocks playback outright.
 func TestPlayAttemptStillEnforcesPolicy(t *testing.T) {
-	f := newFixture(func(d *Deps) { d.AccessPolicy = keywordPolicy{blocked: "blocked"} })
+	f := newFixture(func(d *Deps) { setDepsPolicy(d, keywordPolicy{blocked: "blocked"}) })
 	defer f.srv.Close()
 	blocked := fightClub
 	blocked.Keywords = []string{"blocked"}
@@ -93,7 +93,7 @@ func TestFailedDecisionAnswersFollowingStart(t *testing.T) {
 	// Background work (artwork) reads the clock too: advance it atomically.
 	var clock atomic.Int64
 	clock.Store(fixedNow.UnixNano())
-	f.srv.d.Now = func() time.Time { return time.Unix(0, clock.Load()) }
+	f.srv.setTestNow(func() time.Time { return time.Unix(0, clock.Load()) })
 	const decision = "/video/:/transcode/universal/decision?path=%2Flibrary%2Fmetadata%2F1000000000000550&session=s1"
 	const start = "/video/:/transcode/universal/start.m3u8?path=%2Flibrary%2Fmetadata%2F1000000000000550&session=s1&protocol=hls"
 

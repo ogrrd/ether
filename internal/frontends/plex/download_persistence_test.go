@@ -89,10 +89,10 @@ func TestDownloadQueuePreauthReadRefusal(t *testing.T) {
 func TestOfflineTranscodeFollowsClaim(t *testing.T) {
 	f := newDownloadFixture(t, false)
 	deps := f.srv.d
-	cfg := deps.Config()
+	cfg := depsConfig(&deps)()
 	cfg.Plex.Claimed = false
 	cfg.Plex.Token = ""
-	deps.Config = func() config.Config { return cfg }
+	setDepsConfig(&deps, func() config.Config { return cfg })
 	f.srv.Close()
 	f.srv = NewServer(testDeps(deps))
 	rec := f.do(t, http.MethodGet, "/", ownerToken, nil)

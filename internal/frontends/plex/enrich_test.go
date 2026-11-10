@@ -223,7 +223,7 @@ func TestCloseDoesNotWaitForSlowArtwork(t *testing.T) {
 	f.srv.Close()
 	cdn := &blockingCDN{started: make(chan struct{}, 1)}
 	d := f.srv.d
-	d.HTTPClient = &http.Client{Transport: cdn}
+	setDepsHTTPClient(&d, &http.Client{Transport: cdn})
 	f.srv = NewServer(testDeps(d))
 	f.get(t, "/library/metadata/1000000000000550")
 	select {
@@ -325,7 +325,7 @@ func TestEnrichFailureKeepsSummaryAndRetriesLater(t *testing.T) {
 	d.Recommender = &fakeRecommender{home: []core.Hub{{ID: "x", Title: "X", Type: core.TypeMovie, Items: []core.Title{summary}}}}
 	now := fixedNow
 	var mu sync.Mutex
-	d.Now = func() time.Time { mu.Lock(); defer mu.Unlock(); return now }
+	setDepsNow(&d, func() time.Time { mu.Lock(); defer mu.Unlock(); return now })
 	f.srv = NewServer(testDeps(d))
 	defer f.srv.Close()
 	for i := 0; i < 3; i++ {

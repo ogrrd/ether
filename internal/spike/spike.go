@@ -20,6 +20,7 @@ import (
 	"github.com/braedonsaunders/ether/internal/config"
 	"github.com/braedonsaunders/ether/internal/core"
 	"github.com/braedonsaunders/ether/internal/experience"
+	"github.com/braedonsaunders/ether/internal/frontend"
 	"github.com/braedonsaunders/ether/internal/frontends/plex"
 	"github.com/braedonsaunders/ether/internal/resolver"
 	"github.com/braedonsaunders/ether/internal/sessions"
@@ -192,27 +193,24 @@ func (l *Library) Transcoder() core.Transcoder   { return l.trans }
 // Deps returns a plex.Deps wired to the spike adapters, a movies-only
 // section and the identity from the config.
 func (l *Library) Deps() plex.Deps {
-	c := l.cfg()
 	return plex.Deps{
-		SessionStores:    sessions.NewPlexSessionStores(),
-		Experience:       experience.NewPlexExperience(),
-		ArtworkStores:    artworkservice.NewPlexArtworkStores(),
-		Catalog:          l.Catalog(),
-		Collections:      l.Collections(),
-		Recommender:      l.Recommender(),
-		State:            l.State(),
-		Playlists:        l.Playlists(),
-		Auth:             l.Auth(),
-		Playback:         l.Playback(),
-		Transcoder:       l.Transcoder(),
-		Config:           l.cfg,
-		ApplyClientRules: resolver.ApplyClientRulesForMedia,
-		Logger:           l.opts.Logger,
-		Identity: plex.Identity{
-			MachineIdentifier: c.Server.MachineIdentifier,
-			FriendlyName:      c.Server.FriendlyName,
+		Host: frontend.Host{
+			Identity:     frontend.BindAuth(l.Auth()),
+			Capabilities: frontend.BindClientRules(resolver.ApplyClientRulesForMedia),
+			Config:       frontend.WithHostConfig(l.cfg),
+			Log:          l.opts.Logger,
 		},
-		Sections: []plex.Section{{ID: 1, Type: core.TypeMovie, Title: "Movies"}},
+		SessionStores: sessions.NewPlexSessionStores(),
+		Experience:    experience.NewPlexExperience(),
+		ArtworkStores: artworkservice.NewPlexArtworkStores(),
+		Catalog:       l.Catalog(),
+		Collections:   l.Collections(),
+		Recommender:   l.Recommender(),
+		State:         l.State(),
+		Playlists:     l.Playlists(),
+		Playback:      l.Playback(),
+		Transcoder:    l.Transcoder(),
+		Sections:      []plex.Section{{ID: 1, Type: core.TypeMovie, Title: "Movies"}},
 	}
 }
 

@@ -177,10 +177,10 @@ func TestHubSearchPeopleHubsAndReasonedTitles(t *testing.T) {
 }
 
 func TestHubSearchPeopleHonorsViewerSafetyAndVisibility(t *testing.T) {
-	f := newFixture(func(d *Deps) { d.AccessPolicy = keywordPolicy{blocked: "blocked"} })
+	f := newFixture(func(d *Deps) { setDepsPolicy(d, keywordPolicy{blocked: "blocked"}) })
 	defer f.srv.Close()
 
-	auth := f.srv.d.Auth.(*fakeAuth)
+	auth := f.srv.testAuth()
 	auth.users["kid"] = core.User{ID: 30, Username: "kid", MaxContentRating: "PG"}
 	auth.users["tvonly"] = core.User{ID: 31, Username: "tvonly", AllowedLibraries: []core.LibraryID{2}}
 

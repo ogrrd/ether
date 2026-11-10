@@ -4,24 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"io"
-	"log/slog"
 	"net/http"
 	"time"
 )
-
-// PlexIdentity is how the Plex server presents itself. Empty fields fall back to
-// the config snapshot (friendly name, machine identifier) or sensible defaults.
-type PlexIdentity struct {
-	MachineIdentifier string
-	FriendlyName      string
-	Version           string // PMS-style version string
-	Platform          string // "MacOSX", "Windows", "Linux"
-	PlatformVersion   string
-	// MyPlexSubscription reports whether the owner has Plex Pass; Ether
-	// reports this honestly from plex.tv.
-	MyPlexSubscription bool
-	OwnerFeatures      []string
-}
 
 // PlexHooks are optional callbacks into other components. They run on their own
 // goroutine and must be safe for concurrent use.
@@ -116,9 +101,11 @@ type PlexSubtitleUpload interface {
 	UploadSubtitle(ctx context.Context, t *Title, u *User, filename, format, language string, body []byte) (StreamInfo, error)
 }
 
-// PlexDeps are the Plex server's dependencies. Catalog, State, Auth and Playback
-// are required; the rest degrade gracefully when nil.
+// PlexDeps are the Plex server's dependencies. Host supplies generic frontend
+// services; Catalog, State and Playback are required, and the rest degrade
+// gracefully when nil.
 type PlexDeps struct {
+	Host Host
 	// PlexEncoder optionally dispatches authenticated universal playback through
 	// the shared broker; nil preserves the existing local encoder path.
 	PlexEncoder     PlexEncoder
@@ -156,18 +143,16 @@ type PlexDeps struct {
 	Discovery           *DiscoveryFeatures
 	// Search is the app's shared search (every frontend's); zero builds it
 	// from this server's own dependencies.
-	Search       SearchSources
-	LiveTV       LiveTVHost
-	AccessPolicy AccessPolicy
-	Catalog      Catalog
-	Collections  Collections
-	VibeSearch   VibeSearcher
-	Recommender  Recommender
-	State        State
-	Playlists    Playlists
-	Auth         Auth
-	Playback     Playback
-	Transcoder   Transcoder
+	Search      SearchSources
+	LiveTV      LiveTVHost
+	Catalog     Catalog
+	Collections Collections
+	VibeSearch  VibeSearcher
+	Recommender Recommender
+	State       State
+	Playlists   Playlists
+	Playback    Playback
+	Transcoder  Transcoder
 	// Variants lists distinct release versions for "Play Version" detail
 	// pages (optional: without it, detail pages stay single-Media).
 	Variants VariantResolver
@@ -186,29 +171,12 @@ type PlexDeps struct {
 	Prerolls  PrerollService
 	Trickplay TrickplayProvider
 
-	// ApplyClientRules adjusts caps for the owner's quality rules. Nil leaves
-	// the request caps unchanged. The app wires resolver.ApplyClientRules so
-	// this package stays outside the resolver.
-	ApplyClientRules func(HostQualityConfig, ClientCaps, *User, string) ClientCaps
-	// Config returns the current settings snapshot.
-	Config func() HostConfig
-	// OwnerSubscription returns the current entitlement snapshot from plex.tv.
-	OwnerSubscription func() (active bool, features []string)
 	// ImageURL builds TMDB image URLs; defaults to image.tmdb.org.
 	ImageURL ImageURLFunc
-	Logger   *slog.Logger
-	Identity PlexIdentity
 	Hooks    PlexHooks
 
 	// Sections overrides the default Movies (1) and TV Shows (2) sections.
 	Sections []PlexSection
-	// HTTPClient fetches artwork for the image proxy; defaults to a client
-	// with a 20 s timeout. The app wires the metadata route so this package
-	// does not import the egress policy.
-	HTTPClient *http.Client
-	// DirectHTTP proxies trailer bytes. Nil uses the default transport.
-	// The app wires the direct route so this package does not import egress.
-	DirectHTTP *http.Client
 	// ImageCacheBytes bounds the in-memory artwork cache (default 128 MiB).
 	ImageCacheBytes int64
 	// DB persists artwork data and ordered shelf-generation keys. Clustered
@@ -225,17 +193,9 @@ type PlexDeps struct {
 	// SessionHeartbeat is how often a clustered node refreshes its shared
 	// play sessions (default 10s).
 	SessionHeartbeat time.Duration
-	// Now is the clock (tests).
-	Now func() time.Time
-	// PublicURL is this server's published public address
-	// ("https://<ip>.<hash>.plex.direct:<port>"), or "" without remote access.
-	PublicURL func() string
 	// LiveLogoKey signs token-free channel logo URLs; empty uses a
 	// process-local key.
 	LiveLogoKey []byte
-	// RepoFileURL is a public, immutable URL for a file committed to Ether's
-	// repository at the source this build came from, or "" when unknown.
-	RepoFileURL func(path string) string
 	// Dashboard is this node's in-memory Plex Web Dashboard store. Nil is
 	// replaced with a process-local store at NewServer. Statistics are not
 	// clustered; a client reads the node it connected to.

@@ -13,6 +13,29 @@ import (
 type HostConfig = config.Config
 type HostQualityConfig = config.Quality
 
+// WithHostConfig wraps a HostConfig getter as a Host.Config settings source.
+func WithHostConfig(fn func() HostConfig) func() Settings {
+	if fn == nil {
+		return nil
+	}
+	return func() Settings {
+		c := fn()
+		return Settings{
+			"serverName": c.Server.FriendlyName,
+			"hostConfig": c,
+		}
+	}
+}
+
+// HostConfigFrom extracts the HostConfig snapshot from Host.Config settings.
+func HostConfigFrom(s Settings) (HostConfig, bool) {
+	if s == nil {
+		return HostConfig{}, false
+	}
+	c, ok := s["hostConfig"].(HostConfig)
+	return c, ok
+}
+
 // Cluster coordination primitives used by protocol adapters when clustered.
 type ClusterBus = clusterbus.Bus
 type ClusterNode = clusterbus.Node

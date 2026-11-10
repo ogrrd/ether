@@ -17,7 +17,7 @@ func TestMixedHomeRowKeepsItemIdentityAndViewerRestrictions(t *testing.T) {
 		ID: "home.mixed", Title: "Friday Night Picks", Promoted: true,
 		Items: []core.Title{fightClub, breakingBad},
 	}}}
-	f.srv.d.Auth.(*fakeAuth).users["movies-only"] = core.User{ID: 88, AllowedLibraries: []core.LibraryID{1}}
+	f.srv.testAuth().users["movies-only"] = core.User{ID: 88, AllowedLibraries: []core.LibraryID{1}}
 	for _, token := range []string{"", "movies-only"} {
 		headers := map[string]string{"Accept": "application/json", "X-Plex-Product": "Plex for Apple TV"}
 		if token != "" {

@@ -16,8 +16,10 @@ func TestAccountSubtitleModeStaysManualUntilChanged(t *testing.T) {
 	db := store.OpenTest(t)
 	prefs := trackprefs.New(db)
 	user := core.User{ID: 7, Username: "ada", SubtitleLanguages: []string{"de"}}
-	plain := &Server{d: testDeps(Deps{Auth: &fakeAuth{users: map[string]core.User{"t": user}}}), log: slog.Default()}
-	withPrefs := &Server{d: testDeps(Deps{Auth: plain.d.Auth, TrackPreferences: prefs}), log: slog.Default()}
+	plain := testServer(Deps{})
+	plain.setTestAuth(&fakeAuth{users: map[string]core.User{"t": user}})
+	withPrefs := testServer(Deps{TrackPreferences: prefs})
+	withPrefs.setTestAuth(plain.testAuth())
 	body := func(s *Server) string {
 		t.Helper()
 		w := httptest.NewRecorder()

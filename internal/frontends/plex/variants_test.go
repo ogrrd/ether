@@ -142,25 +142,26 @@ func newVariantFixture(t *testing.T, playback core.Playback) *variantFixture {
 		facets:   map[string][]core.FacetValue{},
 	}
 	vr := &fakeVariantResolver{byKey: testVariantLists()}
-	srv := NewServer(testDeps(Deps{
+	d := Deps{
 		Catalog:           cat,
 		State:             newFakeState(),
-		Auth:              &fakeAuth{users: map[string]core.User{ownerToken: ownerUser, friendToken: friendUser}},
 		Playback:          playback,
 		Transcoder:        newFakeTranscoder(core.Decision{Kind: core.DecisionDirectPlay, VideoCopy: true, AudioCopy: true, Container: "mkv"}),
 		Variants:          vr,
 		DisableEnrichment: true,
-		Config: func() config.Config {
-			c := config.Config{}
-			c.Server.Port = 32400
-			c.Server.FriendlyName = "Ether Test"
-			c.Server.MachineIdentifier = "0123456789abcdef0123456789abcdef01234567"
-			c.Transcode.RemoteMaxBitrateKbps = 8000
-			return c
-		},
-		Identity: Identity{Version: "1.43.4.10903-e5521bd8c", Platform: "Linux"},
-		Now:      func() time.Time { return fixedNow },
-	}))
+	}
+	setDepsAuth(&d, &fakeAuth{users: map[string]core.User{ownerToken: ownerUser, friendToken: friendUser}})
+	setDepsConfig(&d, func() config.Config {
+		c := config.Config{}
+		c.Server.Port = 32400
+		c.Server.FriendlyName = "Ether Test"
+		c.Server.MachineIdentifier = "0123456789abcdef0123456789abcdef01234567"
+		c.Transcode.RemoteMaxBitrateKbps = 8000
+		return c
+	})
+	setDepsIdentity(&d, Identity{Version: "1.43.4.10903-e5521bd8c", Platform: "Linux"})
+	setDepsNow(&d, func() time.Time { return fixedNow })
+	srv := NewServer(testDeps(d))
 	t.Cleanup(func() { srv.Close() })
 	mountTestBroker(srv, func() time.Time { return fixedNow })
 	return &variantFixture{srv: srv, resolver: vr, playback: playback}

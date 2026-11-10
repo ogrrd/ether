@@ -116,8 +116,8 @@ func (c guidCatalog) ByExternalID(ctx context.Context, source, id string) (*core
 func TestLibraryGUIDVisibilityAndPaging(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
-	f.srv.d.Auth.(*fakeAuth).users["kid"] = core.User{ID: 30, MaxContentRating: "PG"}
-	f.srv.d.Auth.(*fakeAuth).users["tvonly"] = core.User{ID: 31, AllowedLibraries: []core.LibraryID{2}}
+	f.srv.testAuth().users["kid"] = core.User{ID: 30, MaxContentRating: "PG"}
+	f.srv.testAuth().users["tvonly"] = core.User{ID: 31, AllowedLibraries: []core.LibraryID{2}}
 	for _, token := range []string{"kid", "tvonly"} {
 		for _, path := range []string{"/library/all?guid=tmdb://550&type=1", "/library/sections/1/all?guid=tmdb://550"} {
 			rec := f.get(t, path, "Accept", "application/json", "X-Plex-Token", token)

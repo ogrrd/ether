@@ -554,10 +554,10 @@ func (s *Server) prepare(ctx context.Context, pr *Request, p *playRequest) (*fro
 	if !s.playableTitle(ctx, pr.User, t) {
 		return nil, nil, frontend.Decision{}, frontend.ErrNotFound
 	}
-	if policy, ok := s.d.AccessPolicy.(frontend.PlaybackAccessPolicy); ok && !policy.CanPlay(pr.User, p.caps.Remote, s.now()) {
+	if policy, ok := s.policy().(frontend.PlaybackAccessPolicy); ok && !policy.CanPlay(pr.User, p.caps.Remote, s.now()) {
 		return nil, nil, frontend.Decision{}, frontend.ErrUnauthorized
 	}
-	if policy, ok := s.d.AccessPolicy.(frontend.BitrateAccessPolicy); ok {
+	if policy, ok := s.policy().(frontend.BitrateAccessPolicy); ok {
 		if limit := policy.BitrateLimit(pr.User); limit > 0 && (p.caps.MaxBitrateKbps == 0 || limit < p.caps.MaxBitrateKbps) {
 			p.caps.MaxBitrateKbps = limit
 			p.opts.MaxBitrateKbps = limit
@@ -787,10 +787,10 @@ func (s *Server) awaitSource(ctx context.Context, r *http.Request, pr *Request) 
 	if err != nil || t == nil || !s.playableTitle(ctx, pr.User, t) {
 		return nil, nil
 	}
-	if policy, ok := s.d.AccessPolicy.(frontend.PlaybackAccessPolicy); ok && !policy.CanPlay(pr.User, p.caps.Remote, s.now()) {
+	if policy, ok := s.policy().(frontend.PlaybackAccessPolicy); ok && !policy.CanPlay(pr.User, p.caps.Remote, s.now()) {
 		return nil, nil
 	}
-	if policy, ok := s.d.AccessPolicy.(frontend.BitrateAccessPolicy); ok {
+	if policy, ok := s.policy().(frontend.BitrateAccessPolicy); ok {
 		if limit := policy.BitrateLimit(pr.User); limit > 0 && (p.caps.MaxBitrateKbps == 0 || limit < p.caps.MaxBitrateKbps) {
 			p.caps.MaxBitrateKbps = limit
 		}
@@ -2005,7 +2005,7 @@ func (s *Server) handlePart(w http.ResponseWriter, r *http.Request) {
 		writeHTTPError(w, http.StatusNotFound)
 		return
 	}
-	if policy, ok := s.d.AccessPolicy.(frontend.PlaybackAccessPolicy); ok && !policy.CanPlay(pr.User, pr.ClientCaps(0).Remote, s.now()) {
+	if policy, ok := s.policy().(frontend.PlaybackAccessPolicy); ok && !policy.CanPlay(pr.User, pr.ClientCaps(0).Remote, s.now()) {
 		writeHTTPError(w, http.StatusForbidden)
 		return
 	}
@@ -2106,7 +2106,7 @@ func (s *Server) handlePart(w http.ResponseWriter, r *http.Request) {
 		// Plex Web's Download button is a plain part read; only the viewer
 		// policy (an owner override or plex.tv allowSync=0) refuses it. The
 		// download queue being off is a different feature.
-		if p, ok := s.d.AccessPolicy.(frontend.DownloadAccessPolicy); ok && !p.AllowDownloads(pr.User) {
+		if p, ok := s.policy().(frontend.DownloadAccessPolicy); ok && !p.AllowDownloads(pr.User) {
 			writeHTTPError(w, http.StatusForbidden)
 			return
 		}

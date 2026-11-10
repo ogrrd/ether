@@ -144,7 +144,7 @@ func testLadderPlaylistTraversalWithoutPlexHeaders(t *testing.T, container strin
 		}
 	}
 	// Removing the viewer revokes every rung and segment capability.
-	a := f.srv.d.Auth.(*fakeAuth)
+	a := f.srv.testAuth()
 	delete(a.users, ownerToken)
 	for _, path := range append(manifests, mediaPaths...) {
 		rec := f.request(t, http.MethodGet, path, map[string]string{"X-Plex-Token": ""})

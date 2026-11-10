@@ -150,7 +150,7 @@ func TestExtrasListAndDetailXML(t *testing.T) {
 
 func TestExtrasRespectRestrictions(t *testing.T) {
 	f, _, _ := extrasFixture(t)
-	f.srv.d.Auth.(*fakeAuth).users["kid"] = core.User{ID: 3, Username: "kid", AllowedLibraries: []core.LibraryID{2}}
+	f.srv.testAuth().users["kid"] = core.User{ID: 3, Username: "kid", AllowedLibraries: []core.LibraryID{2}}
 	rec := f.request(t, http.MethodGet, "/library/metadata/"+fightClub.Key.String()+"/extras", map[string]string{"X-Plex-Token": "kid"})
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("restricted extras: %d %s", rec.Code, rec.Body.String())

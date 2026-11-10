@@ -43,7 +43,7 @@ func TestDiscoveryPlexHubsAndArtworkRespectViewerGuard(t *testing.T) {
 		t.Fatal(e)
 	}
 	f.srv.d.Discovery = (&discovery.Features{Watchlist: wl, Overlays: overlays.New(db, overlays.Options{})}).Frontend()
-	f.srv.d.Auth.(*fakeAuth).users["kid"] = core.User{ID: 30, Username: "kid", MaxContentRating: "PG"}
+	f.srv.testAuth().users["kid"] = core.User{ID: 30, Username: "kid", MaxContentRating: "PG"}
 	for _, path := range []string{"/hubs", "/library/metadata/" + fightClub.Key.String() + "/discoveryPoster/version"} {
 		r := f.request(t, http.MethodGet, path, map[string]string{"X-Plex-Token": "kid"})
 		if path == "/hubs" {

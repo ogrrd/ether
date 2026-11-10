@@ -208,7 +208,7 @@ func TestPlexTokenMissingEntryTransfersOnlyToOwnerAuthorization(t *testing.T) {
 		t.Fatal("terminal transfer fabricated local playback state")
 	}
 	// Sender acceptance cannot override owner revocation or missing ownership.
-	delete(owner.srv.d.Auth.(*fakeAuth).users, ownerToken)
+	delete(owner.srv.testAuth().users, ownerToken)
 	out := sender.request(t, "GET", path, map[string]string{"X-Plex-Token": ownerToken})
 	if out.Code != 401 {
 		t.Fatal("sender token decision overrode owner revocation")

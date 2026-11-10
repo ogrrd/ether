@@ -59,6 +59,10 @@ func (c *playabilityCapabilities) Build(_ context.Context, r frontend.Capability
 	return frontend.CapabilityResult{Client: core.ClientCaps{ClientID: r.Device.ClientID, Remote: true}}, c.err
 }
 
+func (c *playabilityCapabilities) ApplyClientRules(_ frontend.HostQualityConfig, caps core.ClientCaps, _ *core.Viewer, _ string) core.ClientCaps {
+	return caps
+}
+
 type playabilityBroker struct {
 	calls   int
 	request frontend.PlanRequest

@@ -132,7 +132,7 @@ func (s *Server) indexPart(r *http.Request) (frontend.RatingKey, string, bool) {
 	if err != nil || !s.visibleTitle(r.Context(), pr.User, title) {
 		return 0, "", false
 	}
-	if policy, ok := s.d.AccessPolicy.(frontend.PlaybackAccessPolicy); ok && !policy.CanPlay(pr.User, pr.ClientCaps(0).Remote, s.now()) {
+	if policy, ok := s.policy().(frontend.PlaybackAccessPolicy); ok && !policy.CanPlay(pr.User, pr.ClientCaps(0).Remote, s.now()) {
 		return 0, "", false
 	}
 	ps, ok := s.d.Playback.SessionFor(pr.User.ID, pr.ClientID, key)

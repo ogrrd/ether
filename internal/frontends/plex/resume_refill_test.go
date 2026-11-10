@@ -111,7 +111,7 @@ func newEtheLab(t *testing.T, resumed bool, remembered string, n int) *etheLab {
 	}
 	x.engine = &etheLabEngine{finished: make(chan context.Context, 8)}
 	x.f = newFixture(func(d *Deps) {
-		d.Config = func() config.Config { return x.cfg }
+		setDepsConfig(d, func() config.Config { return x.cfg })
 		d.DisableEnrichment = true
 		d.Hooks = Hooks{}
 	})
@@ -142,7 +142,7 @@ func newEtheLab(t *testing.T, resumed bool, remembered string, n int) *etheLab {
 			t.Fatal(err)
 		}
 		x.f = newFixture(func(d *Deps) {
-			d.Config = func() config.Config { return x.cfg }
+			setDepsConfig(d, func() config.Config { return x.cfg })
 			d.DisableEnrichment = true
 			d.Hooks = Hooks{}
 		})

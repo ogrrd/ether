@@ -37,8 +37,8 @@ func (c *scheduledCatalog) Get(ctx context.Context, k core.RatingKey) (*core.Tit
 func TestScheduledEpisodeHTTPIsMetadataOnlyAndRevocable(t *testing.T) {
 	enabled := false
 	f := newFixture(func(d *Deps) {
-		old := d.Config
-		d.Config = func() config.Config { c := old(); c.Catalog.ShowUpcomingEpisodes = enabled; return c }
+		old := depsConfig(d)
+		setDepsConfig(d, func() config.Config { c := old(); c.Catalog.ShowUpcomingEpisodes = enabled; return c })
 	})
 	defer f.srv.Close()
 	future := bbE2
@@ -110,7 +110,7 @@ func TestScheduledEpisodeHTTPIsMetadataOnlyAndRevocable(t *testing.T) {
 	}
 	f.srv.waitBackground()
 	enabled = true
-	f.srv.d.AccessPolicy = denyTitlePolicy{}
+	f.srv.setTestPolicy(denyTitlePolicy{})
 	parent := f.catalog.titles[bbS1.Key]
 	parent.Title = "Blocked"
 	f.catalog.titles[bbS1.Key] = parent
@@ -125,8 +125,8 @@ func TestScheduledEpisodeViewerGuardsAndAlternateOrder(t *testing.T) {
 	for _, restriction := range []string{"section", "rating", "adult", "show policy", "alternate order", "unknown date", "wrong season"} {
 		t.Run(restriction, func(t *testing.T) {
 			f := newFixture(func(d *Deps) {
-				old := d.Config
-				d.Config = func() config.Config { c := old(); c.Catalog.ShowUpcomingEpisodes = true; return c }
+				old := depsConfig(d)
+				setDepsConfig(d, func() config.Config { c := old(); c.Catalog.ShowUpcomingEpisodes = true; return c })
 			})
 			defer f.srv.Close()
 			future := bbE2
@@ -139,15 +139,15 @@ func TestScheduledEpisodeViewerGuardsAndAlternateOrder(t *testing.T) {
 			switch restriction {
 			case "section":
 				token = "movie-only"
-				f.srv.d.Auth.(*fakeAuth).users[token] = core.User{ID: 88, AllowedLibraries: []core.LibraryID{1}}
+				f.srv.testAuth().users[token] = core.User{ID: 88, AllowedLibraries: []core.LibraryID{1}}
 			case "rating":
 				token = "young"
-				f.srv.d.Auth.(*fakeAuth).users[token] = core.User{ID: 89, MaxContentRating: "PG"}
+				f.srv.testAuth().users[token] = core.User{ID: 89, MaxContentRating: "PG"}
 				future.ContentRating = "R"
 			case "adult":
 				future.Adult = true
 			case "show policy":
-				f.srv.d.AccessPolicy = denyTitlePolicy{}
+				f.srv.setTestPolicy(denyTitlePolicy{})
 				show := f.catalog.titles[breakingBad.Key]
 				show.Title = "Blocked"
 				f.catalog.titles[show.Key] = show

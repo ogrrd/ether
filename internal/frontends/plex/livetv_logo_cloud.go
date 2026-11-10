@@ -42,8 +42,9 @@ func (s *Server) cloudGuideLogo(ctx context.Context, c frontend.LiveTVChannel, o
 	if publicLogoURL(c.Logo) {
 		return c.Logo
 	}
-	if path, _, ok := s.d.ArtworkStores.ShowcaseLogo(c); ok && s.d.RepoFileURL != nil {
-		if u := s.d.RepoFileURL(path); u != "" {
+	repoFile, _ := s.settings()["repoFileURL"].(func(string) string)
+	if path, _, ok := s.d.ArtworkStores.ShowcaseLogo(c); ok && repoFile != nil {
+		if u := repoFile(path); u != "" {
 			return u
 		}
 	}
@@ -53,9 +54,11 @@ func (s *Server) cloudGuideLogo(ctx context.Context, c frontend.LiveTVChannel, o
 		}
 	}
 	base := origin
-	if s.d.PublicURL != nil {
-		if public := strings.TrimRight(s.d.PublicURL(), "/"); public != "" {
-			base = public
+	if s.host.SurfaceURL != nil {
+		if public, err := s.host.SurfaceURL(ctx, nil); err == nil {
+			if public = strings.TrimRight(public, "/"); public != "" {
+				base = public
+			}
 		}
 	}
 	return base + signedLogoPrefix + url.PathEscape(c.ID) + "/" + s.liveLogoSignature(c.ID) + ".png"

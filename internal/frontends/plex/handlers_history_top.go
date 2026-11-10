@@ -20,8 +20,8 @@ func (s *Server) historyStatsQuery(r *http.Request) (frontend.HistoryQuery, map[
 			q.UserID = pr.User.ID
 		}
 	}
-	if pr.User != nil && pr.User.IsOwner && s.d.Auth != nil {
-		us, err := s.d.Auth.Users(r.Context())
+	if pr.User != nil && pr.User.IsOwner && s.host.Identity != nil {
+		us, err := s.listUsers(r.Context())
 		if err != nil {
 			return q, nil, err
 		}

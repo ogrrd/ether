@@ -69,7 +69,7 @@ func TestContinueColdSeriesQueries(t *testing.T) {
 				if phase == 3 {
 					viewer.ID = ownerUser.ID + 100
 					viewer.IsOwner = false
-					f.srv.d.AccessPolicy = keywordPolicy{blocked: "blocked"}
+					f.srv.setTestPolicy(keywordPolicy{blocked: "blocked"})
 					want--
 				}
 				at := fixedNow.Add(time.Duration(phase) * time.Minute)

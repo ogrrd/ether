@@ -317,7 +317,7 @@ func (s *Server) handleExtraPlayback(w http.ResponseWriter, r *http.Request) boo
 		writeHTTPError(w, http.StatusNotFound)
 		return true
 	}
-	if policy, ok := s.d.AccessPolicy.(frontend.PlaybackAccessPolicy); ok && !policy.CanPlay(pr.User, pr.Remote, s.now()) {
+	if policy, ok := s.policy().(frontend.PlaybackAccessPolicy); ok && !policy.CanPlay(pr.User, pr.Remote, s.now()) {
 		writeHTTPError(w, http.StatusForbidden)
 		return true
 	}
@@ -329,7 +329,7 @@ func (s *Server) handleExtraPlayback(w http.ResponseWriter, r *http.Request) boo
 func (s *Server) serveExtraPlayback(w http.ResponseWriter, r *http.Request, pr *Request, key frontend.RatingKey, e frontend.ExtraClip, parent *frontend.Title) {
 	ctx := r.Context()
 	p := s.parseExtraPlayRequest(r, key)
-	if policy, ok := s.d.AccessPolicy.(frontend.BitrateAccessPolicy); ok {
+	if policy, ok := s.policy().(frontend.BitrateAccessPolicy); ok {
 		if limit := policy.BitrateLimit(pr.User); limit > 0 && (p.caps.MaxBitrateKbps == 0 || limit < p.caps.MaxBitrateKbps) {
 			p.caps.MaxBitrateKbps = limit
 			p.opts.MaxBitrateKbps = limit
@@ -598,7 +598,7 @@ func (s *Server) handleExtraPart(w http.ResponseWriter, r *http.Request) bool {
 		writeHTTPError(w, http.StatusNotFound)
 		return true
 	}
-	if policy, ok := s.d.AccessPolicy.(frontend.PlaybackAccessPolicy); ok && !policy.CanPlay(pr.User, pr.Remote, s.now()) {
+	if policy, ok := s.policy().(frontend.PlaybackAccessPolicy); ok && !policy.CanPlay(pr.User, pr.Remote, s.now()) {
 		writeHTTPError(w, http.StatusForbidden)
 		return true
 	}

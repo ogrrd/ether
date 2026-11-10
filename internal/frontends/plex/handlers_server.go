@@ -2,6 +2,7 @@ package plex
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
 	"net/url"
@@ -390,8 +391,8 @@ func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleAccounts(w http.ResponseWriter, r *http.Request) {
 	var users []frontend.User
-	if s.d.Auth != nil {
-		if us, err := s.d.Auth.Users(r.Context()); err == nil {
+	if s.host.Identity != nil {
+		if us, err := s.listUsers(r.Context()); err == nil {
 			users = us
 		} else {
 			s.log.Warn("list users", "err", err)
@@ -456,12 +457,15 @@ func plexSubtitleMode(mode string) int {
 
 func (s *Server) handleSecurityToken(w http.ResponseWriter, r *http.Request) {
 	pr := FromContext(r.Context())
-	issuer, ok := s.d.Auth.(frontend.DelegationAuth)
-	if !ok || pr.User == nil || pr.User.Delegated {
+	if s.host.Identity == nil || pr.User == nil || pr.User.Delegated {
 		writeHTTPError(w, http.StatusForbidden)
 		return
 	}
-	token, err := issuer.IssueDelegation(r.Context(), pr.User.ID)
+	token, err := s.host.Identity.IssueDelegation(r.Context(), pr.User.ID)
+	if errors.Is(err, frontend.ErrUnauthorized) {
+		writeHTTPError(w, http.StatusForbidden)
+		return
+	}
 	if err != nil {
 		s.writeErr(w, r, err)
 		return

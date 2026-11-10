@@ -96,7 +96,7 @@ func TestRecordedHubsSearchSectionsLoadBearing(t *testing.T) {
 						t.Fatal(err)
 					}
 					f := newFixture()
-					f.srv.d.Identity.PlatformVersion = "6.1.0"
+					f.srv.setTestPlatformVersion("6.1.0")
 					defer f.srv.Close()
 					for _, title := range []core.Title{burbs, nineShow, nineS1, nineE1} {
 						f.catalog.titles[title.Key] = title

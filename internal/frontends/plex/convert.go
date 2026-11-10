@@ -1615,8 +1615,8 @@ func (s *Server) prefetchListEpisodes(ctx context.Context, pr *Request, ts []fro
 	// Leaf counts need only episode keys and numbering when no title policy
 	// can depend on hydrated fields. Unknown policies retain full metadata.
 	light := pr.User != nil && pr.User.MaxContentRating == "" && !s.viewerRestricted(pr.User)
-	if s.d.AccessPolicy != nil {
-		policy, known := s.d.AccessPolicy.(frontend.ArtworkAccessPolicy)
+	if s.policy() != nil {
+		policy, known := s.policy().(frontend.ArtworkAccessPolicy)
 		light = light && known && !policy.Restricted(pr.User)
 	}
 	return s.prefetchListEpisodesWith(ctx, pr, ts, light)
@@ -1738,10 +1738,15 @@ func (s *Server) audioLanguages(u *frontend.User) []string {
 	if u != nil {
 		langs = append(langs, u.AudioLanguages...)
 	}
-	if s.d.Config != nil {
-		if l := s.d.Config().Catalog.Language; l != "" {
-			langs = append(langs, strings.SplitN(l, "-", 2)[0])
-		}
+	l := ""
+	if s.host.MetadataLanguage != nil {
+		l = s.host.MetadataLanguage()
+	}
+	if l == "" {
+		l = s.cfg().Catalog.Language
+	}
+	if l != "" {
+		langs = append(langs, strings.SplitN(l, "-", 2)[0])
 	}
 	return langs
 }

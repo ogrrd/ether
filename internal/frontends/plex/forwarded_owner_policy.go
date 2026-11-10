@@ -30,7 +30,7 @@ func (s *Server) forwardedOwnerPolicy(r *http.Request, pr *Request) bool {
 	if viewer == nil || viewer.ID != entry.userID {
 		return false
 	}
-	if policy, ok := s.d.AccessPolicy.(frontend.UserPolicySource); ok {
+	if policy, ok := s.policy().(frontend.UserPolicySource); ok {
 		viewer = policy.UserPolicy(viewer)
 	}
 	if viewer == nil || viewer.ID != entry.userID {
@@ -38,7 +38,7 @@ func (s *Server) forwardedOwnerPolicy(r *http.Request, pr *Request) bool {
 	}
 	// pr.Remote comes from restored original provenance, never a delivery peer's
 	// LAN address or an unauthenticated caller-provided origin/user header.
-	if policy, ok := s.d.AccessPolicy.(frontend.PlaybackAccessPolicy); ok && !policy.CanPlay(viewer, pr.Remote, s.now()) {
+	if policy, ok := s.policy().(frontend.PlaybackAccessPolicy); ok && !policy.CanPlay(viewer, pr.Remote, s.now()) {
 		return false
 	}
 	title, err := s.d.Catalog.Get(r.Context(), entry.key)

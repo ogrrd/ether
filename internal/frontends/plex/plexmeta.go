@@ -16,10 +16,10 @@ type plexMetaBatch struct {
 }
 
 func (s *Server) plexMetaOn() bool {
-	if s == nil || s.d.PlexMeta == nil || s.d.Config == nil {
+	if s == nil || s.d.PlexMeta == nil || !s.hasConfig() {
 		return false
 	}
-	cfg := s.d.Config()
+	cfg := s.cfg()
 	return cfg.Plex.Claimed && cfg.Plex.UsePlexMetadata
 }
 

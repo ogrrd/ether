@@ -865,7 +865,7 @@ func TestWaysToWatchSubtitleReread(t *testing.T) {
 	f.srv.d.PlexGUID = pg
 
 	const plexToken = "plex-tv-user-token"
-	f.srv.d.Auth.(*fakeAuth).users[plexToken] = ownerUser
+	f.srv.testAuth().users[plexToken] = ownerUser
 	hdr := append([]string{"X-Plex-Token", plexToken}, appleTV...)
 
 	key := fightClub.Key.String()

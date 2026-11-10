@@ -60,6 +60,10 @@ func (s surfaceCapabilities) Build(ctx context.Context, req frontend.CapabilityR
 	return result, nil
 }
 
+func (s surfaceCapabilities) ApplyClientRules(q frontend.HostQualityConfig, caps core.ClientCaps, viewer *core.Viewer, media string) core.ClientCaps {
+	return resolver.ApplyClientRulesForMedia(q, caps, viewer, media)
+}
+
 func (a *App) recordFrontendFamily(ctx context.Context, surface frontend.Protocol, caps core.ClientCaps) {
 	// Store only the static family policy, not per-device declarations or viewer IDs.
 	product := strings.TrimSpace(caps.Product)

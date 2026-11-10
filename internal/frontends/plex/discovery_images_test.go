@@ -74,7 +74,7 @@ func TestPhotoTranscodeDiscoveryArtwork(t *testing.T) {
 		})
 	}
 	// The nested URL cannot supply credentials or bypass viewer restrictions.
-	f.srv.d.Auth.(*fakeAuth).users["kid"] = core.User{ID: 30, MaxContentRating: "PG"}
+	f.srv.testAuth().users["kid"] = core.User{ID: 30, MaxContentRating: "PG"}
 	target := "/photo/:/transcode?url=" + url.QueryEscape(md.Thumb+"&X-Plex-Token="+ownerToken)
 	for token, want := range map[string]int{"kid": http.StatusNotFound, "invalid": http.StatusUnauthorized} {
 		before := images.calls

@@ -43,10 +43,10 @@ func (r *policyRoutingRecommender) SectionCandidatesWithPolicy(ctx context.Conte
 func TestRestrictedHomeAndSectionUsePolicyBeforeLimit(t *testing.T) {
 	ctx := context.Background()
 	r := &policyRoutingRecommender{items: []core.Title{{Key: core.MovieKey(1), Adult: true}, {Key: core.MovieKey(2), ContentRating: "PG"}, {Key: core.MovieKey(3), ContentRating: "PG"}}}
-	s := &Server{d: testDeps(Deps{Recommender: r})}
+	s := testServer(Deps{Recommender: r})
 	for _, user := range []*core.User{{ID: 1, MaxContentRating: "PG"}, {ID: 2}} {
 		if user.ID == 2 {
-			s.d.AccessPolicy = unknownPolicy{}
+			s.setTestPolicy(unknownPolicy{})
 		}
 		for _, section := range []bool{false, true} {
 			var got []core.Hub
@@ -66,7 +66,7 @@ func TestRestrictedHomeAndSectionUsePolicyBeforeLimit(t *testing.T) {
 	}
 	for _, u := range []*core.User{{ID: 3, IsOwner: true}, {ID: 4}} {
 		if !u.IsOwner {
-			s.d.AccessPolicy = nil
+			s.setTestPolicy(nil)
 		}
 		if _, err := s.recommendHome(ctx, &Request{User: u}, core.HubContext{}, 2); err != nil {
 			t.Fatal(err)
@@ -87,7 +87,7 @@ func TestRestrictedLegacyRecommenderFailsClosed(t *testing.T) {
 	visible := core.Title{Key: core.MovieKey(5), Type: core.TypeMovie}
 	items := []core.Title{episode, unavailable, visible}
 	r := &fakeRecommender{home: []core.Hub{{ID: "home.test", Items: items}}, section: map[core.MediaType][]core.Hub{core.TypeMovie: {{ID: "movie.test", Items: items}}}}
-	s := &Server{d: testDeps(Deps{Recommender: r, AccessPolicy: unknownPolicy{}, FilterAvailable: func(_ context.Context, titles []core.Title) []core.Title {
+	s := testServer(Deps{Recommender: r, FilterAvailable: func(_ context.Context, titles []core.Title) []core.Title {
 		out := make([]core.Title, 0, len(titles))
 		for _, item := range titles {
 			if item.Key != unavailable.Key {
@@ -95,7 +95,8 @@ func TestRestrictedLegacyRecommenderFailsClosed(t *testing.T) {
 			}
 		}
 		return out
-	}})}
+	}})
+	s.setTestPolicy(unknownPolicy{})
 	for _, section := range []bool{false, true} {
 		var rows []core.Hub
 		var err error
@@ -130,7 +131,7 @@ func TestRestrictedPlexHomeRouteFiltersCandidatesAndDuplicateRows(t *testing.T) 
 	f.catalog.titles[blockedTitle.Key] = blockedTitle
 	candidates := []core.Title{bbE1, blockedTitle, fightClub}
 	f.srv.d.Recommender = &fakeRecommender{home: []core.Hub{{ID: "home.policy", Title: "Visible", Promoted: true, Items: candidates}, {ID: "home.policy", Title: "Duplicate", Promoted: true, Items: candidates}}}
-	f.srv.d.Auth.(*fakeAuth).users["restricted-home"] = core.User{ID: 88, AllowedLibraries: []core.LibraryID{1, 2}}
+	f.srv.testAuth().users["restricted-home"] = core.User{ID: 88, AllowedLibraries: []core.LibraryID{1, 2}}
 	rec := f.request(t, http.MethodGet, "/hubs?excludeContinueWatching=1", map[string]string{"Accept": "application/json", "X-Plex-Token": "restricted-home"})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("HTTP %d: %s", rec.Code, rec.Body.String())

@@ -274,6 +274,12 @@ func (s *Service) Allowed(u *core.User, t *core.Title) bool {
 	return s.PolicyAllowed(u, t)
 }
 
+// SetMaxRating is a no-op denial on a standalone safety service; host-side
+// rating mutation is authorized and persisted through the app's ViewerPolicy.
+func (s *Service) SetMaxRating(context.Context, *core.User, string) error {
+	return core.ErrUnauthorized
+}
+
 // PolicyAllowed evaluates mandatory safety and share restrictions for u without
 // consulting catalogue visibility rules.
 func (s *Service) PolicyAllowed(u *core.User, t *core.Title) bool {

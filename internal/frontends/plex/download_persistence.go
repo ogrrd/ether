@@ -8,8 +8,8 @@ import (
 
 func (s *Server) downloadPersistence() frontend.DownloadQueuePersistence {
 	var users func(context.Context) ([]frontend.Viewer, error)
-	if s.d.Auth != nil {
-		users = s.d.Auth.Users
+	if s.host.Identity != nil {
+		users = s.listUsers
 	}
 	return s.d.SessionStores.NewDownloadQueuePersistence(s.downloads, s.d.DB, s.d.Downloads, s.log, func() time.Duration { return s.cfg().Downloads.Expiry.D() }, s.downloadStorageID, users)
 }

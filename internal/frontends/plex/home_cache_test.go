@@ -46,7 +46,7 @@ func TestHomeCacheRevisionContract(t *testing.T) {
 	f := newFixture(func(d *Deps) {
 		rec = &buildCountingRecommender{fakeRecommender: d.Recommender.(*fakeRecommender)}
 		d.Recommender = rec
-		d.Auth = &fakeAuth{users: map[string]core.User{ownerToken: ownerUser, friendToken: friendUser, "kid-token": restricted}}
+		setDepsAuth(d, &fakeAuth{users: map[string]core.User{ownerToken: ownerUser, friendToken: friendUser, "kid-token": restricted}})
 		d.HomeCache = &HomeCacheSource{Revision: func(_ context.Context, u *core.User) (experience.HomeRevision, error) {
 			mu.Lock()
 			defer mu.Unlock()

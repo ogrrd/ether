@@ -84,7 +84,7 @@ func (s *Server) prerollPlayback(w http.ResponseWriter, r *http.Request, key fro
 		writeHTTPError(w, http.StatusNotFound)
 		return
 	}
-	if policy, ok := s.d.AccessPolicy.(frontend.PlaybackAccessPolicy); ok && !policy.CanPlay(pr.User, pr.Remote, s.now()) {
+	if policy, ok := s.policy().(frontend.PlaybackAccessPolicy); ok && !policy.CanPlay(pr.User, pr.Remote, s.now()) {
 		writeHTTPError(w, http.StatusForbidden)
 		return
 	}
@@ -100,7 +100,7 @@ func (s *Server) prerollPart(w http.ResponseWriter, r *http.Request, key fronten
 		writeHTTPError(w, http.StatusNotFound)
 		return
 	}
-	if policy, ok := s.d.AccessPolicy.(frontend.PlaybackAccessPolicy); ok && !policy.CanPlay(pr.User, pr.Remote, s.now()) {
+	if policy, ok := s.policy().(frontend.PlaybackAccessPolicy); ok && !policy.CanPlay(pr.User, pr.Remote, s.now()) {
 		writeHTTPError(w, http.StatusForbidden)
 		return
 	}

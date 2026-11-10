@@ -144,7 +144,7 @@ func TestLiveChannelLogoPlezyCompatibility(t *testing.T) {
 			t.Fatalf("remote %s: %d", target, rec.Code)
 		}
 	}
-	f.srv.d.Identity.MyPlexSubscription = false
+	f.srv.setTestSubscription(false)
 	if rec := f.get(t, "/photo/:/transcode?url="+url.QueryEscape(liveLogo(livetv.ToFrontendChannel(external)))); rec.Code != http.StatusNotFound {
 		t.Fatalf("disabled live TV: %d", rec.Code)
 	}
@@ -264,7 +264,7 @@ func TestAppleTVGuideLogoIsCloudFetchable(t *testing.T) {
 	if rec := f.request(t, http.MethodGet, tampered, map[string]string{"X-Plex-Token": ""}); rec.Code != http.StatusNotFound {
 		t.Fatalf("tampered signature: %d", rec.Code)
 	}
-	f.srv.d.PublicURL = func() string { return "https://203-0-113-7.abc123.plex.direct:32400" }
+	f.srv.setTestPublicURL(func() string { return "https://203-0-113-7.abc123.plex.direct:32400" })
 	if got := lineupThumb(); !strings.HasPrefix(got, "https://203-0-113-7.abc123.plex.direct:32400"+signedLogoPrefix) {
 		t.Fatalf("logo ignores the public address: %q", got)
 	}
@@ -297,7 +297,7 @@ func TestAppleTVGuideLogoIsCloudFetchable(t *testing.T) {
 func TestShowcaseChannelLogo(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
-	f.srv.d.RepoFileURL = func(path string) string { return "https://cdn.example/ether@v1/" + path }
+	f.srv.setTestRepoFileURL(func(path string) string { return "https://cdn.example/ether@v1/" + path })
 	ctx := context.Background()
 	rawCh := livetv.Channel{ID: "showcase-chroma-80", Name: "CHROMA 80", Kind: "virtual"}
 	c := livetv.ToFrontendChannel(rawCh)

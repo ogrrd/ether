@@ -1,6 +1,7 @@
 package plex
 
 import (
+	"context"
 	"net/http"
 	"slices"
 	"testing"
@@ -10,6 +11,10 @@ import (
 
 // sharePolicy is a viewer policy with a plex.tv share predicate.
 type sharePolicy struct{ tv core.Filter }
+func (sharePolicy) SetMaxRating(context.Context, *core.User, string) error {
+	return core.ErrUnauthorized
+}
+
 
 func (sharePolicy) Allowed(*core.User, *core.Title) bool { return true }
 func (p sharePolicy) BrowseShareFilter(_ *core.User, typ core.MediaType) core.Filter {
@@ -25,7 +30,7 @@ func (p sharePolicy) BrowseShareFilter(_ *core.User, typ core.MediaType) core.Fi
 func TestAllLeavesCarriesShareFilterIntoBrowse(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
-	f.srv.d.AccessPolicy = sharePolicy{tv: core.Filter{ContentRatings: []string{"TV-PG"}, ExcludeCollectionNames: []string{"Hidden"}}}
+	f.srv.setTestPolicy(sharePolicy{tv: core.Filter{ContentRatings: []string{"TV-PG"}, ExcludeCollectionNames: []string{"Hidden"}}})
 	rec := f.get(t, "/library/sections/2/allLeaves", "Accept", "application/json")
 	if rec.Code != http.StatusOK {
 		t.Fatal(rec.Code, rec.Body.String())

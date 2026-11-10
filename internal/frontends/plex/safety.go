@@ -62,11 +62,11 @@ func (s *Server) visibleTitles(u *frontend.User, ts []frontend.Title) []frontend
 }
 
 func (s *Server) titleAllowed(u *frontend.User, t *frontend.Title) bool {
-	return frontend.TitleAllowed(s.d.AccessPolicy, u, t) && s.plexMetaRatingAllowed(u, t)
+	return frontend.TitleAllowed(s.policy(), u, t) && s.plexMetaRatingAllowed(u, t)
 }
 
 func (s *Server) visibility() frontend.Visibility {
-	v := frontend.Visibility{Policy: s.d.AccessPolicy, FilterAvailable: s.d.FilterAvailable, JudgedOnFacts: s.d.JudgedOnFacts,
+	v := frontend.Visibility{Policy: s.policy(), FilterAvailable: s.d.FilterAvailable, JudgedOnFacts: s.d.JudgedOnFacts,
 		SectionFor: func(t frontend.MediaType) (int, bool) { sec, ok := s.untitledSectionFor(t); return sec.ID, ok }}
 	if s.d.Catalog != nil {
 		v.GetTitle = s.seriesTitle
@@ -132,7 +132,7 @@ func (s *Server) availableForViewer(ctx context.Context, u *frontend.User, ts []
 }
 
 func (s *Server) viewerRestricted(u *frontend.User) bool {
-	return frontend.ViewerRestricted(s.d.AccessPolicy, u)
+	return frontend.ViewerRestricted(s.policy(), u)
 }
 
 type seriesRowsKey struct{}

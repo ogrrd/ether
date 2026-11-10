@@ -1,6 +1,7 @@
 package plex
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,6 +11,10 @@ import (
 )
 
 type forwardedPolicy struct{ denyWAN, denyTitle bool }
+func (forwardedPolicy) SetMaxRating(context.Context, *core.User, string) error {
+	return core.ErrUnauthorized
+}
+
 
 func (p *forwardedPolicy) Allowed(*core.User, *core.Title) bool { return !p.denyTitle }
 func (p *forwardedPolicy) CanPlay(_ *core.User, remote bool, _ time.Time) bool {
@@ -31,7 +36,7 @@ func TestForwardedOwnerRechecksCurrentPolicyAndOriginalNetwork(t *testing.T) {
 	defer sender.srv.Close()
 	path := "/video/:/transcode/universal/session/policy-owner/base/00042.ts"
 	policy := &forwardedPolicy{}
-	owner.srv.d.AccessPolicy = policy
+	owner.srv.setTestPolicy(policy)
 	request := func(peer, token string) *httptest.ResponseRecorder {
 		r := httptest.NewRequest(http.MethodGet, path, nil)
 		r.RemoteAddr = peer
@@ -64,7 +69,7 @@ func TestForwardedOwnerRechecksCurrentPolicyAndOriginalNetwork(t *testing.T) {
 		t.Fatal("changed source user binding streamed", got.Code)
 	}
 	ps.UserID--
-	delete(owner.srv.d.Auth.(*fakeAuth).users, ownerToken)
+	delete(owner.srv.testAuth().users, ownerToken)
 	if got := request("10.0.0.5:5000", ownerToken); got.Code != 401 {
 		t.Fatal("owner revocation ignored", got.Code)
 	}
@@ -81,7 +86,7 @@ func TestForwardedMarkerOnlyAddsRestrictions(t *testing.T) {
 		t.Fatal(start.Code, start.Body.String())
 	}
 	path := "/video/:/transcode/universal/session/spoof-policy/base/00042.ts"
-	f.srv.d.AccessPolicy = &forwardedPolicy{denyTitle: true}
+	f.srv.setTestPolicy(&forwardedPolicy{denyTitle: true})
 	// Legacy non-forwarded local behavior is unchanged by this opt-in boundary.
 	if got := f.get(t, path); got.Code != 200 {
 		t.Fatal("nonforwarded path changed", got.Code)
@@ -99,7 +104,7 @@ func TestForwardedMarkerOnlyAddsRestrictions(t *testing.T) {
 	if got := local.get(t, "/video/:/transcode/universal/start.m3u8?path=%2Flibrary%2Fmetadata%2F1000000000000550&session=spoof-policy"); got.Code != 200 {
 		t.Fatal("local start", got.Code)
 	}
-	local.srv.d.AccessPolicy = &forwardedPolicy{denyTitle: true}
+	local.srv.setTestPolicy(&forwardedPolicy{denyTitle: true})
 	if got := local.request(t, "GET", path, map[string]string{"X-Plex-Token": ownerToken, "X-Ether-Delivery-Hop": "1"}); got.Code != 200 {
 		t.Fatal("nil seam changed legacy local behavior", got.Code)
 	}

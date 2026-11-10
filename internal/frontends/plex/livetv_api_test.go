@@ -52,7 +52,7 @@ func liveFixture(t *testing.T, transcoders ...core.Transcoder) (*fixture, *livet
 		t.Fatalf("channels: %v %+v", e, cs)
 	}
 	f.srv.d.LiveTV = service.Frontend()
-	f.srv.d.Identity.MyPlexSubscription = true
+	f.srv.setTestSubscription(true)
 	return f, service, cs[0]
 }
 
@@ -282,7 +282,7 @@ func TestLiveGridAndTuneLoadOneChannel(t *testing.T) {
 
 func TestLiveTVHonestPassAndViewerRestrictions(t *testing.T) {
 	f, service, c := liveFixture(t)
-	f.srv.d.Identity.MyPlexSubscription = false
+	f.srv.setTestSubscription(false)
 	for _, route := range []string{"/livetv/dvrs", liveProviderPath + "/grid", "/media/grabbers"} {
 		rec := f.get(t, route)
 		if rec.Code != 404 {
@@ -293,7 +293,7 @@ func TestLiveTVHonestPassAndViewerRestrictions(t *testing.T) {
 	if strings.Contains(providers.Body.String(), livetv.Provider) {
 		t.Fatal("Pass spoofed")
 	}
-	f.srv.d.Identity.MyPlexSubscription = true
+	f.srv.setTestSubscription(true)
 	if e := service.SetChannelViewers(context.Background(), c.ID, livetv.ChannelViewers{Deny: []int64{friendUser.ID}}); e != nil {
 		t.Fatal(e)
 	}
@@ -305,7 +305,7 @@ func TestLiveTVHonestPassAndViewerRestrictions(t *testing.T) {
 	if tune.Code != 404 {
 		t.Fatal("restricted channel tuned")
 	}
-	f.srv.d.Auth.(*fakeAuth).users["kid-live"] = core.User{ID: 99, MaxContentRating: "G"}
+	f.srv.testAuth().users["kid-live"] = core.User{ID: 99, MaxContentRating: "G"}
 	if e := service.SetChannelViewers(context.Background(), c.ID, livetv.ChannelViewers{Allow: []int64{friendUser.ID}}); e != nil {
 		t.Fatal(e)
 	}
@@ -607,7 +607,7 @@ func TestStreamTokenAloneFetchesPlaylistAndDASH(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.srv.d.LiveTV = service.Frontend()
-	f.srv.d.Identity.MyPlexSubscription = true
+	f.srv.setTestSubscription(true)
 
 	tune := f.request(t, "POST", "/livetv/dvrs/1/channels/7/tune", map[string]string{"Accept": "application/json"})
 	if tune.Code != 200 {
@@ -691,7 +691,7 @@ func TestVirtualChannelHLSFromStartPlaylistKeepsTheSession(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.srv.d.LiveTV = service.Frontend()
-	f.srv.d.Identity.MyPlexSubscription = true
+	f.srv.setTestSubscription(true)
 	headers := map[string]string{"Accept": "application/json", "X-Plex-Product": "Plex for Apple TV", "X-Plex-Platform": "tvOS", "X-Plex-Version": "2026.20.0"}
 	tune := f.request(t, "POST", "/livetv/dvrs/1/channels/4/tune", headers)
 	if tune.Code != 200 {

@@ -186,10 +186,10 @@ func TestAuthoredPlexRepresentationOwnerContract(t *testing.T) {
 			if out.Code != 403 {
 				t.Fatal("grant bypassed different account owner", out.Code)
 			}
-			owner.srv.d.AccessPolicy = &forwardedPolicy{denyTitle: true}
+			owner.srv.setTestPolicy(&forwardedPolicy{denyTitle: true})
 			out = httptest.NewRecorder()
 			sender.srv.ServeHTTP(out, httptest.NewRequest("GET", target, nil))
-			owner.srv.d.AccessPolicy = nil
+			owner.srv.setTestPolicy(nil)
 			if out.Code != 403 {
 				t.Fatal("current title denial bypassed", out.Code)
 			}

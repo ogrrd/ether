@@ -107,8 +107,8 @@ func (a *delegationAuthFake) IssueDelegation(context.Context, int64) (string, er
 func TestSecurityTokenNeverReturnsAccountCredential(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
-	a := &delegationAuthFake{fakeAuth: f.srv.d.Auth.(*fakeAuth)}
-	f.srv.d.Auth = a
+	a := &delegationAuthFake{fakeAuth: f.srv.testAuth()}
+	f.srv.setTestAuth(a)
 	rec := f.get(t, "/security/token", jsonAccept...)
 	attrs := containerAttrs(t, rec.Body.Bytes())
 	if rec.Code != 200 || attrs["token"] != "server-local-casting-token" || a.calls != 1 || strings.Contains(rec.Body.String(), ownerToken) {
@@ -124,7 +124,7 @@ func TestSecurityTokenNeverReturnsAccountCredential(t *testing.T) {
 	if rec := f.get(t, "/security/token"); rec.Code != http.StatusForbidden || a.calls != 1 {
 		t.Fatal("delegated credential minted another credential")
 	}
-	f.srv.d.Auth = a.fakeAuth
+	f.srv.setTestAuth(a.fakeAuth)
 	if rec := f.get(t, "/security/token"); rec.Code != http.StatusForbidden || strings.Contains(rec.Body.String(), ownerToken) {
 		t.Fatal("fallback leaked account credential")
 	}

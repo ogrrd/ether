@@ -42,7 +42,7 @@ func shelfGenerationPagingInvariant(t *testing.T, collection, evidence bool) {
 	// Background palette jobs read the clock while the test advances it.
 	var now atomic.Int64
 	now.Store(fixedNow.UnixNano())
-	f.srv.d.Now = func() time.Time { return time.Unix(0, now.Load()).In(fixedNow.Location()) }
+	f.srv.setTestNow(func() time.Time { return time.Unix(0, now.Load()).In(fixedNow.Location()) })
 	var mixed []core.Title
 	for i := 0; i < 140; i++ {
 		movie, show := fightClub, breakingBad

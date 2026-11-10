@@ -56,7 +56,7 @@ func (s *Server) downloadsEnabled() bool {
 // allowSync="1"): the owner always, friends only with the owner's
 // AllowFriends setting unless the access policy decides per user.
 func (s *Server) downloadsAllowed(u *frontend.User) bool {
-	return frontend.DownloadsAllowed(u, s.downloadsEnabled(), s.cfg().Downloads.AllowFriends, s.d.AccessPolicy)
+	return frontend.DownloadsAllowed(u, s.downloadsEnabled(), s.cfg().Downloads.AllowFriends, s.policy())
 }
 
 // DownloadsAllowed exposes the same admission decision for informational

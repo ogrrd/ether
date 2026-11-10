@@ -36,7 +36,8 @@ func TestRecentlyAddedUsesAirDerivedDatesAcrossSections(t *testing.T) {
 // actual 2004 release/air date; original availability and refresh bytes stay.
 func TestPre1970ReleaseIsTheDateAdded(t *testing.T) {
 	now := time.Date(2026, 10, 31, 0, 0, 0, 0, time.UTC)
-	s := &Server{d: testDeps(Deps{Now: func() time.Time { return now }})}
+	s := testServer(Deps{})
+	s.setTestNow(func() time.Time { return now })
 	movie := &core.Title{Key: core.MovieKey(289), Type: core.TypeMovie, Title: "Casablanca", Released: time.Date(1942, 11, 26, 0, 0, 0, 0, time.UTC)}
 	md := s.metadata(context.Background(), &Request{}, movie, renderOpts{})
 	if md.AddedAt != movie.Released.Unix() || md.AddedAt >= 0 || md.OriginallyAvailableAt != "1942-11-26" {

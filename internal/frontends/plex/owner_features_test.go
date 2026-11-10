@@ -17,7 +17,7 @@ func TestOwnerEntitlementsReachSharedClients(t *testing.T) {
 		"pass", "remote-watch-pass",
 	}
 	f := newFixture(func(d *Deps) {
-		d.OwnerSubscription = func() (bool, []string) { return active, features }
+		setDepsOwnerSubscription(d, func() (bool, []string) { return active, features })
 	})
 	defer f.srv.Close()
 	check := func(wantActive, wantFeatures string) {

@@ -72,7 +72,7 @@ func TestStremioAddonGuideOnPlexGrid(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
 	f.srv.d.LiveTV = s.Frontend()
-	f.srv.d.Identity.MyPlexSubscription = true
+	f.srv.setTestSubscription(true)
 	res := f.request(t, "GET", liveProviderPath+"/grid?date=2026-10-18&channelGridKey="+channels[0].ID, map[string]string{"Accept": "application/json"})
 	if res.Code != 200 || !strings.Contains(res.Body.String(), "Test broadcast") || strings.Contains(res.Body.String(), "secret") {
 		t.Fatalf("grid: %d %s", res.Code, res.Body.String())

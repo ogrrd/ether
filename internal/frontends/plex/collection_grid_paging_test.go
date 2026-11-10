@@ -12,6 +12,10 @@ import (
 )
 
 type collectionGridPolicy struct{ key core.RatingKey }
+func (collectionGridPolicy) SetMaxRating(context.Context, *core.User, string) error {
+	return core.ErrUnauthorized
+}
+
 
 func (p collectionGridPolicy) Allowed(_ *core.User, t *core.Title) bool { return t.Key != p.key }
 
@@ -100,7 +104,7 @@ func TestCollectionGridPagingInvariant(t *testing.T) {
 	if len(alias.Metadata) != 24 || alias.Metadata[0].RatingKey != expected[8] {
 		t.Fatalf("alias shifted: %+v", alias)
 	}
-	f.srv.d.AccessPolicy = collectionGridPolicy{key: core.MovieKey(40020)}
+	f.srv.setTestPolicy(collectionGridPolicy{key: core.MovieKey(40020)})
 	restricted := get(path, 0, 100)
 	if restricted.TotalSize == nil || *restricted.TotalSize != len(expected)-1 {
 		t.Fatalf("authorization not applied before count: %+v", restricted)

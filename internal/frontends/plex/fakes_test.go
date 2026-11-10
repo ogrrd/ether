@@ -20,6 +20,7 @@ import (
 
 	"github.com/braedonsaunders/ether/internal/config"
 	"github.com/braedonsaunders/ether/internal/core"
+	"github.com/braedonsaunders/ether/internal/frontend"
 	"github.com/braedonsaunders/ether/internal/livetv/livetvtest"
 	"github.com/braedonsaunders/ether/internal/resolver"
 	"github.com/braedonsaunders/ether/internal/sessions"
@@ -1226,32 +1227,34 @@ func newFixture(opts ...func(*Deps)) *fixture {
 		},
 	}
 	d := Deps{
-		Catalog:          cat,
-		Collections:      f.cols,
-		Recommender:      rec,
-		State:            f.state,
-		Playlists:        f.pls,
-		Auth:             &fakeAuth{users: map[string]core.User{ownerToken: ownerUser, friendToken: friendUser}},
-		Playback:         f.playback,
-		Transcoder:       f.trans,
-		ApplyClientRules: resolver.ApplyClientRulesForMedia,
-		HTTPClient:       &http.Client{Transport: f.art},
-		Config: func() config.Config {
-			c := config.Config{}
-			c.Server.Port = 32400
-			c.Server.FriendlyName = "Ether Test"
-			c.Server.MachineIdentifier = "0123456789abcdef0123456789abcdef01234567"
-			c.Plex.Claimed = true
-			c.Plex.OwnerUsername = "owner"
-			c.Transcode.RemoteMaxBitrateKbps = 8000
-			return c
+		Host: frontend.Host{
+			Capabilities: frontend.BindClientRules(resolver.ApplyClientRulesForMedia),
 		},
-		Identity: Identity{Version: "1.43.4.10903-e5521bd8c", Platform: "Linux", PlatformVersion: "6.1"},
+		Catalog:     cat,
+		Collections: f.cols,
+		Recommender: rec,
+		State:       f.state,
+		Playlists:   f.pls,
+		Playback:    f.playback,
+		Transcoder:  f.trans,
 		Hooks: Hooks{OnTimeline: func(u *core.User, k core.RatingKey, off, dur time.Duration, state string) {
 			f.hooks <- fmt.Sprintf("%s %s %d %s", u.Username, k, off.Milliseconds(), state)
 		}},
-		Now: func() time.Time { return fixedNow },
 	}
+	setDepsAuth(&d, &fakeAuth{users: map[string]core.User{ownerToken: ownerUser, friendToken: friendUser}})
+	setDepsHTTPClient(&d, &http.Client{Transport: f.art})
+	setDepsConfig(&d, func() config.Config {
+		c := config.Config{}
+		c.Server.Port = 32400
+		c.Server.FriendlyName = "Ether Test"
+		c.Server.MachineIdentifier = "0123456789abcdef0123456789abcdef01234567"
+		c.Plex.Claimed = true
+		c.Plex.OwnerUsername = "owner"
+		c.Transcode.RemoteMaxBitrateKbps = 8000
+		return c
+	})
+	setDepsIdentity(&d, Identity{Version: "1.43.4.10903-e5521bd8c", Platform: "Linux", PlatformVersion: "6.1"})
+	setDepsNow(&d, func() time.Time { return fixedNow })
 	for _, o := range opts {
 		o(&d)
 	}
@@ -1471,7 +1474,7 @@ func (f *fixture) attachPlaybackBroker(d Deps) {
 			}
 			return f.srv.d.Subtitles.OpenFormat(id, format)
 		},
-		Events: events, Now: d.Now,
+		Events: events, Now: f.srv.now,
 	})
 	if err != nil {
 		panic(err)

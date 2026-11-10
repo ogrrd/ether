@@ -90,7 +90,7 @@ func TestClientSeenOnlyAfterAuthentication(t *testing.T) {
 func TestSectionRestriction(t *testing.T) {
 	f := newFixture()
 	defer f.srv.Close()
-	f.srv.d.Auth.(*fakeAuth).users["kid"] = core.User{ID: 3, Username: "kid", AllowedLibraries: []core.LibraryID{1}}
+	f.srv.testAuth().users["kid"] = core.User{ID: 3, Username: "kid", AllowedLibraries: []core.LibraryID{1}}
 	rec := f.request(t, http.MethodGet, "/library/sections", map[string]string{"X-Plex-Token": "kid"})
 	if strings.Contains(rec.Body.String(), `title="TV Shows"`) {
 		t.Fatalf("restricted section visible: %s", rec.Body.String())
@@ -529,7 +529,7 @@ func TestPhotoTranscode(t *testing.T) {
 	f.srv.Close()
 	d := f.srv.d
 	d.ImageURL = func(path, size string) string { return tmdb.URL + "/t/p/" + size + path }
-	d.HTTPClient = tmdb.Client()
+	setDepsHTTPClient(&d, tmdb.Client())
 	f.srv = NewServer(testDeps(d))
 	defer f.srv.Close()
 

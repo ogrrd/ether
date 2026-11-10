@@ -15,6 +15,7 @@ import (
 type surfaceIdentity struct {
 	settings    func() frontend.Settings
 	surface     frontend.Protocol
+	users       core.Auth
 	resolver    *identity.Resolver
 	local       *identity.Local
 	grants      *identity.Grants
@@ -29,6 +30,52 @@ func (s surfaceIdentity) Resolve(ctx context.Context, credential string) (*core.
 	}
 	return s.resolver.Resolve(ctx, string(s.surface), credential)
 }
+
+func (s surfaceIdentity) Accept(ctx context.Context, token string) (*core.Viewer, frontend.CredentialAcceptance, error) {
+	if s.surface != "plex" || core.IsGrantCredential(token) {
+		return nil, frontend.CredentialAcceptance{}, core.ErrUnauthorized
+	}
+	if acc, ok := s.users.(frontend.CredentialAcceptor); ok {
+		return acc.Accept(ctx, token)
+	}
+	u, err := s.Resolve(ctx, token)
+	return u, frontend.CredentialAcceptance{}, err
+}
+
+func (s surfaceIdentity) ReceiptCurrent(ctx context.Context, r frontend.CredentialAcceptance) error {
+	if s.surface != "plex" {
+		return core.ErrUnauthorized
+	}
+	if acc, ok := s.users.(frontend.CredentialAcceptor); ok {
+		return acc.ReceiptCurrent(ctx, r)
+	}
+	return core.ErrUnauthorized
+}
+
+func (s surfaceIdentity) IssueDelegation(ctx context.Context, userID int64) (string, error) {
+	if s.surface != "plex" {
+		return "", core.ErrUnauthorized
+	}
+	if del, ok := s.users.(frontend.DelegationAuth); ok {
+		return del.IssueDelegation(ctx, userID)
+	}
+	return "", core.ErrUnauthorized
+}
+
+func (s surfaceIdentity) ActiveUser(ctx context.Context, id int64) (*core.User, error) {
+	if act, ok := s.users.(frontend.ActiveUserSource); ok {
+		return act.ActiveUser(ctx, id)
+	}
+	return nil, core.ErrUnauthorized
+}
+
+func (s surfaceIdentity) Users(ctx context.Context) ([]core.User, error) {
+	if s.users == nil {
+		return nil, nil
+	}
+	return s.users.Users(ctx)
+}
+
 func (s surfaceIdentity) ViewerTimes(ctx context.Context, credential string, target int64) (frontend.ViewerTimes, error) {
 	if s.times == nil || target <= 0 {
 		return frontend.ViewerTimes{}, core.ErrUnauthorized

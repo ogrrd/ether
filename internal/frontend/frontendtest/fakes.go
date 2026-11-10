@@ -454,12 +454,29 @@ func (f Identity) Revoke(ctx context.Context, grant string) error {
 	return frontend.ErrIdentityUnavailable
 }
 func (f Identity) SetupComplete() bool { return f.SetupCompleteFunc != nil && f.SetupCompleteFunc() }
+func (f Identity) Accept(ctx context.Context, token string) (*core.Viewer, frontend.CredentialAcceptance, error) {
+	u, err := f.Resolve(ctx, token)
+	return u, frontend.CredentialAcceptance{}, err
+}
+func (f Identity) ReceiptCurrent(context.Context, frontend.CredentialAcceptance) error {
+	return core.ErrUnauthorized
+}
+func (f Identity) IssueDelegation(context.Context, int64) (string, error) {
+	return "", core.ErrUnauthorized
+}
+func (f Identity) ActiveUser(context.Context, int64) (*core.User, error) {
+	return nil, frontend.ErrIdentityUnavailable
+}
+func (f Identity) Users(context.Context) ([]core.User, error) {
+	return nil, nil
+}
 
 var _ frontend.SurfaceIdentity = Identity{}
 
 // Capabilities is a configurable fake for the host capability provider.
 type Capabilities struct {
-	BuildFunc func(context.Context, frontend.CapabilityRequest) (frontend.CapabilityResult, error)
+	BuildFunc            func(context.Context, frontend.CapabilityRequest) (frontend.CapabilityResult, error)
+	ApplyClientRulesFunc func(frontend.HostQualityConfig, core.ClientCaps, *core.Viewer, string) core.ClientCaps
 }
 
 func (f Capabilities) Build(ctx context.Context, req frontend.CapabilityRequest) (frontend.CapabilityResult, error) {
@@ -467,6 +484,13 @@ func (f Capabilities) Build(ctx context.Context, req frontend.CapabilityRequest)
 		return f.BuildFunc(ctx, req)
 	}
 	return frontend.CapabilityResult{}, nil
+}
+
+func (f Capabilities) ApplyClientRules(q frontend.HostQualityConfig, c core.ClientCaps, v *core.Viewer, media string) core.ClientCaps {
+	if f.ApplyClientRulesFunc != nil {
+		return f.ApplyClientRulesFunc(q, c, v, media)
+	}
+	return c
 }
 
 var _ frontend.Capabilities = Capabilities{}

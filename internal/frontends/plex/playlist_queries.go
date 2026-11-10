@@ -468,14 +468,10 @@ func (s *Server) writeSmartPlaylistItems(w http.ResponseWriter, r *http.Request,
 
 	if pr.User != nil && source.q.Filter.Type == frontend.TypeEpisode {
 		policy := frontend.Filter{MaxContentRating: pr.User.MaxContentRating, SaferPlexRating: s.needPlexRatingFilter(pr.User)}
-		if blocks, ok := s.d.AccessPolicy.(interface {
-			BrowseBlocks(*frontend.User) ([]string, []string)
-		}); ok {
+		if blocks, ok := s.policy().(frontend.BrowseBlocksPolicy); ok {
 			policy.ExcludeGenres, policy.ExcludeKeywords = blocks.BrowseBlocks(pr.User)
 		}
-		if share, ok := s.d.AccessPolicy.(interface {
-			BrowseShareFilter(*frontend.User, frontend.MediaType) frontend.Filter
-		}); ok {
+		if share, ok := s.policy().(frontend.BrowseShareFilterPolicy); ok {
 			policy, _ = s.d.Experience.MergeShareFilter(policy, share.BrowseShareFilter(pr.User, frontend.TypeEpisode))
 		}
 		source.q.Filter.ChildVisibility = &policy

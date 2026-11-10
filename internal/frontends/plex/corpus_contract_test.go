@@ -66,7 +66,7 @@ func TestRecordedCorpusProtocolContracts(t *testing.T) {
 					f := newFixture()
 					// XML's scalar heuristic treats a two-part OS version as a number;
 					// use a normal dotted version string for this cross-platform fixture.
-					f.srv.d.Identity.PlatformVersion = "6.1.0"
+					f.srv.setTestPlatformVersion("6.1.0")
 					defer f.srv.Close()
 					for _, title := range []core.Title{burbs, nineShow, nineS1, nineE1} {
 						f.catalog.titles[title.Key] = title

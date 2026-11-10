@@ -19,6 +19,14 @@ import (
 var portalDockerBridge = netip.MustParsePrefix("172.16.0.0/12")
 
 func (r *frontendRuntime) surfaceURL(ctx context.Context, id frontend.Protocol, req *http.Request) (string, error) {
+	if req == nil {
+		if id == "plex" && r.app != nil && r.app.registrar != nil {
+			if origin := publicPlexOrigin(r.app.registrar.Status().Connections); origin != "" {
+				return origin, nil
+			}
+		}
+		return "", errors.New("client address unavailable")
+	}
 	ip, ok := r.app.frontendClientIP(req)
 	if !ok {
 		return "", errors.New("client address unavailable")

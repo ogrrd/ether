@@ -63,24 +63,12 @@ func (s *Server) refuseCapability(w http.ResponseWriter, r *http.Request) bool {
 }
 
 func (s *Server) activeViewer(ctx context.Context, id int64) *frontend.User {
-	if s.d.Auth == nil {
+	if s.host.Identity == nil {
 		return nil
 	}
-	if a, ok := s.d.Auth.(frontend.ActiveUserSource); ok {
-		u, err := a.ActiveUser(ctx, id)
-		if err == nil {
-			return u
-		}
-		return nil
-	}
-	users, err := s.d.Auth.Users(ctx)
-	if err != nil {
-		return nil
-	}
-	for _, u := range users {
-		if u.ID == id {
-			return &u
-		}
+	u, err := s.host.Identity.ActiveUser(ctx, id)
+	if err == nil {
+		return u
 	}
 	return nil
 }
@@ -107,10 +95,10 @@ func (s *Server) authenticateStreamGrant(r *http.Request, pr *Request) bool {
 	if !ok {
 		return false
 	}
-	if policy, ok := s.d.AccessPolicy.(frontend.UserPolicySource); ok {
+	if policy, ok := s.policy().(frontend.UserPolicySource); ok {
 		u = policy.UserPolicy(u)
 	}
-	if policy, ok := s.d.AccessPolicy.(frontend.PlaybackAccessPolicy); ok && !policy.CanPlay(u, pr.ClientCaps(0).Remote, s.now()) {
+	if policy, ok := s.policy().(frontend.PlaybackAccessPolicy); ok && !policy.CanPlay(u, pr.ClientCaps(0).Remote, s.now()) {
 		return false
 	}
 
@@ -152,10 +140,10 @@ func (s *Server) authenticateSessionRead(r *http.Request, pr *Request) bool {
 	if u == nil {
 		return false
 	}
-	if policy, ok := s.d.AccessPolicy.(frontend.UserPolicySource); ok {
+	if policy, ok := s.policy().(frontend.UserPolicySource); ok {
 		u = policy.UserPolicy(u)
 	}
-	if policy, ok := s.d.AccessPolicy.(frontend.PlaybackAccessPolicy); ok && !policy.CanPlay(u, pr.ClientCaps(0).Remote, s.now()) {
+	if policy, ok := s.policy().(frontend.PlaybackAccessPolicy); ok && !policy.CanPlay(u, pr.ClientCaps(0).Remote, s.now()) {
 		return false
 	}
 	pr.User = u

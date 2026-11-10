@@ -340,11 +340,7 @@ type countWriter struct {
 }
 
 func (s *Server) newCountWriter(w http.ResponseWriter, r *http.Request) *countWriter {
-	now := s.d.Now
-	if now == nil {
-		now = time.Now
-	}
-	return &countWriter{ResponseWriter: w, now: now, flush: func(n int64) { s.noteStreamBytes(r, n) }}
+	return &countWriter{ResponseWriter: w, now: s.now, flush: func(n int64) { s.noteStreamBytes(r, n) }}
 }
 
 func (w *countWriter) Write(p []byte) (int, error) {

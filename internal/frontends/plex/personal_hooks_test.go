@@ -61,12 +61,12 @@ func hookFixture(t *testing.T, on bool) (*fixture, *hookRecommender) {
 		},
 	}
 	f.srv.d.Recommender = rec
-	base := f.srv.d.Config
-	f.srv.d.Config = func() config.Config {
+	base := f.srv.testConfig()
+	f.srv.setTestConfig(func() config.Config {
 		c := base()
 		c.Personalize = config.Personalize{PostPlay: on, PostPlayPrebuffer: on, MicroReasons: on, SessionIntent: on}
 		return c
-	}
+	})
 	return f, rec
 }
 

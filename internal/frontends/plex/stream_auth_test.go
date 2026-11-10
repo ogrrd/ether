@@ -51,7 +51,7 @@ func TestStreamGrantIsolation(t *testing.T) {
 		t.Fatal("viewer stopped someone else's stream")
 	}
 	// A grant stops working immediately when its viewer is no longer active.
-	a := f.srv.d.Auth.(*fakeAuth)
+	a := f.srv.testAuth()
 	for tok, u := range a.users {
 		if u.ID == e.userID {
 			delete(a.users, tok)

@@ -99,21 +99,22 @@ func newDownloadFixture(t *testing.T, downloadsOn bool) *downloadFixture {
 		}
 		return c
 	}
-	f.srv = NewServer(testDeps(Deps{
-		Catalog:   cat,
-		State:     newFakeState(),
-		Auth:      f.auth,
-		Playback:  f.playback,
-		Downloads: f.remux,
-		Config:    cfg,
-		Identity:  Identity{Version: "1.43.4.10903-e5521bd8c", Platform: "Linux"},
-		Now: func() time.Time {
-			f.mu.Lock()
-			defer f.mu.Unlock()
-			return f.now
-		},
+	d := Deps{
+		Catalog:           cat,
+		State:             newFakeState(),
+		Playback:          f.playback,
+		Downloads:         f.remux,
 		DisableEnrichment: true,
-	}))
+	}
+	setDepsAuth(&d, f.auth)
+	setDepsConfig(&d, cfg)
+	setDepsIdentity(&d, Identity{Version: "1.43.4.10903-e5521bd8c", Platform: "Linux"})
+	setDepsNow(&d, func() time.Time {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		return f.now
+	})
+	f.srv = NewServer(testDeps(d))
 	t.Cleanup(func() { f.srv.Close() })
 	return f
 }
@@ -500,6 +501,10 @@ func TestDownloadMediaRechecksTitleVisibility(t *testing.T) {
 }
 
 type blockAllKeyword string
+func (blockAllKeyword) SetMaxRating(context.Context, *core.User, string) error {
+	return core.ErrUnauthorized
+}
+
 
 func (b blockAllKeyword) Allowed(_ *core.User, t *core.Title) bool {
 	for _, k := range t.Keywords {
@@ -514,7 +519,7 @@ func (b blockAllKeyword) Allowed(_ *core.User, t *core.Title) bool {
 // (episodes do not carry the show's keywords).
 func TestDownloadQueueRejectsEpisodeOfBlockedShow(t *testing.T) {
 	f := newDownloadFixture(t, true)
-	f.srv.d.AccessPolicy = blockAllKeyword("blocked")
+	f.srv.setTestPolicy(blockAllKeyword("blocked"))
 	show := breakingBad
 	show.Keywords = []string{"blocked"}
 	f.srv.d.Catalog.(*fakeCatalog).titles[show.Key] = show

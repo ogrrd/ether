@@ -23,8 +23,9 @@ import (
 
 	"github.com/braedonsaunders/ether/internal/config"
 	"github.com/braedonsaunders/ether/internal/core"
-	"github.com/braedonsaunders/ether/internal/livetv"
+	"github.com/braedonsaunders/ether/internal/frontend"
 	"github.com/braedonsaunders/ether/internal/frontends/plex"
+	"github.com/braedonsaunders/ether/internal/livetv"
 	"github.com/braedonsaunders/ether/internal/resolver"
 	"github.com/braedonsaunders/ether/internal/store"
 	"github.com/braedonsaunders/ether/internal/transcode"
@@ -198,10 +199,21 @@ func (e *liveEther) servePlex(log *slog.Logger, channels []livetv.Channel) (*liv
 	cfg.Plex.Claimed = true
 	cfg.Plex.OwnerUsername = "owner"
 	e.plex = plex.NewServer(plex.Deps{
+		Host: frontend.Host{
+			Identity:     frontend.BindAuth(liveAuth{}),
+			Capabilities: frontend.BindClientRules(resolver.ApplyClientRulesForMedia),
+			Config: func() frontend.Settings {
+				st := frontend.WithHostConfig(func() config.Config { return cfg })()
+				st["version"] = "1.43.4.10903-e5521bd8c"
+				st["platform"] = "MacOSX"
+				st["platformVersion"] = "26"
+				st["myPlexSubscription"] = true
+				return st
+			},
+			Log: log.With("component", "plex"),
+		},
 		SessionStores: sessions.NewPlexSessionStores(), ArtworkStores: artworkservice.NewPlexArtworkStores(),
-		LiveTV: e.service.Frontend(), Auth: liveAuth{}, Transcoder: e.manager, ApplyClientRules: resolver.ApplyClientRulesForMedia,
-		Config: func() config.Config { return cfg }, Logger: log.With("component", "plex"),
-		Identity: plex.Identity{MachineIdentifier: cfg.Server.MachineIdentifier, FriendlyName: cfg.Server.FriendlyName, Version: "1.43.4.10903-e5521bd8c", Platform: "MacOSX", PlatformVersion: "26", MyPlexSubscription: true},
+		LiveTV: e.service.Frontend(), Transcoder: e.manager,
 	})
 	e.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id := r.Header.Get("X-Chaos-Judge")

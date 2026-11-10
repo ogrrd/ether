@@ -45,7 +45,7 @@ func TestPM4KLibrarySlashCompatibility(t *testing.T) {
 	if rec := f.get(t, "/library/not-a-real-endpoint"); rec.Code != http.StatusNotFound {
 		t.Errorf("unknown endpoint: got %d, want 404", rec.Code)
 	}
-	f.srv.d.Auth.(*fakeAuth).users[friendToken] = core.User{ID: 2, Username: "friend", AllowedLibraries: []core.LibraryID{1}}
+	f.srv.testAuth().users[friendToken] = core.User{ID: 2, Username: "friend", AllowedLibraries: []core.LibraryID{1}}
 	if rec := f.get(t, "/library/", "X-Plex-Token", friendToken); rec.Code != http.StatusOK {
 		t.Fatalf("friend library root: %d", rec.Code)
 	}

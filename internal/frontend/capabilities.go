@@ -28,4 +28,25 @@ type CapabilityResult struct {
 // Capabilities applies client declarations, device quirks and owner rules.
 type Capabilities interface {
 	Build(context.Context, CapabilityRequest) (CapabilityResult, error)
+	ApplyClientRules(HostQualityConfig, core.ClientCaps, *core.Viewer, string) core.ClientCaps
+}
+
+type ruleCapabilities struct {
+	apply func(HostQualityConfig, core.ClientCaps, *core.Viewer, string) core.ClientCaps
+}
+
+func (ruleCapabilities) Build(context.Context, CapabilityRequest) (CapabilityResult, error) {
+	return CapabilityResult{}, core.ErrUnauthorized
+}
+
+func (r ruleCapabilities) ApplyClientRules(q HostQualityConfig, c core.ClientCaps, v *core.Viewer, media string) core.ClientCaps {
+	if r.apply == nil {
+		return c
+	}
+	return r.apply(q, c, v, media)
+}
+
+// BindClientRules adapts a client-rule function into a Capabilities service.
+func BindClientRules(fn func(HostQualityConfig, core.ClientCaps, *core.Viewer, string) core.ClientCaps) Capabilities {
+	return ruleCapabilities{apply: fn}
 }

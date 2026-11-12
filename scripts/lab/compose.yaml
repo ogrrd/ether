@@ -34,7 +34,7 @@ services:
     restart: unless-stopped
   silo:
     # Digest of the current upstream pre-release omnibus image.
-    image: ghcr.io/silo-server/silo-server:aio@sha256:bd5f1bbd88fc01a7f03f57c4baeadb8a6bcf26d16c90d8c85b92e06351e0e18c
+    image: ghcr.io/silo-server/silo-server:aio@sha256:d9450d037f11b0e22dc9016cd69b6ea50e6e5bb379d4a76609431bcda14bff85
     container_name: prism-silo
     depends_on:
       silo-ffmpeg-seed:
